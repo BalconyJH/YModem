@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net10.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWPF>true</UseWPF>
     <RootNamespace>YModemWin</RootNamespace>
     <AssemblyName>YModem</AssemblyName>
@@ -11,14 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Wpf.Ui" Version="4.0.0" />
-    <PackageReference Include="System.IO.Ports" Version="10.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Compile Remove="Form1.cs" />
-    <Compile Remove="Form1.Designer.cs" />
-    <Compile Remove="Program.cs" />
-    <EmbeddedResource Remove="Form1.resx" />
+    <PackageReference Include="WPF-UI" Version="4.2.0" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.3" />
   </ItemGroup>
 </Project>
