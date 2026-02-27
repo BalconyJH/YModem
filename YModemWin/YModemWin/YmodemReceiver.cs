@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,8 +10,7 @@ namespace YModemWin
     using System.IO;
     using System.IO.Ports;
     using System.Text;
-    using System.Windows.Forms;
-
+    
     public class YModemReceiver
     {
         private const int PacketSize128 = 128; // 128 字节包大小
