@@ -1,5 +1,6 @@
 using System.IO.Ports;
 using System.Text;
+using System.Runtime.Versioning;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -8,6 +9,7 @@ using WinRT.Interop;
 
 namespace YModemWin;
 
+[SupportedOSPlatform("windows10.0.17763.0")]
 public sealed partial class MainWindow : Window
 {
     private SerialPort activePort;
