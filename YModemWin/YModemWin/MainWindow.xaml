@@ -11,6 +11,28 @@
         WindowBackdropType="Mica"
         WindowCornerPreference="Round">
 
+    <ui:FluentWindow.Resources>
+        <Style x:Key="UniformComboBoxStyle" TargetType="ComboBox">
+            <Setter Property="Width" Value="180" />
+            <Setter Property="Height" Value="34" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="UniformButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="MinWidth" Value="120" />
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="UniformToggleButtonStyle" TargetType="ToggleButton">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="MinWidth" Value="120" />
+            <Setter Property="Padding" Value="12,4" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </ui:FluentWindow.Resources>
+
     <Grid>
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -28,13 +50,19 @@
                 <RowDefinition Height="200" />
             </Grid.RowDefinitions>
 
-        <GroupBox Grid.Row="0" Header="Serial" Padding="12" Margin="0,0,0,10">
-            <StackPanel Orientation="Horizontal">
+        <Border Grid.Row="0"
+                Margin="0,0,0,10"
+                Padding="12"
+                CornerRadius="8"
+                Background="#2B303A">
+            <StackPanel>
+                <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Serial" />
+                <StackPanel Orientation="Horizontal">
                 <TextBlock VerticalAlignment="Center" Text="Port" />
-                <ComboBox x:Name="PortComboBox" Width="180" Margin="8,0,0,0" />
-                <Button Content="Refresh" Margin="8,0,0,0" Padding="12,4" Click="OnRefreshPortsClick" />
+                <ComboBox x:Name="PortComboBox" Margin="8,0,0,0" Style="{StaticResource UniformComboBoxStyle}" />
+                <Button Content="Refresh" Margin="8,0,0,0" Style="{StaticResource UniformButtonStyle}" Click="OnRefreshPortsClick" />
                 <TextBlock VerticalAlignment="Center" Margin="16,0,0,0" Text="Baud" />
-                <ComboBox x:Name="BaudRateComboBox" Width="140" Margin="8,0,0,0" IsEditable="True">
+                <ComboBox x:Name="BaudRateComboBox" Width="180" Margin="8,0,0,0" IsEditable="True" Style="{StaticResource UniformComboBoxStyle}">
                     <ComboBoxItem Content="9600" />
                     <ComboBoxItem Content="19200" />
                     <ComboBoxItem Content="38400" />
@@ -45,8 +73,9 @@
                 </ComboBox>
                 <CheckBox x:Name="SendTimeoutCheckBox" Margin="16,2,0,0" IsChecked="True" Content="Send timeout" />
                 <CheckBox x:Name="ReceiveTimeoutCheckBox" Margin="12,2,0,0" IsChecked="True" Content="Receive timeout" />
+                </StackPanel>
             </StackPanel>
-        </GroupBox>
+        </Border>
 
         <Grid Grid.Row="1" Margin="0,0,0,10">
             <Grid.ColumnDefinitions>
@@ -55,7 +84,7 @@
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
-            <GroupBox Grid.Column="0" Header="Send" Padding="12">
+            <Border Grid.Column="0" Padding="12" CornerRadius="8" Background="#2B303A">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -66,9 +95,10 @@
                     </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal">
-                        <Button Content="Add Files" Padding="12,4" Click="OnBrowseSendFileClick" />
-                        <Button Content="Clear" Margin="8,0,0,0" Padding="12,4" Click="OnClearSendFilesClick" />
-                        <Button x:Name="SendActionButton" Content="Start Send" Margin="8,0,0,0" Padding="12,4" Click="OnStartSendClick" />
+                        <TextBlock Margin="0,0,16,0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Send" />
+                        <Button Content="Add Files" Style="{StaticResource UniformButtonStyle}" Click="OnBrowseSendFileClick" />
+                        <Button Content="Clear" Margin="8,0,0,0" Style="{StaticResource UniformButtonStyle}" Click="OnClearSendFilesClick" />
+                        <ToggleButton x:Name="SendActionButton" Content="Standard ToggleButton" Margin="8,0,0,0" Style="{StaticResource UniformToggleButtonStyle}" Click="OnStartSendClick" />
                     </StackPanel>
 
                     <ListBox x:Name="SendFilesListBox" Grid.Row="1" Margin="0,8,0,8" />
@@ -81,11 +111,12 @@
                         <TextBlock x:Name="SendPacketsTextBlock" Text="Send packets: 0/0" />
                     </UniformGrid>
                 </Grid>
-            </GroupBox>
+            </Border>
 
-            <GroupBox Grid.Column="2" Header="Receive" Padding="12">
+            <Border Grid.Column="2" Padding="12" CornerRadius="8" Background="#2B303A">
                 <Grid>
                     <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
@@ -93,40 +124,43 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0">
+                    <TextBlock Grid.Row="0" Margin="0,0,0,8" FontWeight="SemiBold" Text="Receive" />
+
+                    <Grid Grid.Row="1">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBox x:Name="SaveFolderTextBox" Grid.Column="0" Margin="0,0,8,0" />
-                        <Button Grid.Column="1" Content="Browse" Padding="12,4" Click="OnBrowseSaveFolderClick" />
-                        <Button x:Name="ReceiveActionButton" Grid.Column="2" Content="Start Receive" Margin="8,0,0,0" Padding="12,4" Click="OnStartReceiveClick" />
+                        <TextBox x:Name="SaveFolderTextBox" Grid.Column="0" Margin="0,0,8,0" Height="34" VerticalContentAlignment="Center" />
+                        <Button Grid.Column="1" Content="Browse" Style="{StaticResource UniformButtonStyle}" Click="OnBrowseSaveFolderClick" />
+                        <ToggleButton x:Name="ReceiveActionButton" Grid.Column="2" Content="Standard ToggleButton" Margin="8,0,0,0" Style="{StaticResource UniformToggleButtonStyle}" Click="OnStartReceiveClick" />
                     </Grid>
 
-                    <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="1" Minimum="0" Maximum="100" Height="16" Margin="0,8,0,0" />
-                    <TextBlock x:Name="ReceiveStatusTextBlock" Grid.Row="2" Margin="0,6,0,6" Text="Receive status: idle" />
+                    <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="2" Minimum="0" Maximum="100" Height="16" Margin="0,8,0,0" />
+                    <TextBlock x:Name="ReceiveStatusTextBlock" Grid.Row="3" Margin="0,6,0,6" Text="Receive status: idle" />
 
-                    <UniformGrid Grid.Row="3" Columns="2">
+                    <UniformGrid Grid.Row="4" Columns="2">
                         <TextBlock x:Name="ReceiveBytesTextBlock" Text="Receive bytes: 0/0" />
                         <TextBlock x:Name="ReceivePacketsTextBlock" Text="Receive packets: 0/0" />
                     </UniformGrid>
 
-                    <UniformGrid Grid.Row="4" Columns="2" Margin="0,8,0,0">
+                    <UniformGrid Grid.Row="5" Columns="2" Margin="0,8,0,0">
                         <TextBlock x:Name="ReceiveFileNameTextBlock" Text="File: -" />
                         <TextBlock x:Name="ReceiveFileDateTextBlock" Text="Date: -" />
                     </UniformGrid>
                 </Grid>
-            </GroupBox>
+            </Border>
         </Grid>
 
-        <GroupBox Grid.Row="2" Header="Runtime Log" Padding="12">
+        <Border Grid.Row="2" Padding="12" CornerRadius="8" Background="#2B303A">
             <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Margin="0,0,0,8" FontWeight="SemiBold" Text="Runtime Log" />
                 <Button DockPanel.Dock="Top"
                         HorizontalAlignment="Right"
                         Content="Clear Log"
-                        Padding="10,2"
+                        Style="{StaticResource UniformButtonStyle}"
                         Margin="0,0,0,8"
                         Click="OnClearLogClick" />
                 <TextBox x:Name="RuntimeLogTextBox"
@@ -136,7 +170,7 @@
                          HorizontalScrollBarVisibility="Disabled"
                          AcceptsReturn="True" />
             </DockPanel>
-        </GroupBox>
+        </Border>
         </Grid>
     </Grid>
 </ui:FluentWindow>
