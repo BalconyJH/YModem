@@ -12,7 +12,7 @@
         WindowCornerPreference="Round">
 
     <ui:FluentWindow.Resources>
-        <Style x:Key="UniformComboBoxStyle" TargetType="ui:ComboBox">
+        <Style x:Key="UniformComboBoxStyle" TargetType="ComboBox">
             <Setter Property="Width" Value="180" />
             <Setter Property="Height" Value="34" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
@@ -59,18 +59,18 @@
                 <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Serial" />
                 <StackPanel Orientation="Horizontal">
                 <TextBlock VerticalAlignment="Center" Text="Port" />
-                <ui:ComboBox x:Name="PortComboBox" Margin="8,0,0,0" Style="{StaticResource UniformComboBoxStyle}" />
+                <ComboBox x:Name="PortComboBox" Margin="8,0,0,0" Style="{StaticResource UniformComboBoxStyle}" />
                 <ui:Button Content="Refresh" Margin="8,0,0,0" Style="{StaticResource UniformButtonStyle}" Click="OnRefreshPortsClick" />
                 <TextBlock VerticalAlignment="Center" Margin="16,0,0,0" Text="Baud" />
-                <ui:ComboBox x:Name="BaudRateComboBox" Width="180" Margin="8,0,0,0" IsEditable="True" Style="{StaticResource UniformComboBoxStyle}">
-                    <ui:ComboBoxItem Content="9600" />
-                    <ui:ComboBoxItem Content="19200" />
-                    <ui:ComboBoxItem Content="38400" />
-                    <ui:ComboBoxItem Content="57600" />
-                    <ui:ComboBoxItem Content="115200" />
-                    <ui:ComboBoxItem Content="230400" />
-                    <ui:ComboBoxItem Content="460800" />
-                </ui:ComboBox>
+                <ComboBox x:Name="BaudRateComboBox" Width="180" Margin="8,0,0,0" IsEditable="True" Style="{StaticResource UniformComboBoxStyle}">
+                    <ComboBoxItem Content="9600" />
+                    <ComboBoxItem Content="19200" />
+                    <ComboBoxItem Content="38400" />
+                    <ComboBoxItem Content="57600" />
+                    <ComboBoxItem Content="115200" />
+                    <ComboBoxItem Content="230400" />
+                    <ComboBoxItem Content="460800" />
+                </ComboBox>
                 <ui:CheckBox x:Name="SendTimeoutCheckBox" Margin="16,2,0,0" IsChecked="True" Content="Send timeout" />
                 <ui:CheckBox x:Name="ReceiveTimeoutCheckBox" Margin="12,2,0,0" IsChecked="True" Content="Receive timeout" />
                 </StackPanel>
