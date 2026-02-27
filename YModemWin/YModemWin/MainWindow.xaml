@@ -5,44 +5,8 @@
         Height="620"
         Width="1120"
         MinHeight="580"
-        MinWidth="1040"
-        Background="#0F172A">
-    <Window.Resources>
-        <Style TargetType="Grid">
-            <Setter Property="TextElement.Foreground" Value="#F5F7FA" />
-        </Style>
-        <Style TargetType="GroupBox">
-            <Setter Property="Foreground" Value="#F5F7FA" />
-            <Setter Property="BorderBrush" Value="#475569" />
-        </Style>
-        <Style TargetType="TextBox">
-            <Setter Property="Foreground" Value="#F5F7FA" />
-            <Setter Property="Background" Value="#1F2937" />
-            <Setter Property="BorderBrush" Value="#64748B" />
-        </Style>
-        <Style TargetType="ComboBox">
-            <Setter Property="Foreground" Value="#F5F7FA" />
-            <Setter Property="Background" Value="#1F2937" />
-            <Setter Property="BorderBrush" Value="#64748B" />
-        </Style>
-        <Style TargetType="ListBox">
-            <Setter Property="Foreground" Value="#F5F7FA" />
-            <Setter Property="Background" Value="#111827" />
-            <Setter Property="BorderBrush" Value="#64748B" />
-        </Style>
-        <Style TargetType="Button">
-            <Setter Property="Foreground" Value="#E5E7EB" />
-            <Setter Property="Background" Value="#334155" />
-            <Setter Property="BorderBrush" Value="#64748B" />
-        </Style>
-        <Style TargetType="CheckBox">
-            <Setter Property="Foreground" Value="#E5E7EB" />
-        </Style>
-        <Style TargetType="ProgressBar">
-            <Setter Property="Foreground" Value="#60A5FA" />
-            <Setter Property="Background" Value="#1F2937" />
-        </Style>
-    </Window.Resources>
+        MinWidth="1040">
+    
 
     <Grid Margin="16">
         <Grid.RowDefinitions>
