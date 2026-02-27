@@ -3,6 +3,7 @@ using System.IO.Ports;
 using System.Text;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Controls.Primitives;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Wpf.Ui.Controls;
@@ -388,8 +389,9 @@ public partial class MainWindow : FluentWindow
         SetActionButtonStyle(ReceiveActionButton, isReceiving, "Start Receive");
     }
 
-    private void SetActionButtonStyle(System.Windows.Controls.Button button, bool isCancel, string startText)
+    private void SetActionButtonStyle(ToggleButton button, bool isCancel, string startText)
     {
+        button.IsChecked = isCancel;
         button.Content = isCancel ? "Cancel" : startText;
         button.Background = isCancel ? cancelButtonBrush : null;
         button.Foreground = isCancel ? Brushes.White : null;
