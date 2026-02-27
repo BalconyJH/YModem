@@ -267,7 +267,6 @@ public partial class MainWindow : FluentWindow
     {
         return BaudRateComboBox.SelectedItem switch
         {
-            Wpf.Ui.Controls.ComboBoxItem item => item.Content?.ToString() ?? string.Empty,
             System.Windows.Controls.ComboBoxItem item => item.Content?.ToString() ?? string.Empty,
             string value => value,
             _ => BaudRateComboBox.Text
