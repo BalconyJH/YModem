@@ -83,7 +83,7 @@ public class SerialTransferService
             {
                 try
                 {
-                    receiver.YmodemRecieve();
+                    receiver.StartReceiving();
                 }
                 finally
                 {
