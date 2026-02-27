@@ -14,37 +14,23 @@
         </Grid.RowDefinitions>
 
         <GroupBox Grid.Row="0" Header="Serial" Padding="12" Margin="0,0,0,10">
-            <Grid>
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*" />
-                    <ColumnDefinition Width="Auto" />
-                </Grid.ColumnDefinitions>
-
-                <StackPanel Grid.Column="0" Orientation="Horizontal">
-                    <TextBlock VerticalAlignment="Center" Text="Port" />
-                    <ComboBox x:Name="PortComboBox" Width="180" Margin="8,0,0,0" />
-                    <Button Content="Refresh" Margin="8,0,0,0" Padding="12,4" Click="OnRefreshPortsClick" />
-                    <TextBlock VerticalAlignment="Center" Margin="16,0,0,0" Text="Baud" />
-                    <ComboBox x:Name="BaudRateComboBox" Width="140" Margin="8,0,0,0" IsEditable="True">
-                        <ComboBoxItem Content="9600" />
-                        <ComboBoxItem Content="19200" />
-                        <ComboBoxItem Content="38400" />
-                        <ComboBoxItem Content="57600" />
-                        <ComboBoxItem Content="115200" />
-                        <ComboBoxItem Content="230400" />
-                        <ComboBoxItem Content="460800" />
-                    </ComboBox>
-                    <CheckBox x:Name="SendTimeoutCheckBox" Margin="16,2,0,0" IsChecked="True" Content="Send timeout" />
-                    <CheckBox x:Name="ReceiveTimeoutCheckBox" Margin="12,2,0,0" IsChecked="True" Content="Receive timeout" />
-                </StackPanel>
-
-                <Button Grid.Column="1"
-                        Content="Cancel Current Task"
-                        Margin="16,0,0,0"
-                        Padding="12,4"
-                        VerticalAlignment="Center"
-                        Click="OnCancelClick" />
-            </Grid>
+            <StackPanel Orientation="Horizontal">
+                <TextBlock VerticalAlignment="Center" Text="Port" />
+                <ComboBox x:Name="PortComboBox" Width="180" Margin="8,0,0,0" />
+                <Button Content="Refresh" Margin="8,0,0,0" Padding="12,4" Click="OnRefreshPortsClick" />
+                <TextBlock VerticalAlignment="Center" Margin="16,0,0,0" Text="Baud" />
+                <ComboBox x:Name="BaudRateComboBox" Width="140" Margin="8,0,0,0" IsEditable="True">
+                    <ComboBoxItem Content="9600" />
+                    <ComboBoxItem Content="19200" />
+                    <ComboBoxItem Content="38400" />
+                    <ComboBoxItem Content="57600" />
+                    <ComboBoxItem Content="115200" />
+                    <ComboBoxItem Content="230400" />
+                    <ComboBoxItem Content="460800" />
+                </ComboBox>
+                <CheckBox x:Name="SendTimeoutCheckBox" Margin="16,2,0,0" IsChecked="True" Content="Send timeout" />
+                <CheckBox x:Name="ReceiveTimeoutCheckBox" Margin="12,2,0,0" IsChecked="True" Content="Receive timeout" />
+            </StackPanel>
         </GroupBox>
 
         <Grid Grid.Row="1" Margin="0,0,0,10">
@@ -67,7 +53,7 @@
                     <StackPanel Grid.Row="0" Orientation="Horizontal">
                         <Button Content="Add Files" Padding="12,4" Click="OnBrowseSendFileClick" />
                         <Button Content="Clear" Margin="8,0,0,0" Padding="12,4" Click="OnClearSendFilesClick" />
-                        <Button Content="Start Send" Margin="8,0,0,0" Padding="12,4" Click="OnStartSendClick" />
+                        <Button x:Name="SendActionButton" Content="Start Send" Margin="8,0,0,0" Padding="12,4" Click="OnStartSendClick" />
                     </StackPanel>
 
                     <ListBox x:Name="SendFilesListBox" Grid.Row="1" Margin="0,8,0,8" />
@@ -101,7 +87,7 @@
 
                         <TextBox x:Name="SaveFolderTextBox" Grid.Column="0" Margin="0,0,8,0" />
                         <Button Grid.Column="1" Content="Browse" Padding="12,4" Click="OnBrowseSaveFolderClick" />
-                        <Button Grid.Column="2" Content="Start Receive" Margin="8,0,0,0" Padding="12,4" Click="OnStartReceiveClick" />
+                        <Button x:Name="ReceiveActionButton" Grid.Column="2" Content="Start Receive" Margin="8,0,0,0" Padding="12,4" Click="OnStartReceiveClick" />
                     </Grid>
 
                     <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="1" Minimum="0" Maximum="100" Height="16" Margin="0,8,0,0" />

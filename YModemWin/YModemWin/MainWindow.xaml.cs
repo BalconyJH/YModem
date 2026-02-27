@@ -2,6 +2,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Text;
 using System.Windows;
+using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
 
@@ -19,6 +20,11 @@ public partial class MainWindow : Window
     private DateTime lastSendUiUpdateUtc = DateTime.MinValue;
     private DateTime lastReceiveUiUpdateUtc = DateTime.MinValue;
 
+    private bool isSending;
+    private bool isReceiving;
+
+    private readonly SolidColorBrush cancelButtonBrush = new(Color.FromRgb(190, 38, 56));
+
     public MainWindow()
     {
         InitializeComponent();
@@ -26,6 +32,7 @@ public partial class MainWindow : Window
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
         BaudRateComboBox.SelectedIndex = 4;
         RefreshPorts();
+        UpdateActionButtons();
     }
 
     private void OnRefreshPortsClick(object sender, RoutedEventArgs e) => RefreshPorts();
@@ -94,6 +101,17 @@ public partial class MainWindow : Window
 
     private void OnStartSendClick(object sender, RoutedEventArgs e)
     {
+        if (isSending)
+        {
+            lock (serialLock)
+            {
+                transmitter?.StopTransmitting();
+            }
+
+            AppendLog("Cancel requested for sending.");
+            return;
+        }
+
         var files = SendFilesListBox.Items.Cast<string>().ToList();
         if (files.Count == 0)
         {
@@ -126,8 +144,11 @@ public partial class MainWindow : Window
             transmitter = new YModemTransmitter(activePort, SendTimeoutCheckBox.IsChecked == true, OnSendStatus);
             SendProgressBar.Value = 0;
             lastSendUiUpdateUtc = DateTime.MinValue;
+            isSending = true;
+            UpdateActionButtons();
         }
 
+        TaskBarProgress.SetValue(this, 0);
         AppendLog($"Start sending {files.Count} file(s).");
 
         Task.Run(() =>
@@ -152,6 +173,17 @@ public partial class MainWindow : Window
 
     private void OnStartReceiveClick(object sender, RoutedEventArgs e)
     {
+        if (isReceiving)
+        {
+            lock (serialLock)
+            {
+                receiver?.StopReceiving();
+            }
+
+            AppendLog("Cancel requested for receiving.");
+            return;
+        }
+
         if (!TryCreateSerialPort(out var port, ReceiveStatusTextBlock))
         {
             return;
@@ -180,8 +212,11 @@ public partial class MainWindow : Window
             receiver = new YModemReceiver(activePort, ReceiveTimeoutCheckBox.IsChecked == true, saveFolder, OnReceiveStatus);
             ReceiveProgressBar.Value = 0;
             lastReceiveUiUpdateUtc = DateTime.MinValue;
+            isReceiving = true;
+            UpdateActionButtons();
         }
 
+        TaskBarProgress.SetValue(this, 0);
         AppendLog($"Start receiving into '{saveFolder}'.");
 
         Task.Run(() =>
@@ -236,17 +271,6 @@ public partial class MainWindow : Window
         };
     }
 
-    private void OnCancelClick(object sender, RoutedEventArgs e)
-    {
-        lock (serialLock)
-        {
-            transmitter?.StopTransmitting();
-            receiver?.StopReceiving();
-        }
-
-        AppendLog("Cancel requested.");
-    }
-
     private void OnClearLogClick(object sender, RoutedEventArgs e)
     {
         RuntimeLogTextBox.Clear();
@@ -260,6 +284,8 @@ public partial class MainWindow : Window
         }
 
         var progress = total <= 0 ? 0 : sent * 100.0 / total;
+        TaskBarProgress.SetValue(this, progress);
+
         Dispatcher.BeginInvoke(() =>
         {
             SendProgressBar.Value = Math.Clamp(progress, 0, 100);
@@ -282,6 +308,8 @@ public partial class MainWindow : Window
         }
 
         var progress = total <= 0 ? 0 : received * 100.0 / total;
+        TaskBarProgress.SetValue(this, progress);
+
         Dispatcher.BeginInvoke(() =>
         {
             ReceiveProgressBar.Value = Math.Clamp(progress, 0, 100);
@@ -331,6 +359,8 @@ public partial class MainWindow : Window
         {
             transmitter = null;
             receiver = null;
+            isSending = false;
+            isReceiving = false;
 
             if (activePort != null)
             {
@@ -343,5 +373,21 @@ public partial class MainWindow : Window
                 activePort = null;
             }
         }
+
+        TaskBarProgress.SetValue(this, 0);
+        Dispatcher.BeginInvoke(UpdateActionButtons, DispatcherPriority.Background);
+    }
+
+    private void UpdateActionButtons()
+    {
+        SetActionButtonStyle(SendActionButton, isSending, "Start Send");
+        SetActionButtonStyle(ReceiveActionButton, isReceiving, "Start Receive");
+    }
+
+    private void SetActionButtonStyle(System.Windows.Controls.Button button, bool isCancel, string startText)
+    {
+        button.Content = isCancel ? "Cancel" : startText;
+        button.Background = isCancel ? cancelButtonBrush : null;
+        button.Foreground = isCancel ? Brushes.White : null;
     }
 }
