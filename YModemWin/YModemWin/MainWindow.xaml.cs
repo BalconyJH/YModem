@@ -1,16 +1,11 @@
 using System.IO.Ports;
 using System.Text;
-using System.Runtime.Versioning;
-using Microsoft.UI.Dispatching;
-using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Windows.Storage.Pickers;
-using WinRT.Interop;
+using System.Windows;
+using Microsoft.Win32;
 
 namespace YModemWin;
 
-[SupportedOSPlatform("windows10.0.17763.0")]
-public sealed partial class MainWindow : Window
+public partial class MainWindow : Window
 {
     private SerialPort activePort;
     private YModemTransmitter transmitter;
@@ -19,7 +14,7 @@ public sealed partial class MainWindow : Window
 
     public MainWindow()
     {
-        this.InitializeComponent();
+        InitializeComponent();
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
         RefreshPorts();
@@ -27,29 +22,27 @@ public sealed partial class MainWindow : Window
 
     private void OnRefreshPortsClick(object sender, RoutedEventArgs e) => RefreshPorts();
 
-    private async void OnBrowseSendFileClick(object sender, RoutedEventArgs e)
+    private void OnBrowseSendFileClick(object sender, RoutedEventArgs e)
     {
-        var picker = new FileOpenPicker();
-        picker.FileTypeFilter.Add("*");
-        InitializePicker(picker);
-
-        var file = await picker.PickSingleFileAsync();
-        if (file != null)
+        var picker = new OpenFileDialog
         {
-            SendFileTextBox.Text = file.Path;
+            CheckFileExists = true,
+            Multiselect = false,
+            Filter = "All files (*.*)|*.*"
+        };
+
+        if (picker.ShowDialog(this) == true)
+        {
+            SendFileTextBox.Text = picker.FileName;
         }
     }
 
-    private async void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
+    private void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
     {
-        var picker = new FolderPicker();
-        picker.FileTypeFilter.Add("*");
-        InitializePicker(picker);
-
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder != null)
+        var picker = new OpenFolderDialog();
+        if (picker.ShowDialog(this) == true)
         {
-            SaveFolderTextBox.Text = folder.Path;
+            SaveFolderTextBox.Text = picker.FolderName;
         }
     }
 
@@ -151,7 +144,7 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private bool TryCreateSerialPort(out SerialPort serialPort, TextBlock statusTextBlock)
+    private bool TryCreateSerialPort(out SerialPort serialPort, System.Windows.Controls.TextBlock statusTextBlock)
     {
         serialPort = null;
 
@@ -192,7 +185,7 @@ public sealed partial class MainWindow : Window
     private void OnSendStatus(long sent, long total, long packetNo, long totalPacket, long status, string message)
     {
         var progress = total <= 0 ? 0 : (sent * 100.0 / total);
-        DispatcherQueue.TryEnqueue(() =>
+        Dispatcher.Invoke(() =>
         {
             SendProgressBar.Value = Math.Clamp(progress, 0, 100);
             SendStatusTextBlock.Text = $"Send status: {message} ({packetNo}/{totalPacket})";
@@ -202,7 +195,7 @@ public sealed partial class MainWindow : Window
     private void OnReceiveStatus(long received, long total, long packetNo, long totalPacket, long status, string message, string fileName, string fileDate)
     {
         var progress = total <= 0 ? 0 : (received * 100.0 / total);
-        DispatcherQueue.TryEnqueue(() =>
+        Dispatcher.Invoke(() =>
         {
             ReceiveProgressBar.Value = Math.Clamp(progress, 0, 100);
             ReceiveStatusTextBlock.Text = $"Receive status: {message} ({packetNo}/{totalPacket}) {fileName}";
@@ -226,21 +219,6 @@ public sealed partial class MainWindow : Window
                 activePort.Dispose();
                 activePort = null;
             }
-        }
-    }
-
-    private void InitializePicker(object picker)
-    {
-        var windowHandle = WindowNative.GetWindowHandle(this);
-        if (picker is FileOpenPicker fileOpenPicker)
-        {
-            InitializeWithWindow.Initialize(fileOpenPicker, windowHandle);
-            return;
-        }
-
-        if (picker is FolderPicker folderPicker)
-        {
-            InitializeWithWindow.Initialize(folderPicker, windowHandle);
         }
     }
 }

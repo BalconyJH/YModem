@@ -2,26 +2,15 @@
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0-windows</TargetFramework>
-    <TargetPlatformIdentifier>Windows</TargetPlatformIdentifier>
-    <TargetPlatformVersion Condition="'$(TargetPlatformVersion)' == ''">10.0.19041.0</TargetPlatformVersion>
-    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <UseWPF>true</UseWPF>
     <RootNamespace>YModemWin</RootNamespace>
     <AssemblyName>YModem</AssemblyName>
-    <UseWinUI>true</UseWinUI>
-    <WindowsPackageType>None</WindowsPackageType>
-    <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
-    <EnableMsixTooling>false</EnableMsixTooling>
-    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
-    <GenerateProjectPriFile>false</GenerateProjectPriFile>
-    <AppxPackage>false</AppxPackage>
-    <EnableAppxPackageTargets>false</EnableAppxPackageTargets>
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250205002" />
     <PackageReference Include="System.IO.Ports" Version="10.0.0" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="10.0.0" />
   </ItemGroup>
@@ -30,12 +19,6 @@
     <Compile Remove="Form1.cs" />
     <Compile Remove="Form1.Designer.cs" />
     <Compile Remove="Program.cs" />
-    <Compile Remove="Properties\Resources.Designer.cs" />
-    <Compile Remove="Properties\Settings.Designer.cs" />
-
     <EmbeddedResource Remove="Form1.resx" />
-    <EmbeddedResource Remove="Properties\Resources.resx" />
-
-    <None Remove="Properties\Settings.settings" />
   </ItemGroup>
 </Project>
