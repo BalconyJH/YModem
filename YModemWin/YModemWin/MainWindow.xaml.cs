@@ -2,6 +2,9 @@ using System.IO.Ports;
 using System.Text;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Windows.Storage.Pickers;
+using WinRT.Interop;
 
 namespace YModemWin;
 
@@ -22,6 +25,32 @@ public sealed partial class MainWindow : Window
 
     private void OnRefreshPortsClick(object sender, RoutedEventArgs e) => RefreshPorts();
 
+    private async void OnBrowseSendFileClick(object sender, RoutedEventArgs e)
+    {
+        var picker = new FileOpenPicker();
+        picker.FileTypeFilter.Add("*");
+        InitializePicker(picker);
+
+        var file = await picker.PickSingleFileAsync();
+        if (file != null)
+        {
+            SendFileTextBox.Text = file.Path;
+        }
+    }
+
+    private async void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
+    {
+        var picker = new FolderPicker();
+        picker.FileTypeFilter.Add("*");
+        InitializePicker(picker);
+
+        var folder = await picker.PickSingleFolderAsync();
+        if (folder != null)
+        {
+            SaveFolderTextBox.Text = folder.Path;
+        }
+    }
+
     private void RefreshPorts()
     {
         PortComboBox.Items.Clear();
@@ -38,7 +67,7 @@ public sealed partial class MainWindow : Window
 
     private void OnStartSendClick(object sender, RoutedEventArgs e)
     {
-        if (!TryCreateSerialPort(out var port))
+        if (!TryCreateSerialPort(out var port, SendStatusTextBlock))
         {
             return;
         }
@@ -47,6 +76,7 @@ public sealed partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(filePath) || !File.Exists(filePath))
         {
             SendStatusTextBlock.Text = "Send status: invalid file path";
+            port.Dispose();
             return;
         }
 
@@ -55,6 +85,7 @@ public sealed partial class MainWindow : Window
             if (activePort != null)
             {
                 SendStatusTextBlock.Text = "Send status: serial device busy";
+                port.Dispose();
                 return;
             }
 
@@ -77,7 +108,7 @@ public sealed partial class MainWindow : Window
 
     private void OnStartReceiveClick(object sender, RoutedEventArgs e)
     {
-        if (!TryCreateSerialPort(out var port))
+        if (!TryCreateSerialPort(out var port, ReceiveStatusTextBlock))
         {
             return;
         }
@@ -86,6 +117,7 @@ public sealed partial class MainWindow : Window
         if (string.IsNullOrWhiteSpace(saveFolder))
         {
             ReceiveStatusTextBlock.Text = "Receive status: invalid save folder";
+            port.Dispose();
             return;
         }
 
@@ -96,6 +128,7 @@ public sealed partial class MainWindow : Window
             if (activePort != null)
             {
                 ReceiveStatusTextBlock.Text = "Receive status: serial device busy";
+                port.Dispose();
                 return;
             }
 
@@ -116,19 +149,19 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private bool TryCreateSerialPort(out SerialPort serialPort)
+    private bool TryCreateSerialPort(out SerialPort serialPort, TextBlock statusTextBlock)
     {
         serialPort = null;
 
         if (PortComboBox.SelectedItem is not string portName || string.IsNullOrWhiteSpace(portName))
         {
-            SendStatusTextBlock.Text = "Status: choose a serial port";
+            statusTextBlock.Text = "Status: choose a serial port";
             return false;
         }
 
         if (!int.TryParse(BaudRateTextBox.Text, out var baudRate))
         {
-            SendStatusTextBlock.Text = "Status: invalid baud rate";
+            statusTextBlock.Text = "Status: invalid baud rate";
             return false;
         }
 
@@ -140,7 +173,7 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception ex)
         {
-            SendStatusTextBlock.Text = $"Status: open serial failed ({ex.Message})";
+            statusTextBlock.Text = $"Status: open serial failed ({ex.Message})";
             return false;
         }
     }
@@ -191,6 +224,21 @@ public sealed partial class MainWindow : Window
                 activePort.Dispose();
                 activePort = null;
             }
+        }
+    }
+
+    private void InitializePicker(object picker)
+    {
+        var windowHandle = WindowNative.GetWindowHandle(this);
+        if (picker is FileOpenPicker fileOpenPicker)
+        {
+            InitializeWithWindow.Initialize(fileOpenPicker, windowHandle);
+            return;
+        }
+
+        if (picker is FolderPicker folderPicker)
+        {
+            InitializeWithWindow.Initialize(folderPicker, windowHandle);
         }
     }
 }

@@ -6,6 +6,7 @@
     <RootNamespace>YModemWin</RootNamespace>
     <AssemblyName>YModem</AssemblyName>
     <UseWinUI>true</UseWinUI>
+    <WindowsPackageType>None</WindowsPackageType>
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
