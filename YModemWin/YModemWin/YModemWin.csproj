@@ -13,6 +13,8 @@
     <EnableMsixTooling>false</EnableMsixTooling>
     <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
     <GenerateProjectPriFile>false</GenerateProjectPriFile>
+    <AppxPackage>false</AppxPackage>
+    <EnableAppxPackageTargets>false</EnableAppxPackageTargets>
     <Nullable>disable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
