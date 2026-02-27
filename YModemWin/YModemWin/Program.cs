@@ -1,29 +1,18 @@
+using System;
 using System.Text;
-using Radzen;
-using YModemWin.Components;
-using YModemWin.Services;
+using System.Windows.Forms;
 
-Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-builder.Services.AddRadzenComponents();
-builder.Services.AddSingleton<SerialTransferService>();
-
-var app = builder.Build();
-
-if (!app.Environment.IsDevelopment())
+namespace YModemWin
 {
-    app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    app.UseHsts();
+    static class Program
+    {
+        [STAThread]
+        static void Main()
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new Form1());
+        }
+    }
 }
-
-app.UseHttpsRedirection();
-app.UseAntiforgery();
-
-app.MapStaticAssets();
-app.MapRazorComponents<App>()
-    .AddInteractiveServerRenderMode();
-
-app.Run();
