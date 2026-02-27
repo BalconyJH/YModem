@@ -1,0 +1,114 @@
+@page "/"
+@implements IDisposable
+@inject SerialTransferService TransferService
+
+<PageTitle>YModem Console</PageTitle>
+
+<h1>YModem Serial Console</h1>
+
+<RadzenStack Gap="1rem">
+    <RadzenCard>
+        <RadzenRow Gap="1rem">
+            <RadzenColumn Size="12" SizeMD="4">
+                <RadzenFormField Text="Serial Port" Variant="Variant.Outlined">
+                    <RadzenDropDown Data="@ports" @bind-Value="selectedPort" Style="width:100%" />
+                </RadzenFormField>
+            </RadzenColumn>
+            <RadzenColumn Size="12" SizeMD="4">
+                <RadzenFormField Text="Baud Rate" Variant="Variant.Outlined">
+                    <RadzenTextBox @bind-Value="baudRateText" Style="width:100%" />
+                </RadzenFormField>
+            </RadzenColumn>
+            <RadzenColumn Size="12" SizeMD="4" class="button-col">
+                <RadzenButton Text="Refresh Ports" Click="@(args => ReloadPorts())" />
+            </RadzenColumn>
+        </RadzenRow>
+    </RadzenCard>
+
+    <RadzenCard>
+        <h3>Send</h3>
+        <RadzenStack Gap="0.5rem">
+            <RadzenFormField Text="File Path" Variant="Variant.Outlined">
+                <RadzenTextBox @bind-Value="sendFilePath" Style="width:100%" />
+            </RadzenFormField>
+            <RadzenCheckBox TValue="bool" @bind-Value="sendTimeout" Name="sendTimeout" />
+            <label for="sendTimeout">Enable timeout</label>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                <RadzenButton Text="Start Send" Click="@(args => StartSend())" />
+                <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Danger" Click="@(args => TransferService.CancelCurrentOperation())" />
+            </RadzenStack>
+            <RadzenProgressBar Value="@TransferService.SendSnapshot.ProgressPercent" ShowValue="true" />
+            <div>Status: @TransferService.SendSnapshot.Message</div>
+        </RadzenStack>
+    </RadzenCard>
+
+    <RadzenCard>
+        <h3>Receive</h3>
+        <RadzenStack Gap="0.5rem">
+            <RadzenFormField Text="Save Directory" Variant="Variant.Outlined">
+                <RadzenTextBox @bind-Value="saveDirectory" Style="width:100%" />
+            </RadzenFormField>
+            <RadzenCheckBox TValue="bool" @bind-Value="receiveTimeout" Name="receiveTimeout" />
+            <label for="receiveTimeout">Enable timeout</label>
+            <RadzenStack Orientation="Orientation.Horizontal" Gap="0.5rem">
+                <RadzenButton Text="Start Receive" Click="@(args => StartReceive())" />
+                <RadzenButton Text="Cancel" ButtonStyle="ButtonStyle.Danger" Click="@(args => TransferService.CancelCurrentOperation())" />
+            </RadzenStack>
+            <RadzenProgressBar Value="@TransferService.ReceiveSnapshot.ProgressPercent" ShowValue="true" />
+            <div>Status: @TransferService.ReceiveSnapshot.Message</div>
+            <div>File: @TransferService.ReceiveSnapshot.FileName</div>
+        </RadzenStack>
+    </RadzenCard>
+</RadzenStack>
+
+@code {
+    private IReadOnlyList<string> ports = Array.Empty<string>();
+    private string selectedPort = string.Empty;
+    private string baudRateText = "115200";
+    private string sendFilePath = string.Empty;
+    private string saveDirectory = AppContext.BaseDirectory;
+    private bool sendTimeout = true;
+    private bool receiveTimeout = true;
+
+    protected override void OnInitialized()
+    {
+        ReloadPorts();
+        TransferService.SnapshotChanged += OnSnapshotChanged;
+    }
+
+    private void ReloadPorts()
+    {
+        ports = TransferService.GetAvailablePorts();
+        selectedPort = ports.FirstOrDefault() ?? string.Empty;
+    }
+
+    private void StartSend()
+    {
+        if (!int.TryParse(baudRateText, out var baudRate))
+        {
+            return;
+        }
+
+        TransferService.StartSend(selectedPort, baudRate, sendFilePath, sendTimeout);
+    }
+
+    private void StartReceive()
+    {
+        if (!int.TryParse(baudRateText, out var baudRate))
+        {
+            return;
+        }
+
+        TransferService.StartReceive(selectedPort, baudRate, saveDirectory, receiveTimeout);
+    }
+
+    private void OnSnapshotChanged()
+    {
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        TransferService.SnapshotChanged -= OnSnapshotChanged;
+    }
+}

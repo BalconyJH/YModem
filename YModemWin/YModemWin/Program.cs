@@ -1,22 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-using System.Windows.Forms;
+using System.Text;
+using Radzen;
+using YModemWin.Components;
+using YModemWin.Services;
 
-namespace YModemWin
+Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddRazorComponents().AddInteractiveServerComponents();
+builder.Services.AddRadzenComponents();
+builder.Services.AddSingleton<SerialTransferService>();
+
+var app = builder.Build();
+
+if (!app.Environment.IsDevelopment())
 {
-    static class Program
-    {
-        /// <summary>
-        /// 应用程序的主入口点。
-        /// </summary>
-        [STAThread]
-        static void Main()
-        {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-            Application.Run(new Form1());
-        }
-    }
+    app.UseExceptionHandler("/Error", createScopeForErrors: true);
+    app.UseHsts();
 }
+
+app.UseHttpsRedirection();
+app.UseAntiforgery();
+
+app.MapStaticAssets();
+app.MapRazorComponents<App>()
+    .AddInteractiveServerRenderMode();
+
+app.Run();
