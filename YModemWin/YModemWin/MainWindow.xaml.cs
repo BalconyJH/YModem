@@ -5,10 +5,11 @@ using System.Windows;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using Wpf.Ui.Controls;
 
 namespace YModemWin;
 
-public partial class MainWindow : Window
+public partial class MainWindow : FluentWindow
 {
     private const int UiUpdateIntervalMs = 120;
 
@@ -316,8 +317,11 @@ public partial class MainWindow : Window
             ReceiveStatusTextBlock.Text = $"Receive status: {message}";
             ReceiveBytesTextBlock.Text = $"Receive bytes: {received}/{total}";
             ReceivePacketsTextBlock.Text = $"Receive packets: {packetNo}/{totalPacket}";
-            ReceiveFileNameTextBlock.Text = $"File: {string.IsNullOrWhiteSpace(fileName) ? "-" : fileName}";
-            ReceiveFileDateTextBlock.Text = $"Date: {string.IsNullOrWhiteSpace(fileDate) ? "-" : fileDate}";
+            ReceiveFileNameTextBlock.Text =
+                $"File: {(string.IsNullOrWhiteSpace(fileName) ? "-" : fileName)}";
+
+            ReceiveFileDateTextBlock.Text =
+                $"Date: {(string.IsNullOrWhiteSpace(fileDate) ? "-" : fileDate)}";
         }, DispatcherPriority.Background);
 
         if (status != 0)
