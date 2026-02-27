@@ -12,20 +12,20 @@
         WindowCornerPreference="Round">
 
     <ui:FluentWindow.Resources>
-        <Style x:Key="UniformComboBoxStyle" TargetType="ComboBox">
+        <Style x:Key="UniformComboBoxStyle" TargetType="ui:ComboBox">
             <Setter Property="Width" Value="180" />
             <Setter Property="Height" Value="34" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
 
-        <Style x:Key="UniformButtonStyle" TargetType="Button">
+        <Style x:Key="UniformButtonStyle" TargetType="ui:Button">
             <Setter Property="Height" Value="34" />
             <Setter Property="MinWidth" Value="120" />
             <Setter Property="Padding" Value="12,4" />
             <Setter Property="VerticalAlignment" Value="Center" />
         </Style>
 
-        <Style x:Key="UniformToggleButtonStyle" TargetType="ToggleButton">
+        <Style x:Key="UniformToggleButtonStyle" TargetType="ui:ToggleButton">
             <Setter Property="Height" Value="34" />
             <Setter Property="MinWidth" Value="120" />
             <Setter Property="Padding" Value="12,4" />
@@ -59,20 +59,20 @@
                 <TextBlock Margin="0,0,0,8" FontWeight="SemiBold" Text="Serial" />
                 <StackPanel Orientation="Horizontal">
                 <TextBlock VerticalAlignment="Center" Text="Port" />
-                <ComboBox x:Name="PortComboBox" Margin="8,0,0,0" Style="{StaticResource UniformComboBoxStyle}" />
-                <Button Content="Refresh" Margin="8,0,0,0" Style="{StaticResource UniformButtonStyle}" Click="OnRefreshPortsClick" />
+                <ui:ComboBox x:Name="PortComboBox" Margin="8,0,0,0" Style="{StaticResource UniformComboBoxStyle}" />
+                <ui:Button Content="Refresh" Margin="8,0,0,0" Style="{StaticResource UniformButtonStyle}" Click="OnRefreshPortsClick" />
                 <TextBlock VerticalAlignment="Center" Margin="16,0,0,0" Text="Baud" />
-                <ComboBox x:Name="BaudRateComboBox" Width="180" Margin="8,0,0,0" IsEditable="True" Style="{StaticResource UniformComboBoxStyle}">
-                    <ComboBoxItem Content="9600" />
-                    <ComboBoxItem Content="19200" />
-                    <ComboBoxItem Content="38400" />
-                    <ComboBoxItem Content="57600" />
-                    <ComboBoxItem Content="115200" />
-                    <ComboBoxItem Content="230400" />
-                    <ComboBoxItem Content="460800" />
-                </ComboBox>
-                <CheckBox x:Name="SendTimeoutCheckBox" Margin="16,2,0,0" IsChecked="True" Content="Send timeout" />
-                <CheckBox x:Name="ReceiveTimeoutCheckBox" Margin="12,2,0,0" IsChecked="True" Content="Receive timeout" />
+                <ui:ComboBox x:Name="BaudRateComboBox" Width="180" Margin="8,0,0,0" IsEditable="True" Style="{StaticResource UniformComboBoxStyle}">
+                    <ui:ComboBoxItem Content="9600" />
+                    <ui:ComboBoxItem Content="19200" />
+                    <ui:ComboBoxItem Content="38400" />
+                    <ui:ComboBoxItem Content="57600" />
+                    <ui:ComboBoxItem Content="115200" />
+                    <ui:ComboBoxItem Content="230400" />
+                    <ui:ComboBoxItem Content="460800" />
+                </ui:ComboBox>
+                <ui:CheckBox x:Name="SendTimeoutCheckBox" Margin="16,2,0,0" IsChecked="True" Content="Send timeout" />
+                <ui:CheckBox x:Name="ReceiveTimeoutCheckBox" Margin="12,2,0,0" IsChecked="True" Content="Receive timeout" />
                 </StackPanel>
             </StackPanel>
         </Border>
@@ -96,9 +96,9 @@
 
                     <StackPanel Grid.Row="0" Orientation="Horizontal">
                         <TextBlock Margin="0,0,16,0" VerticalAlignment="Center" FontWeight="SemiBold" Text="Send" />
-                        <Button Content="Add Files" Style="{StaticResource UniformButtonStyle}" Click="OnBrowseSendFileClick" />
-                        <Button Content="Clear" Margin="8,0,0,0" Style="{StaticResource UniformButtonStyle}" Click="OnClearSendFilesClick" />
-                        <ToggleButton x:Name="SendActionButton" Content="Standard ToggleButton" Margin="8,0,0,0" Style="{StaticResource UniformToggleButtonStyle}" Click="OnStartSendClick" />
+                        <ui:Button Content="Add Files" Style="{StaticResource UniformButtonStyle}" Click="OnBrowseSendFileClick" />
+                        <ui:Button Content="Clear" Margin="8,0,0,0" Style="{StaticResource UniformButtonStyle}" Click="OnClearSendFilesClick" />
+                        <ui:ToggleButton x:Name="SendActionButton" Content="Standard ToggleButton" Margin="8,0,0,0" Style="{StaticResource UniformToggleButtonStyle}" Click="OnStartSendClick" />
                     </StackPanel>
 
                     <ListBox x:Name="SendFilesListBox" Grid.Row="1" Margin="0,8,0,8" />
@@ -133,9 +133,9 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
 
-                        <TextBox x:Name="SaveFolderTextBox" Grid.Column="0" Margin="0,0,8,0" Height="34" VerticalContentAlignment="Center" />
-                        <Button Grid.Column="1" Content="Browse" Style="{StaticResource UniformButtonStyle}" Click="OnBrowseSaveFolderClick" />
-                        <ToggleButton x:Name="ReceiveActionButton" Grid.Column="2" Content="Standard ToggleButton" Margin="8,0,0,0" Style="{StaticResource UniformToggleButtonStyle}" Click="OnStartReceiveClick" />
+                        <ui:TextBox x:Name="SaveFolderTextBox" Grid.Column="0" Margin="0,0,8,0" Height="34" VerticalContentAlignment="Center" />
+                        <ui:Button Grid.Column="1" Content="Browse" Style="{StaticResource UniformButtonStyle}" Click="OnBrowseSaveFolderClick" />
+                        <ui:ToggleButton x:Name="ReceiveActionButton" Grid.Column="2" Content="Standard ToggleButton" Margin="8,0,0,0" Style="{StaticResource UniformToggleButtonStyle}" Click="OnStartReceiveClick" />
                     </Grid>
 
                     <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="2" Minimum="0" Maximum="100" Height="16" Margin="0,8,0,0" />
@@ -157,13 +157,13 @@
         <Border Grid.Row="2" Padding="12" CornerRadius="8" Background="#2B303A">
             <DockPanel>
                 <TextBlock DockPanel.Dock="Top" Margin="0,0,0,8" FontWeight="SemiBold" Text="Runtime Log" />
-                <Button DockPanel.Dock="Top"
+                <ui:Button DockPanel.Dock="Top"
                         HorizontalAlignment="Right"
                         Content="Clear Log"
                         Style="{StaticResource UniformButtonStyle}"
                         Margin="0,0,0,8"
                         Click="OnClearLogClick" />
-                <TextBox x:Name="RuntimeLogTextBox"
+                <ui:TextBox x:Name="RuntimeLogTextBox"
                          IsReadOnly="True"
                          TextWrapping="Wrap"
                          VerticalScrollBarVisibility="Auto"
