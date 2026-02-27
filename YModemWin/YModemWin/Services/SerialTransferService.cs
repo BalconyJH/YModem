@@ -12,7 +12,7 @@ public class SerialTransferService
     public TransferSnapshot SendSnapshot { get; } = new();
     public TransferSnapshot ReceiveSnapshot { get; } = new();
 
-    public event Action? SnapshotChanged;
+    public event Action SnapshotChanged;
 
     public IReadOnlyList<string> GetAvailablePorts()
     {
