@@ -1,14 +1,11 @@
-<Controls:MetroWindow x:Class="YModemWin.MainWindow"
-                      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-                      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                      xmlns:Controls="http://metro.mahapps.com/winfx/xaml/controls"
-                      Title="YModem WPF"
-                      Height="620"
-                      Width="1120"
-                      MinHeight="580"
-                      MinWidth="1040"
-                      GlowBrush="DodgerBlue"
-                      WindowTransitionsEnabled="True">
+<Window x:Class="YModemWin.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="YModem WPF"
+        Height="620"
+        Width="1120"
+        MinHeight="580"
+        MinWidth="1040">
     <Grid Margin="16">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
@@ -105,4 +102,4 @@
                  HorizontalScrollBarVisibility="Disabled"
                  AcceptsReturn="True" />
     </Grid>
-</Controls:MetroWindow>
+</Window>
