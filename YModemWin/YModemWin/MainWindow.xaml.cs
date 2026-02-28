@@ -384,6 +384,8 @@ public partial class MainWindow : FluentWindow
 
     private void AppendLog(string message)
     {
+        AppLogger.Info("{Message}", message);
+
         Dispatcher.BeginInvoke(() =>
         {
             RuntimeLogTextBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
