@@ -478,8 +478,8 @@ public partial class MainWindow : FluentWindow
     {
         lock (serialLock)
         {
-            transmitter = null!;
-            receiver = null!;
+            transmitter = null;
+            receiver = null;
             isSending = false;
             isReceiving = false;
             isSendCancelling = false;
@@ -493,7 +493,7 @@ public partial class MainWindow : FluentWindow
                 }
 
                 activePort.Dispose();
-                activePort = null!;
+                activePort = null;
             }
         }
 

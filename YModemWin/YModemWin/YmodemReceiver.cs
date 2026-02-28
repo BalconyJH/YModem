@@ -60,7 +60,7 @@ namespace YModemWin
         }
 
 
-        private static string RedactPath(string path)
+        private static string? RedactPath(string path)
         {
             if (string.IsNullOrWhiteSpace(path))
             {

@@ -67,11 +67,14 @@ namespace YModemWin
             byte[] CRC = new byte[CrcSize];
             Crc16Ccitt crc16Ccitt = new Crc16Ccitt(InitialCrcValue.Zeros);
             int packetNumber = 0;
+            long currentPosition = 0;
+            long currentLength = 0;
             Thread.Sleep(1);
 
             try
             {
                 using var fileStream = new FileStream(@path, FileMode.Open, FileAccess.Read);
+                currentLength = fileStream.Length;
                 transaction.SetData("ymodem.file_size", fileStream.Length);
 
                 totalpackage = (int)(fileStream.Length - 1) / YModemTransmitter.DataSize + 1;
@@ -145,6 +148,7 @@ namespace YModemWin
                 do
                 {
                     packageReadCount = fileStream.Read(data, 0, DataSize);
+                    currentPosition = fileStream.Position;
                     if (packageReadCount == 0)
                     {
                         break;
@@ -318,7 +322,7 @@ namespace YModemWin
                 transactionFinished = true;
                 Console.WriteLine("接收方超时");
                 status = -1;
-                RefreshSendUI?.Invoke(0, 0, packetNumber, totalpackage, status, "接收方超时");
+                RefreshSendUI?.Invoke(currentPosition, currentLength, packetNumber, totalpackage, status, "接收方超时");
                 return false;
             }
             finally
