@@ -99,6 +99,8 @@ public partial class MainWindow : FluentWindow
             ? $"Added {newFiles.Count} file(s) to send queue ({selectedFiles.Length - newFiles.Count} duplicate(s) skipped)."
             : $"All {selectedFiles.Length} file(s) already in queue.");
         AppendLog($"Browse timing: ShowDialog={dialogStopwatch.ElapsedMilliseconds} ms, Dedup={dedupStopwatch.ElapsedMilliseconds} ms, AddRange={addRangeStopwatch.ElapsedMilliseconds} ms, Total={totalStopwatch.ElapsedMilliseconds} ms, Selected={selectedFiles.Length}.");
+
+        UpdateActionButtons();
     }
 
     private void OnClearSendFilesClick(object sender, RoutedEventArgs e)
@@ -107,6 +109,7 @@ public partial class MainWindow : FluentWindow
         sendFilesSet.Clear();
         SendInfoBar.IsOpen = false;
         SendStatusTextBlock.Text = "Send status: queue cleared";
+        UpdateActionButtons();
     }
 
     private void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
@@ -173,8 +176,6 @@ public partial class MainWindow : FluentWindow
         var files = sendFilesList.ToList();
         if (files.Count == 0)
         {
-            SendInfoBar.IsOpen = true;
-            SendStatusTextBlock.Text = "Send status: add at least one file";
             return;
         }
 
@@ -502,11 +503,11 @@ public partial class MainWindow : FluentWindow
 
     private void UpdateActionButtons()
     {
-        SetActionButtonState(SendActionButton, isSending, isSendCancelling, "Start Send", isSendPortOpening);
-        SetActionButtonState(ReceiveActionButton, isReceiving, isReceiveCancelling, "Start Receive", isReceivePortOpening);
+        SetActionButtonState(SendActionButton, isSending, isSendCancelling, "Start Send", isSendPortOpening, sendFilesList.Count > 0);
+        SetActionButtonState(ReceiveActionButton, isReceiving, isReceiveCancelling, "Start Receive", isReceivePortOpening, true);
     }
 
-    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isRunning, bool isCancelling, string startText, bool isBusy)
+    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isRunning, bool isCancelling, string startText, bool isBusy, bool canStart)
     {
         if (isRunning)
         {
@@ -518,6 +519,6 @@ public partial class MainWindow : FluentWindow
 
         button.Content = startText;
         button.Appearance = ControlAppearance.Primary;
-        button.IsEnabled = !isBusy;
+        button.IsEnabled = canStart && !isBusy;
     }
 }
