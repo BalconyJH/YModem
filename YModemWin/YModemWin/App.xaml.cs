@@ -1,5 +1,7 @@
+using System.Runtime.Versioning;
 using System.Windows;
-using Sentry;
+
+[assembly: SupportedOSPlatform("windows7.0")]
 
 namespace YModemWin;
 

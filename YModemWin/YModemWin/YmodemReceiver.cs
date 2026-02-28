@@ -1,14 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
 namespace YModemWin
 {
     using System;
     using System.IO;
     using System.IO.Ports;
+    using Sentry;
     using System.Text;
     
     public class YModemReceiver
@@ -25,21 +20,21 @@ namespace YModemWin
         private const byte CTRLZ = 0x1A; // 填充字符
 
         private SerialPort serialPort; // 串口对象
-        public string saveFileName; // 文件保存路径
+        public string? saveFileName; // 文件保存路径
         public DateTime saveFileDate; //文件修改日期
-        public string saveFilePath; // 文件保存路径
+        public string? saveFilePath; // 文件保存路径
         public long fileLength = 0;
         private string saveDirectory;
         private bool isTransmissionComplete;
         private long ReceivedLength = 0;
         DateTime dt;
         long status;
-        private byte[] packetBuffer;
+        private byte[]? packetBuffer;
         private long expectedPackageNo = 0;
         private long totalPackage = 0;
         
         //完成字节，总字节，文件名，文件日期
-        Action<long, long, long, long, long, string, string, string> RefreshReceiveUI=null;
+        Action<long, long, long, long, long, string, string, string>? RefreshReceiveUI=null;
         public YModemReceiver(SerialPort sp,bool timeout,string path, Action<long,long, long, long, long, string,string, string> action)
         {
             serialPort = sp;
@@ -60,88 +55,125 @@ namespace YModemWin
 
         public void StartReceiving()
         {
+            var transaction = SentrySdk.StartTransaction("ymodem.receive", "serial.transfer");
+            var transactionFinished = false;
+            transaction.SetData("receiver.path", saveDirectory);
+
             status = 0;
             expectedPackageNo = 0;
             isTransmissionComplete = false;
             serialPort.DiscardInBuffer();
-            //serialPort.Open(); // 打开串口
             dt = new DateTime(0);
+
             try
             {
-                SendChar(C); // 发送 'C' 字符，通知发送端准备接收
+                SendChar(C);
 
                 while (!isTransmissionComplete)
                 {
-                    //System.Threading.Thread.Sleep(300);
                     Console.WriteLine(expectedPackageNo.ToString());
-                    int packetLength = ReceivePacket();
+                    var receivePacketSpan = transaction.StartChild("serial.packet.receive", "receive_packet");
+                    var packetLength = ReceivePacket();
+                    receivePacketSpan.SetData("packet.length", packetLength);
+                    receivePacketSpan.SetData("packet.expected", expectedPackageNo);
+                    receivePacketSpan.Finish();
+
                     if (packetLength > 0)
                     {
-                        byte packetType = packetBuffer[0];
+                        if (packetBuffer == null) continue;
+                        var packetType = packetBuffer[0];
 
                         if (packetType == SOH || packetType == STX)
                         {
-                            if (dt.Ticks==0) dt = DateTime.Now;
+                            if (dt.Ticks == 0)
+                            {
+                                dt = DateTime.Now;
+                            }
+
                             if (expectedPackageNo == 0)
                             {
-                                byte rsvPackageNo = packetBuffer[1];
+                                var rsvPackageNo = packetBuffer[1];
                                 if (rsvPackageNo == 0)
                                 {
-                                    //判断是否所有文件传输传输结束
                                     if (packetBuffer[3] == 0)
                                     {
-                                        //发送所有文件传输传输结束的结束包
+                                        var finishSpan = transaction.StartChild("serial.transfer.complete", "all_files_completed");
                                         HandleFilesAllCompeted();
+                                        finishSpan.Finish();
                                         isTransmissionComplete = true;
                                     }
                                     else
                                     {
-                                        // 解析文件名和文件大小
+                                        var metadataSpan = transaction.StartChild("serial.packet.parse", "metadata");
                                         ParseFileInfo(packetBuffer, packetLength);
+                                        metadataSpan.Finish();
                                     }
-                                }else
+                                }
+                                else
                                 {
+                                    transaction.Finish(SpanStatus.InternalError);
+                                    transactionFinished = true;
                                     Console.WriteLine("包序号错误");
                                     status = -1;
                                     isTransmissionComplete = true;
-                                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "包序号错误", saveFileName, saveFileDate.ToShortDateString());
+                                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "包序号错误", saveFileName ?? "", saveFileDate.ToShortDateString());
                                 }
                             }
                             else
                             {
+                                var dataPacketSpan = transaction.StartChild("serial.packet.process", "data");
                                 HandleDataPacket(packetLength, packetType);
-
+                                dataPacketSpan.Finish();
                             }
                         }
                         else if (packetType == EOT)
                         {
+                            var eotSpan = transaction.StartChild("serial.handshake", "eot");
                             HandleEndOfTransmission();
+                            eotSpan.Finish();
                             continue;
-                        }else if (packetType ==CAN)
+                        }
+                        else if (packetType == CAN)
                         {
+                            transaction.Finish(SpanStatus.Aborted);
+                            transactionFinished = true;
                             status = -1;
                             isTransmissionComplete = true;
-                            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "接收任务被发送端取消", saveFileName, saveFileDate.ToShortDateString());
-
+                            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "接收任务被发送端取消", saveFileName ?? "", saveFileDate.ToShortDateString());
                         }
                     }
-                    else if (expectedPackageNo!=0)
+                    else if (expectedPackageNo != 0)
                     {
+                        transaction.Finish(SpanStatus.InternalError);
+                        transactionFinished = true;
                         status = -1;
                         isTransmissionComplete = true;
-                        RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "数据接收超时", saveFileName, saveFileDate.ToShortDateString());
+                        RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "数据接收超时", saveFileName ?? "", saveFileDate.ToShortDateString());
                     }
-                    else if (expectedPackageNo == 0)
+                    else
                     {
-                        SendChar(C); // 发送 'C' 字符，通知发送端准备接收
+                        SendChar(C);
                     }
                 }
+
+                transaction.Finish(status == 1 ? SpanStatus.Ok : SpanStatus.InternalError);
+                transactionFinished = true;
+            }
+            catch (Exception ex)
+            {
+                SentrySdk.CaptureException(ex);
+                transaction.Finish(SpanStatus.InternalError);
+                transactionFinished = true;
+                status = -1;
+                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, ex.Message, saveFileName ?? "", saveFileDate.ToShortDateString());
             }
             finally
             {
-                //serialPort.Close(); // 关闭串口
+                if (!transactionFinished)
+                {
+                    transaction.Finish();
+                }
             }
-
         }
 
         public void StopReceiving()
@@ -151,20 +183,20 @@ namespace YModemWin
             SendChar(CAN);
             SendChar(CAN);
             status = -2;
-            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "用户取消接收", saveFileName, saveFileDate.ToShortDateString());
+            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "用户取消接收", saveFileName ?? "", saveFileDate.ToShortDateString());
 
         }
 
         private int ReceivePacket()
         {
-            int packetSize = 0;
-            int headerLength = 3; // 3 字节头部 (类型, 包编号, 包编号的补码)
-            int crcLength = 2; // 2 字节 CRC 校验
+            var packetSize = 0;
+            var headerLength = 3; // 3 字节头部 (类型, 包编号, 包编号的补码)
+            var crcLength = 2; // 2 字节 CRC 校验
 
             while (true)
             {
                 //System.Threading.Thread.Sleep(200);
-                int readByte = -1;
+                var readByte = -1;
                 try
                 {
                     readByte = serialPort.ReadByte();
@@ -177,7 +209,7 @@ namespace YModemWin
                     return -1; // 超时或错误
                 }
 
-                byte packetType = (byte)readByte;
+                var packetType = (byte)readByte;
 
                 if (packetType == SOH)
                 {
@@ -211,16 +243,16 @@ namespace YModemWin
                 break;
             }
 
-            int bytesRead = 1;
+            var bytesRead = 1;
             while (bytesRead < packetBuffer.Length)
             {
-                int read = serialPort.Read(packetBuffer, bytesRead, packetBuffer.Length - bytesRead);
+                var read = serialPort.Read(packetBuffer, bytesRead, packetBuffer.Length - bytesRead);
                 bytesRead += read;
 
                 if (bytesRead == 0)
                 {
                     status = -1;
-                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "数据接收超时", saveFileName, saveFileDate.ToShortDateString());
+                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "数据接收超时", saveFileName ?? "", saveFileDate.ToShortDateString());
                     return -1; // 超时或错误
                 }
                 }
@@ -231,15 +263,15 @@ namespace YModemWin
         private void ParseFileInfo(byte[] buffer, int packetLength)
         {
             // 提取文件名
-            int nameEndIndex = Array.IndexOf(buffer, (byte)0, 3);
-            string fileName = Encoding.GetEncoding("gb2312").GetString(buffer, 3, nameEndIndex - 3);
+            var nameEndIndex = Array.IndexOf(buffer, (byte)0, 3);
+            var fileName = Encoding.GetEncoding("gb2312").GetString(buffer, 3, nameEndIndex - 3);
             saveFileName = fileName;
 
             // 提取文件扩展信息
-            int extendedStartIndex = nameEndIndex + 1;
-            int extendedEndIndex = Array.IndexOf(buffer, (byte)0, extendedStartIndex);
-            string infoString = Encoding.ASCII.GetString(buffer, extendedStartIndex, extendedEndIndex - extendedStartIndex);
-            string[] infoParts = infoString.Split(' ');
+            var extendedStartIndex = nameEndIndex + 1;
+            var extendedEndIndex = Array.IndexOf(buffer, (byte)0, extendedStartIndex);
+            var infoString = Encoding.ASCII.GetString(buffer, extendedStartIndex, extendedEndIndex - extendedStartIndex);
+            var infoParts = infoString.Split(' ');
 
             // 生成保存文件路径
             saveFilePath = Path.Combine(saveDirectory, fileName);
@@ -261,13 +293,13 @@ namespace YModemWin
             if (infoParts.Length >= 2)
             {
                 // 解析修改日期
-                string octalDateString = infoParts[1];
+                var octalDateString = infoParts[1];
                 if (octalDateString != "0" && !string.IsNullOrEmpty(octalDateString))
                 {
                     try
                     {
-                        long secondsSinceEpoch = Convert.ToInt64(octalDateString, 8);
-                        DateTime epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                        var secondsSinceEpoch = Convert.ToInt64(octalDateString, 8);
+                        var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                         saveFileDate = epoch.AddSeconds(secondsSinceEpoch);
                         Console.WriteLine($"文件修改日期: {saveFileDate}");
                     }
@@ -287,12 +319,12 @@ namespace YModemWin
             if (infoParts.Length >= 3)
             {
                 // 解析序列号（八进制）
-                string serialNumberString = infoParts[2];
+                var serialNumberString = infoParts[2];
                 if (!string.IsNullOrEmpty(serialNumberString))
                 {
                     try
                     {
-                        int serialNumber = Convert.ToInt32(serialNumberString, 8);
+                        var serialNumber = Convert.ToInt32(serialNumberString, 8);
                         totalPackage = serialNumber;
                         Console.WriteLine($"文件序列号: {serialNumber}");
                     }
@@ -318,20 +350,22 @@ namespace YModemWin
 
         private void HandleDataPacket(int packetLength, byte packetType)
         {
-            byte packetNum = packetBuffer[1];
-            byte inversePacketNum = packetBuffer[2];
-            int dataLength = packetType == SOH ? PacketSize128 : PacketSize1024;
-            byte[] data = new byte[dataLength];
+            if (packetBuffer == null) return;
+            
+            var packetNum = packetBuffer[1];
+            var inversePacketNum = packetBuffer[2];
+            var dataLength = packetType == SOH ? PacketSize128 : PacketSize1024;
+            var data = new byte[dataLength];
             Array.Copy(packetBuffer, 3, data, 0, data.Length);
 
-            ushort receivedCrc = (ushort)((packetBuffer[packetLength - 2] << 8) | packetBuffer[packetLength - 1]);
-            ushort calculatedCrc = CalculateCrc16(data);
+            var receivedCrc = (ushort)((packetBuffer[packetLength - 2] << 8) | packetBuffer[packetLength - 1]);
+            var calculatedCrc = CalculateCrc16(data);
 
             if (packetNum + inversePacketNum == 0xFF && receivedCrc == calculatedCrc && packetNum==expectedPackageNo%256)
             {
                 SaveDataToFile(data);
                 SendChar(ACK);
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "正在接收文件" + saveFileName, saveFileName, saveFileDate.ToShortDateString()) ;
+                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "正在接收文件" + saveFileName, saveFileName ?? "", saveFileDate.ToShortDateString()) ;
                 expectedPackageNo++;
             }
             else
@@ -346,8 +380,8 @@ namespace YModemWin
         {
             // 回复 NAK，等待确认 EOT
             SendChar(NAK);
-            int packetLength = ReceivePacket();
-            if (packetLength > 0 && packetBuffer[0] == EOT)
+            var packetLength = ReceivePacket();
+            if (packetLength > 0 && packetBuffer != null && packetBuffer[0] == EOT)
             {
                 SendChar(ACK); // 确认接收到 EOT
                 SendChar(C); // 请求下一个传输（如果有）
@@ -356,28 +390,32 @@ namespace YModemWin
             }else
             {
                 status = -1;
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "终止传输指令未正确响应", saveFileName, saveFileDate.ToShortDateString());
+                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "终止传输指令未正确响应", saveFileName ?? "", saveFileDate.ToShortDateString());
             }
         }
         private void HandleFilesAllCompeted()
         {
+            if (packetBuffer == null) return;
+            
             if (packetBuffer[4]==0x30 && packetBuffer[5] == 0x20 && packetBuffer[6] == 0x30 && packetBuffer[7] == 0x20 && packetBuffer[8] == 0x30)
             {
                 isTransmissionComplete = true; // 结束传输
                 SendChar(ACK); // 发送确认信号
-                TimeSpan span = DateTime.Now - dt;
+                var span = DateTime.Now - dt;
                 status = 1;
                 //MessageBox.Show("接收耗时:" + span.TotalMilliseconds.ToString() + "毫秒", "接收成功", MessageBoxButtons.OK, MessageBoxIcon.None);
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "接收成功，耗时:" + span.TotalSeconds.ToString() + "秒", saveFileName, saveFileDate.ToShortDateString());
+                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "接收成功，耗时:" + span.TotalSeconds.ToString() + "秒", saveFileName ?? "", saveFileDate.ToShortDateString());
             }
         }
 
         private void SaveDataToFile(byte[] data)
         {
+            if (saveFilePath == null) return;
+            
             using (var fileStream = new FileStream(saveFilePath, FileMode.Append))
             {
-                int datelen = data.Length;
-                int actualLength = Array.IndexOf(data, CTRLZ);
+                var datelen = data.Length;
+                var actualLength = Array.IndexOf(data, CTRLZ);
                 if (actualLength > 0 && (fileLength-ReceivedLength)< datelen)
                 {
                     if ((fileLength - ReceivedLength) > actualLength) actualLength =(int)(fileLength - ReceivedLength);
@@ -397,10 +435,10 @@ namespace YModemWin
             const ushort polynomial = 0x1021;
             ushort crc = 0;
 
-            foreach (byte b in data)
+            foreach (var b in data)
             {
                 crc ^= (ushort)(b << 8);
-                for (int i = 0; i < 8; i++)
+                for (var i = 0; i < 8; i++)
                 {
                     if ((crc & 0x8000) != 0)
                     {
