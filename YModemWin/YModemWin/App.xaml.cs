@@ -25,9 +25,14 @@ public partial class App : Application
                 options.Dsn = sentryDsn;
                 options.Debug = false;
                 options.AutoSessionTracking = true;
+                options.TracesSampleRate = 1.0;
+                options.ProfilesSampleRate = 1.0;
+                options.AddProfilingIntegration();
+                options.EnableLogs = true;
             });
 
             AppLogger.Info("Sentry initialized.");
+            SentrySdk.CaptureMessage("Hello Sentry");
         }
         else
         {
