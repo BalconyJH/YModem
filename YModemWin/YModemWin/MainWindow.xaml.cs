@@ -1,8 +1,8 @@
+using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
 using System.Text;
 using System.Windows;
-using System.Windows.Data;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Wpf.Ui.Controls;
@@ -23,16 +23,21 @@ public partial class MainWindow : FluentWindow
 
     private bool isSending;
     private bool isReceiving;
+    private bool isSendPortOpening;
+    private bool isReceivePortOpening;
+    private bool isSendCancelling;
+    private bool isReceiveCancelling;
 
-    // 使用 RangeObservableCollection 支持批量添加，避免多次 UI 更新
+    // Batch updates to avoid per-item UI notifications
     private readonly RangeObservableCollection<string> sendFilesList = new();
+    private readonly HashSet<string> sendFilesSet = new(StringComparer.OrdinalIgnoreCase);
 
     public MainWindow()
     {
         InitializeComponent();
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         
-        // 绑定数据源
+        // Bind queue to list view
         SendFilesListBox.ItemsSource = sendFilesList;
         
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
@@ -43,7 +48,7 @@ public partial class MainWindow : FluentWindow
 
     private void OnRefreshPortsClick(object sender, RoutedEventArgs e) => RefreshPorts();
 
-    private async void OnBrowseSendFileClick(object sender, RoutedEventArgs e)
+    private void OnBrowseSendFileClick(object sender, RoutedEventArgs e)
     {
         var picker = new OpenFileDialog
         {
@@ -52,56 +57,59 @@ public partial class MainWindow : FluentWindow
             Filter = "All files (*.*)|*.*"
         };
 
-        if (picker.ShowDialog(this) != true || picker.FileNames.Length == 0)
+        var totalStopwatch = Stopwatch.StartNew();
+        var dialogStopwatch = Stopwatch.StartNew();
+        var dialogResult = picker.ShowDialog(this);
+        dialogStopwatch.Stop();
+
+        if (dialogResult != true || picker.FileNames.Length == 0)
         {
+            totalStopwatch.Stop();
+            AppendLog($"Browse timing: ShowDialog={dialogStopwatch.ElapsedMilliseconds} ms, Dedup=0 ms, AddRange=0 ms, Total={totalStopwatch.ElapsedMilliseconds} ms (no files selected).");
             return;
         }
 
         var selectedFiles = picker.FileNames;
-        
-        // 在 UI 线程创建现有文件列表的快照（避免跨线程访问）
-        var existingFilesSnapshot = sendFilesList.ToList();
-        
-        // 在后台线程处理文件筛选
-        var newFiles = await Task.Run(() =>
+        var newFiles = new List<string>(selectedFiles.Length);
+
+        var dedupStopwatch = Stopwatch.StartNew();
+        foreach (var filePath in selectedFiles)
         {
-            var existingFiles = new HashSet<string>(existingFilesSnapshot, StringComparer.OrdinalIgnoreCase);
-            var filesToAdd = new List<string>(selectedFiles.Length);
-            
-            foreach (var filePath in selectedFiles)
+            var normalizedPath = Path.GetFullPath(filePath);
+            if (sendFilesSet.Add(normalizedPath))
             {
-                if (existingFiles.Add(filePath))
-                {
-                    filesToAdd.Add(filePath);
-                }
+                newFiles.Add(normalizedPath);
             }
+        }
 
-            return filesToAdd;
-        });
+        dedupStopwatch.Stop();
 
-        // 使用静默添加 + 手动通知的方式批量更新
+        var addRangeStopwatch = Stopwatch.StartNew();
         if (newFiles.Count > 0)
         {
-            // 静默添加到底层集合（不触发任何通知）
-            sendFilesList.AddRangeSilent(newFiles);
-            
-            // 手动触发一次 Reset 通知，让 ListBox 刷新
-            var view = CollectionViewSource.GetDefaultView(sendFilesList);
-            view.Refresh();
+            sendFilesList.AddRange(newFiles);
         }
-        
+
+        addRangeStopwatch.Stop();
+        totalStopwatch.Stop();
+
         SendInfoBar.IsOpen = false;
 
         AppendLog(newFiles.Count > 0
             ? $"Added {newFiles.Count} file(s) to send queue ({selectedFiles.Length - newFiles.Count} duplicate(s) skipped)."
             : $"All {selectedFiles.Length} file(s) already in queue.");
+        AppendLog($"Browse timing: ShowDialog={dialogStopwatch.ElapsedMilliseconds} ms, Dedup={dedupStopwatch.ElapsedMilliseconds} ms, AddRange={addRangeStopwatch.ElapsedMilliseconds} ms, Total={totalStopwatch.ElapsedMilliseconds} ms, Selected={selectedFiles.Length}.");
+
+        UpdateActionButtons();
     }
 
     private void OnClearSendFilesClick(object sender, RoutedEventArgs e)
     {
         sendFilesList.Clear();
+        sendFilesSet.Clear();
         SendInfoBar.IsOpen = false;
         SendStatusTextBlock.Text = "Send status: queue cleared";
+        UpdateActionButtons();
     }
 
     private void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
@@ -135,28 +143,38 @@ public partial class MainWindow : FluentWindow
         AppendLog("Serial ports refreshed.");
     }
 
-    private void OnStartSendClick(object sender, RoutedEventArgs e)
+    private async void OnStartSendClick(object sender, RoutedEventArgs e)
     {
         if (isSending)
         {
-            lock (serialLock)
+            if (isSendCancelling)
             {
-                transmitter?.StopTransmitting();
+                return;
             }
+
+            isSendCancelling = true;
+            SendStatusTextBlock.Text = "Send status: cancel requested";
+            UpdateActionButtons();
+
+            _ = Task.Run(() =>
+            {
+                lock (serialLock)
+                {
+                    transmitter?.StopTransmitting();
+                }
+            });
 
             AppendLog("Cancel requested for sending.");
             return;
         }
 
-        var files = sendFilesList.ToList();
-        if (files.Count == 0)
+        if (isSendPortOpening)
         {
-            SendInfoBar.IsOpen = true;
-            SendStatusTextBlock.Text = "Send status: add at least one file";
             return;
         }
 
-        if (!TryCreateSerialPort(out var port, SendStatusTextBlock))
+        var files = sendFilesList.ToList();
+        if (files.Count == 0)
         {
             return;
         }
@@ -164,8 +182,34 @@ public partial class MainWindow : FluentWindow
         if (files.Any(static path => !File.Exists(path)))
         {
             SendStatusTextBlock.Text = "Send status: file not found in queue";
-            port.Dispose();
             return;
+        }
+
+        if (!TryGetSerialSettings(out var portName, out var baudRate, out var statusMessage))
+        {
+            SendStatusTextBlock.Text = statusMessage;
+            return;
+        }
+
+        isSendPortOpening = true;
+        SendStatusTextBlock.Text = "Send status: opening serial port...";
+        UpdateActionButtons();
+
+        SerialPort port;
+        try
+        {
+            port = await Task.Run(() => OpenSerialPort(portName, baudRate));
+        }
+        catch (Exception ex)
+        {
+            SendStatusTextBlock.Text = $"Send status: open serial failed ({ex.Message})";
+            AppendLog($"Send: open serial failed ({ex.Message})");
+            return;
+        }
+        finally
+        {
+            isSendPortOpening = false;
+            UpdateActionButtons();
         }
 
         lock (serialLock)
@@ -208,20 +252,32 @@ public partial class MainWindow : FluentWindow
         });
     }
 
-    private void OnStartReceiveClick(object sender, RoutedEventArgs e)
+    private async void OnStartReceiveClick(object sender, RoutedEventArgs e)
     {
         if (isReceiving)
         {
-            lock (serialLock)
+            if (isReceiveCancelling)
             {
-                receiver?.StopReceiving();
+                return;
             }
+
+            isReceiveCancelling = true;
+            ReceiveStatusTextBlock.Text = "Receive status: cancel requested";
+            UpdateActionButtons();
+
+            _ = Task.Run(() =>
+            {
+                lock (serialLock)
+                {
+                    receiver?.StopReceiving();
+                }
+            });
 
             AppendLog("Cancel requested for receiving.");
             return;
         }
 
-        if (!TryCreateSerialPort(out var port, ReceiveStatusTextBlock))
+        if (isReceivePortOpening)
         {
             return;
         }
@@ -230,11 +286,37 @@ public partial class MainWindow : FluentWindow
         if (string.IsNullOrWhiteSpace(saveFolder))
         {
             ReceiveStatusTextBlock.Text = "Receive status: invalid save folder";
-            port.Dispose();
             return;
         }
 
         Directory.CreateDirectory(saveFolder);
+
+        if (!TryGetSerialSettings(out var portName, out var baudRate, out var statusMessage))
+        {
+            ReceiveStatusTextBlock.Text = statusMessage;
+            return;
+        }
+
+        isReceivePortOpening = true;
+        ReceiveStatusTextBlock.Text = "Receive status: opening serial port...";
+        UpdateActionButtons();
+
+        SerialPort port;
+        try
+        {
+            port = await Task.Run(() => OpenSerialPort(portName, baudRate));
+        }
+        catch (Exception ex)
+        {
+            ReceiveStatusTextBlock.Text = $"Receive status: open serial failed ({ex.Message})";
+            AppendLog($"Receive: open serial failed ({ex.Message})");
+            return;
+        }
+        finally
+        {
+            isReceivePortOpening = false;
+            UpdateActionButtons();
+        }
 
         lock (serialLock)
         {
@@ -269,33 +351,33 @@ public partial class MainWindow : FluentWindow
         });
     }
 
-    private bool TryCreateSerialPort(out SerialPort serialPort, Wpf.Ui.Controls.TextBlock statusTextBlock)
+    private bool TryGetSerialSettings(out string portName, out int baudRate, out string statusMessage)
     {
-        serialPort = null;
+        portName = string.Empty;
+        baudRate = 0;
+        statusMessage = string.Empty;
 
-        if (PortComboBox.SelectedItem is not string portName || string.IsNullOrWhiteSpace(portName))
+        if (PortComboBox.SelectedItem is not string selectedPort || string.IsNullOrWhiteSpace(selectedPort))
         {
-            statusTextBlock.Text = "Status: choose a serial port";
+            statusMessage = "Status: choose a serial port";
             return false;
         }
 
-        if (!int.TryParse(GetBaudRateText(), out var baudRate))
+        if (!int.TryParse(GetBaudRateText(), out baudRate))
         {
-            statusTextBlock.Text = "Status: invalid baud rate";
+            statusMessage = "Status: invalid baud rate";
             return false;
         }
 
-        try
-        {
-            serialPort = new SerialPort(portName, baudRate);
-            serialPort.Open();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            statusTextBlock.Text = $"Status: open serial failed ({ex.Message})";
-            return false;
-        }
+        portName = selectedPort;
+        return true;
+    }
+
+    private static SerialPort OpenSerialPort(string portName, int baudRate)
+    {
+        var serialPort = new SerialPort(portName, baudRate);
+        serialPort.Open();
+        return serialPort;
     }
 
     private string GetBaudRateText()
@@ -383,6 +465,8 @@ public partial class MainWindow : FluentWindow
 
     private void AppendLog(string message)
     {
+        AppLogger.Info("{Message}", message);
+
         Dispatcher.BeginInvoke(() =>
         {
             RuntimeLogTextBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
@@ -398,6 +482,8 @@ public partial class MainWindow : FluentWindow
             receiver = null;
             isSending = false;
             isReceiving = false;
+            isSendCancelling = false;
+            isReceiveCancelling = false;
 
             if (activePort != null)
             {
@@ -417,13 +503,22 @@ public partial class MainWindow : FluentWindow
 
     private void UpdateActionButtons()
     {
-        SetActionButtonState(SendActionButton, isSending, "Start Send");
-        SetActionButtonState(ReceiveActionButton, isReceiving, "Start Receive");
+        SetActionButtonState(SendActionButton, isSending, isSendCancelling, "Start Send", isSendPortOpening, sendFilesList.Count > 0);
+        SetActionButtonState(ReceiveActionButton, isReceiving, isReceiveCancelling, "Start Receive", isReceivePortOpening, true);
     }
 
-    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isCancel, string startText)
+    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isRunning, bool isCancelling, string startText, bool isBusy, bool canStart)
     {
-        button.Content = isCancel ? "Cancel" : startText;
-        button.Appearance = isCancel ? ControlAppearance.Danger : ControlAppearance.Primary;
+        if (isRunning)
+        {
+            button.Content = isCancelling ? "Cancelling..." : "Cancel";
+            button.Appearance = ControlAppearance.Danger;
+            button.IsEnabled = !isCancelling;
+            return;
+        }
+
+        button.Content = startText;
+        button.Appearance = ControlAppearance.Primary;
+        button.IsEnabled = canStart && !isBusy;
     }
 }
