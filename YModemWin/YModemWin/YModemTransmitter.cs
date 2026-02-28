@@ -6,6 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Sentry;
 
 namespace YModemWin
 {
@@ -55,45 +56,77 @@ namespace YModemWin
             userCancel = false;
             isTramsitting = true;
             Path = path;
-            FileStream fileStream = new FileStream(@path, FileMode.Open, FileAccess.Read);
-            //计算总段长
-            totalpackage = (int)(fileStream.Length - 1) / YModemTransmitter.DataSize + 1;
-            Console.WriteLine("total section len=" + totalpackage.ToString());
 
-            /* 数据包: 1029字节 */
-            /* 头部: 3字节 */
-            // STX
+            var transaction = SentrySdk.StartTransaction("ymodem.send", "serial.transfer");
+            var transactionFinished = false;
+            transaction.SetTag("ymodem.mode", isLastFile ? "single-or-last" : "multi");
+            transaction.SetData("ymodem.file_name", System.IO.Path.GetFileName(path));
 
             int invertedPacketNumber = 255;
-            /* 数据: 1024字节 */
             byte[] data = new byte[DataSize];
-            /* 尾部: 2字节 */
             byte[] CRC = new byte[CrcSize];
-
             Crc16Ccitt crc16Ccitt = new Crc16Ccitt(InitialCrcValue.Zeros);
             int packetNumber = 0;
             Thread.Sleep(1);
 
             try
             {
-                /* 发送包含文件名和文件大小的初始数据包 */
-                while (isTramsitting)
+                using var fileStream = new FileStream(@path, FileMode.Open, FileAccess.Read);
+                transaction.SetData("ymodem.file_size", fileStream.Length);
+
+                totalpackage = (int)(fileStream.Length - 1) / YModemTransmitter.DataSize + 1;
+                Console.WriteLine("total section len=" + totalpackage.ToString());
+
+                var waitReceiverReadySpan = transaction.StartChild("serial.handshake", "wait_receiver_ready");
+                try
                 {
-                    int ret = -1;
-                    try
+                    while (isTramsitting)
                     {
-                        ret = serialPort.ReadByte();
+                        int ret = -1;
+                        try
+                        {
+                            ret = serialPort.ReadByte();
+                        }
+                        catch
+                        {
+                        }
+
+                        if (ret == C)
+                        {
+                            break;
+                        }
+
+                        Thread.Sleep(30);
                     }
-                    catch { }
-                    if (ret == C) break;
-                    Thread.Sleep(30);
                 }
+                finally
+                {
+                    waitReceiverReadySpan.Finish();
+                }
+
                 serialPort.DiscardInBuffer();
-                if (dt.Ticks == 0) dt = DateTime.Now;
-                sendYmodemInitialPacket(STX, packetNumber, invertedPacketNumber, data, DataSize, Path, fileStream, CRC, CrcSize);
-                byte read =(byte) serialPort.ReadByte();
+                if (dt.Ticks == 0)
+                {
+                    dt = DateTime.Now;
+                }
+
+                byte read;
+                var metadataPacketSpan = transaction.StartChild("serial.packet.send", "initial_metadata_packet");
+                try
+                {
+                    sendYmodemInitialPacket(STX, packetNumber, invertedPacketNumber, data, DataSize, Path, fileStream, CRC, CrcSize);
+                    read = (byte)serialPort.ReadByte();
+                    metadataPacketSpan.SetData("packet.signal", read);
+                }
+                finally
+                {
+                    metadataPacketSpan.Finish();
+                }
+
                 if (read != ACK)
                 {
+                    transaction.Finish(SpanStatus.InternalError);
+                    transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "发送初始数据包错误");
                     status = -1;
                     return false;
@@ -101,63 +134,83 @@ namespace YModemWin
 
                 if (serialPort.ReadByte() != C)
                 {
+                    transaction.Finish(SpanStatus.InternalError);
+                    transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "未接收到正确的接收请求");
                     status = -1;
                     return false;
                 }
-                /* 循环发送数据包，直到发送完最后一个字节 */
+
                 int packageReadCount;
                 do
                 {
-                    /* 如果这是最后一个数据包，用0填充剩余字节 */
                     packageReadCount = fileStream.Read(data, 0, DataSize);
-                    if (packageReadCount == 0) break;
-                    if (packageReadCount != DataSize)
-                        for (int i = packageReadCount; i < DataSize; i++)
-                            data[i] = 0x1A;
+                    if (packageReadCount == 0)
+                    {
+                        break;
+                    }
 
-                    /* 计算数据包编号 */
+                    if (packageReadCount != DataSize)
+                    {
+                        for (int i = packageReadCount; i < DataSize; i++)
+                        {
+                            data[i] = 0x1A;
+                        }
+                    }
+
                     packetNumber++;
                     packagesent++;
                     if (packetNumber > 255)
+                    {
                         packetNumber -= 256;
+                    }
+
                     string fileName = System.IO.Path.GetFileName(path);
-                    RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packagesent, totalpackage,status,"正在发送文件 "+ fileName);
+                    RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packagesent, totalpackage, status, "正在发送文件 " + fileName);
 
-                    Console.WriteLine(packetNumber);
-
-                    /* 计算反转数据包编号 */
                     invertedPacketNumber = 255 - packetNumber;
-
-                    /* 计算CRC校验码 */
-
                     CRC = crc16Ccitt.ComputeChecksumBytes(data);
 
-                    /* 发送数据包 */
-                    sendYmodemPacket(STX, packetNumber, invertedPacketNumber, data, DataSize, CRC, CrcSize);
+                    bool shouldTracePacket = packetNumber == 1
+                        || packagesent == totalpackage
+                        || (packagesent % 100) == 0;
 
-                    /* 等待ACK信号 */
-                    int signal = serialPort.ReadByte();
+                    int signal;
+                    ISpan? dataPacketSpan = null;
+                    try
+                    {
+                        if (shouldTracePacket)
+                        {
+                            dataPacketSpan = transaction.StartChild("serial.packet.send", "data_packet");
+                            dataPacketSpan.SetData("packet.number", packetNumber);
+                        }
+
+                        sendYmodemPacket(STX, packetNumber, invertedPacketNumber, data, DataSize, CRC, CrcSize);
+                        signal = serialPort.ReadByte();
+                        dataPacketSpan?.SetData("packet.signal", signal);
+                    }
+                    finally
+                    {
+                        dataPacketSpan?.Finish();
+                    }
+
                     if (signal == ACK)
                     {
-                        //System.Threading.Thread.Sleep(1);
                         status = 2;
                     }
-                    //数传传输错误，重传数据
                     else if (signal == NAK)
                     {
-                        /* 发送数据包 */
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "数据传输错误，重发数据包。");
                         Console.WriteLine("数据传输错误，重发数据包。");
                         status = -1;
-                        // 重置流的位置回到开始
                         fileStream.Position -= DataSize;
-                        //重置包号
                         packagesent--;
                         packetNumber--;
                     }
                     else if (signal == CAN)
                     {
+                        transaction.Finish(SpanStatus.Aborted);
+                        transactionFinished = true;
                         status = -1;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "发送任务被接收端取消了。");
                         Console.WriteLine("无法发送数据包。");
@@ -165,114 +218,118 @@ namespace YModemWin
                     }
                     else
                     {
+                        transaction.Finish(SpanStatus.InternalError);
+                        transactionFinished = true;
                         status = -1;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "接收端未响应发送的数据包。");
                         Console.WriteLine("无法发送数据包。");
                         return false;
                     }
+
                     if (userCancel)
                     {
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
+                        for (int i = 0; i < 8; i++)
+                        {
+                            serialPort.Write(new byte[] { CAN }, 0, 1);
+                        }
+
+                        transaction.Finish(SpanStatus.Cancelled);
+                        transactionFinished = true;
                         status = -2;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "用户取消发送。");
-
                         return false;
                     }
                 } while (DataSize == packageReadCount && isTramsitting);
 
-                /* 发送EOT（通知接收方传输结束） */
                 serialPort.Write(new byte[] { EOT }, 0, 1);
 
-                /* 获取ACK（接收方确认EOT） */
                 int act = serialPort.ReadByte();
                 if ((act != ACK) && (act != NAK))
                 {
+                    transaction.Finish(SpanStatus.InternalError);
+                    transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "接收端未正确响应结束请求。");
                     Console.WriteLine("无法完成传输。");
                     status = -1;
                     return false;
                 }
-                /* 获取NAK（发送方重新发送EOT） */
+
                 if (act == NAK)
                 {
                     serialPort.Write(new byte[] { EOT }, 0, 1);
                 }
-                /* 获取ACK（接收方确认EOT） */
+
                 if (serialPort.ReadByte() != ACK)
                 {
+                    transaction.Finish(SpanStatus.InternalError);
+                    transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "接收端未正确响应结束请求。");
                     Console.WriteLine("无法完成传输。");
                     status = -1;
                     return false;
                 }
-                //如果是最后一个文件发送文件组发送完成包
+
                 if (isLastFile)
                 {
-                    /* 获取ACK（接收方确认C信号） */
                     if (serialPort.ReadByte() != C)
                     {
+                        transaction.Finish(SpanStatus.InternalError);
+                        transactionFinished = true;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "接收端未正确响应结束请求。");
                         Console.WriteLine("无法完成传输。");
                         status = -1;
                         return false;
                     }
 
-                    /* 发送关闭数据包 */
                     packetNumber = 0;
                     invertedPacketNumber = 255;
                     data = new byte[128];
                     data[0] = 0x00;
                     data[1] = data[3] = data[5] = 0x30;
                     data[2] = data[4] = 0x20;
-                    CRC = new byte[CrcSize];
-                    /* 计算CRC校验码 */
                     CRC = crc16Ccitt.ComputeChecksumBytes(data);
 
                     sendYmodemClosingPacket(SOH, packetNumber, invertedPacketNumber, data, 128, CRC, CrcSize);
 
-                    /* 获取ACK（接收方确认下载完成） */
                     if (serialPort.ReadByte() != ACK)
                     {
+                        transaction.Finish(SpanStatus.InternalError);
+                        transactionFinished = true;
                         Console.WriteLine("无法完成传输。");
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "接收端未正确响应结束请求。");
                         status = -1;
                         return false;
                     }
+
                     Console.WriteLine("文件传输成功");
                     TimeSpan span = DateTime.Now - dt;
                     status = 1;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packagesent, totalpackage, status, "发送成功，耗时:" + span.TotalSeconds.ToString() + "秒");
-                    //MessageBox.Show("发送耗时:" + span.TotalMilliseconds.ToString() + "毫秒", "发送成功", MessageBoxButtons.OK, MessageBoxIcon.None);
                 }
-            }
 
-            catch 
+                transaction.Finish(SpanStatus.Ok);
+                transactionFinished = true;
+                return true;
+            }
+            catch (Exception ex)
             {
-                //接收方超时
+                SentrySdk.CaptureException(ex);
+                transaction.Finish(SpanStatus.InternalError);
+                transactionFinished = true;
                 Console.WriteLine("接收方超时");
                 status = -1;
-                RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "接收方超时");
+                RefreshSendUI?.Invoke(0, 0, packetNumber, totalpackage, status, "接收方超时");
                 return false;
             }
             finally
             {
-                if (status == -1)
+                if (!transactionFinished)
                 {
-                    //RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "发送失败");
+                    transaction.Finish();
                 }
-                fileStream.Close();
             }
-
-
-            return true;
         }
+
         public void StopTransmitting()
         {
             userCancel = true;

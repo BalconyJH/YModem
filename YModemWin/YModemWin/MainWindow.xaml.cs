@@ -13,9 +13,9 @@ public partial class MainWindow : FluentWindow
 {
     private const int UiUpdateIntervalMs = 120;
 
-    private SerialPort activePort;
-    private YModemTransmitter transmitter;
-    private YModemReceiver receiver;
+    private SerialPort? activePort;
+    private YModemTransmitter? transmitter;
+    private YModemReceiver? receiver;
     private readonly object serialLock = new();
 
     private DateTime lastSendUiUpdateUtc = DateTime.MinValue;
@@ -232,17 +232,17 @@ public partial class MainWindow : FluentWindow
         TaskBarProgress.SetValue(this, 0);
         AppendLog($"Start sending {files.Count} file(s).");
 
-        Task.Run(() =>
+        _ = Task.Run(() =>
         {
             try
             {
                 if (files.Count == 1)
                 {
-                    transmitter.YmodemSendFile(files[0]);
+                    transmitter!.YmodemSendFile(files[0]);
                 }
                 else
                 {
-                    transmitter.YmodemSendFiles(files);
+                    transmitter!.YmodemSendFiles(files);
                 }
             }
             finally
@@ -338,11 +338,11 @@ public partial class MainWindow : FluentWindow
         TaskBarProgress.SetValue(this, 0);
         AppendLog($"Start receiving into '{saveFolder}'.");
 
-        Task.Run(() =>
+        _ = Task.Run(() =>
         {
             try
             {
-                receiver.StartReceiving();
+                receiver!.StartReceiving();
             }
             finally
             {
@@ -478,8 +478,8 @@ public partial class MainWindow : FluentWindow
     {
         lock (serialLock)
         {
-            transmitter = null;
-            receiver = null;
+            transmitter = null!;
+            receiver = null!;
             isSending = false;
             isReceiving = false;
             isSendCancelling = false;
@@ -493,7 +493,7 @@ public partial class MainWindow : FluentWindow
                 }
 
                 activePort.Dispose();
-                activePort = null;
+                activePort = null!;
             }
         }
 
