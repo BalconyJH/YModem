@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using System.IO.Ports;
 using System.Text;
@@ -52,14 +53,22 @@ public partial class MainWindow : FluentWindow
             Filter = "All files (*.*)|*.*"
         };
 
-        if (picker.ShowDialog(this) != true || picker.FileNames.Length == 0)
+        var totalStopwatch = Stopwatch.StartNew();
+        var dialogStopwatch = Stopwatch.StartNew();
+        var dialogResult = picker.ShowDialog(this);
+        dialogStopwatch.Stop();
+
+        if (dialogResult != true || picker.FileNames.Length == 0)
         {
+            totalStopwatch.Stop();
+            AppendLog($"Browse timing: ShowDialog={dialogStopwatch.ElapsedMilliseconds} ms, Dedup=0 ms, AddRange=0 ms, Total={totalStopwatch.ElapsedMilliseconds} ms (no files selected).");
             return;
         }
 
         var selectedFiles = picker.FileNames;
         var newFiles = new List<string>(selectedFiles.Length);
 
+        var dedupStopwatch = Stopwatch.StartNew();
         foreach (var filePath in selectedFiles)
         {
             var normalizedPath = Path.GetFullPath(filePath);
@@ -69,16 +78,23 @@ public partial class MainWindow : FluentWindow
             }
         }
 
+        dedupStopwatch.Stop();
+
+        var addRangeStopwatch = Stopwatch.StartNew();
         if (newFiles.Count > 0)
         {
             sendFilesList.AddRange(newFiles);
         }
-        
+
+        addRangeStopwatch.Stop();
+        totalStopwatch.Stop();
+
         SendInfoBar.IsOpen = false;
 
         AppendLog(newFiles.Count > 0
             ? $"Added {newFiles.Count} file(s) to send queue ({selectedFiles.Length - newFiles.Count} duplicate(s) skipped)."
             : $"All {selectedFiles.Length} file(s) already in queue.");
+        AppendLog($"Browse timing: ShowDialog={dialogStopwatch.ElapsedMilliseconds} ms, Dedup={dedupStopwatch.ElapsedMilliseconds} ms, AddRange={addRangeStopwatch.ElapsedMilliseconds} ms, Total={totalStopwatch.ElapsedMilliseconds} ms, Selected={selectedFiles.Length}.");
     }
 
     private void OnClearSendFilesClick(object sender, RoutedEventArgs e)
