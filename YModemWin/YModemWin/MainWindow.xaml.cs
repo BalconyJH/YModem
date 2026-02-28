@@ -23,7 +23,8 @@ public partial class MainWindow : FluentWindow
 
     private bool isSending;
     private bool isReceiving;
-    private bool isPortOpening;
+    private bool isSendPortOpening;
+    private bool isReceivePortOpening;
 
     // Batch updates to avoid per-item UI notifications
     private readonly RangeObservableCollection<string> sendFilesList = new();
@@ -141,16 +142,20 @@ public partial class MainWindow : FluentWindow
     {
         if (isSending)
         {
-            lock (serialLock)
+            SendStatusTextBlock.Text = "Send status: cancel requested";
+            _ = Task.Run(() =>
             {
-                transmitter?.StopTransmitting();
-            }
+                lock (serialLock)
+                {
+                    transmitter?.StopTransmitting();
+                }
+            });
 
             AppendLog("Cancel requested for sending.");
             return;
         }
 
-        if (isPortOpening)
+        if (isSendPortOpening)
         {
             return;
         }
@@ -175,7 +180,7 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        isPortOpening = true;
+        isSendPortOpening = true;
         SendStatusTextBlock.Text = "Send status: opening serial port...";
         UpdateActionButtons();
 
@@ -192,7 +197,7 @@ public partial class MainWindow : FluentWindow
         }
         finally
         {
-            isPortOpening = false;
+            isSendPortOpening = false;
             UpdateActionButtons();
         }
 
@@ -240,16 +245,20 @@ public partial class MainWindow : FluentWindow
     {
         if (isReceiving)
         {
-            lock (serialLock)
+            ReceiveStatusTextBlock.Text = "Receive status: cancel requested";
+            _ = Task.Run(() =>
             {
-                receiver?.StopReceiving();
-            }
+                lock (serialLock)
+                {
+                    receiver?.StopReceiving();
+                }
+            });
 
             AppendLog("Cancel requested for receiving.");
             return;
         }
 
-        if (isPortOpening)
+        if (isReceivePortOpening)
         {
             return;
         }
@@ -269,7 +278,7 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        isPortOpening = true;
+        isReceivePortOpening = true;
         ReceiveStatusTextBlock.Text = "Receive status: opening serial port...";
         UpdateActionButtons();
 
@@ -286,7 +295,7 @@ public partial class MainWindow : FluentWindow
         }
         finally
         {
-            isPortOpening = false;
+            isReceivePortOpening = false;
             UpdateActionButtons();
         }
 
@@ -473,8 +482,8 @@ public partial class MainWindow : FluentWindow
 
     private void UpdateActionButtons()
     {
-        SetActionButtonState(SendActionButton, isSending, "Start Send", isPortOpening);
-        SetActionButtonState(ReceiveActionButton, isReceiving, "Start Receive", isPortOpening);
+        SetActionButtonState(SendActionButton, isSending, "Start Send", isSendPortOpening);
+        SetActionButtonState(ReceiveActionButton, isReceiving, "Start Receive", isReceivePortOpening);
     }
 
     private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isCancel, string startText, bool isBusy)
