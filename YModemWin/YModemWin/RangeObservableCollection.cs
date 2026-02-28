@@ -1,5 +1,7 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections;
+using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.Linq;
 
 namespace YModemWin;
 
@@ -9,30 +11,29 @@ namespace YModemWin;
 public class RangeObservableCollection<T> : ObservableCollection<T>
 {
     /// <summary>
-    /// Adds multiple items and triggers a single reset notification.
+    /// Adds multiple items and raises one Add collection notification.
     /// </summary>
     public void AddRange(IEnumerable<T> items)
     {
         if (items == null)
             throw new ArgumentNullException(nameof(items));
 
-        CheckReentrancy();
-
-        var hasNewItem = false;
-        
-        foreach (var item in items)
-        {
-            Items.Add(item);
-            hasNewItem = true;
-        }
-
-        if (!hasNewItem)
+        var pendingItems = items as IList<T> ?? items.ToList();
+        if (pendingItems.Count == 0)
         {
             return;
         }
 
+        CheckReentrancy();
+
+        var startIndex = Count;
+        foreach (var item in pendingItems)
+        {
+            Items.Add(item);
+        }
+
         OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(Count)));
         OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs("Item[]"));
-        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
+        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, (IList)pendingItems, startIndex));
     }
 }

@@ -23,7 +23,7 @@ public partial class MainWindow : FluentWindow
     private bool isSending;
     private bool isReceiving;
 
-    // 使用 RangeObservableCollection 支持批量添加，避免多次 UI 更新
+    // Batch updates to avoid per-item UI notifications
     private readonly RangeObservableCollection<string> sendFilesList = new();
     private readonly HashSet<string> sendFilesSet = new(StringComparer.OrdinalIgnoreCase);
 
@@ -32,7 +32,7 @@ public partial class MainWindow : FluentWindow
         InitializeComponent();
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         
-        // 绑定数据源
+        // Bind queue to list view
         SendFilesListBox.ItemsSource = sendFilesList;
         
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
@@ -62,9 +62,10 @@ public partial class MainWindow : FluentWindow
 
         foreach (var filePath in selectedFiles)
         {
-            if (sendFilesSet.Add(filePath))
+            var normalizedPath = Path.GetFullPath(filePath);
+            if (sendFilesSet.Add(normalizedPath))
             {
-                newFiles.Add(filePath);
+                newFiles.Add(normalizedPath);
             }
         }
 
