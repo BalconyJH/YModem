@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.Linq;
@@ -11,7 +10,8 @@ namespace YModemWin;
 public class RangeObservableCollection<T> : ObservableCollection<T>
 {
     /// <summary>
-    /// Adds multiple items and raises one Add collection notification.
+    /// Adds multiple items and raises one Reset collection notification.
+    /// WPF ListCollectionView does not support range Add notifications.
     /// </summary>
     public void AddRange(IEnumerable<T> items)
     {
@@ -26,7 +26,6 @@ public class RangeObservableCollection<T> : ObservableCollection<T>
 
         CheckReentrancy();
 
-        var startIndex = Count;
         foreach (var item in pendingItems)
         {
             Items.Add(item);
@@ -34,6 +33,6 @@ public class RangeObservableCollection<T> : ObservableCollection<T>
 
         OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(Count)));
         OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs("Item[]"));
-        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Add, (IList)pendingItems, startIndex));
+        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
     }
 }
