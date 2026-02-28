@@ -9,6 +9,7 @@ namespace YModemWin
     using System;
     using System.IO;
     using System.IO.Ports;
+    using Sentry;
     using System.Text;
     
     public class YModemReceiver
@@ -60,47 +61,63 @@ namespace YModemWin
 
         public void StartReceiving()
         {
+            var transaction = SentrySdk.StartTransaction("ymodem.receive", "serial.transfer");
+            var transactionFinished = false;
+            transaction.SetData("receiver.path", saveDirectory);
+
             status = 0;
             expectedPackageNo = 0;
             isTransmissionComplete = false;
             serialPort.DiscardInBuffer();
-            //serialPort.Open(); // 打开串口
             dt = new DateTime(0);
+
             try
             {
-                SendChar(C); // 发送 'C' 字符，通知发送端准备接收
+                SendChar(C);
 
                 while (!isTransmissionComplete)
                 {
-                    //System.Threading.Thread.Sleep(300);
                     Console.WriteLine(expectedPackageNo.ToString());
+                    var receivePacketSpan = transaction.StartChild("serial.packet.receive", "receive_packet");
                     int packetLength = ReceivePacket();
+                    receivePacketSpan.SetData("packet.length", packetLength);
+                    receivePacketSpan.SetData("packet.expected", expectedPackageNo);
+                    receivePacketSpan.Finish();
+
                     if (packetLength > 0)
                     {
                         byte packetType = packetBuffer[0];
 
                         if (packetType == SOH || packetType == STX)
                         {
-                            if (dt.Ticks==0) dt = DateTime.Now;
+                            if (dt.Ticks == 0)
+                            {
+                                dt = DateTime.Now;
+                            }
+
                             if (expectedPackageNo == 0)
                             {
                                 byte rsvPackageNo = packetBuffer[1];
                                 if (rsvPackageNo == 0)
                                 {
-                                    //判断是否所有文件传输传输结束
                                     if (packetBuffer[3] == 0)
                                     {
-                                        //发送所有文件传输传输结束的结束包
+                                        var finishSpan = transaction.StartChild("serial.transfer.complete", "all_files_completed");
                                         HandleFilesAllCompeted();
+                                        finishSpan.Finish();
                                         isTransmissionComplete = true;
                                     }
                                     else
                                     {
-                                        // 解析文件名和文件大小
+                                        var metadataSpan = transaction.StartChild("serial.packet.parse", "metadata");
                                         ParseFileInfo(packetBuffer, packetLength);
+                                        metadataSpan.Finish();
                                     }
-                                }else
+                                }
+                                else
                                 {
+                                    transaction.Finish(SpanStatus.InternalError);
+                                    transactionFinished = true;
                                     Console.WriteLine("包序号错误");
                                     status = -1;
                                     isTransmissionComplete = true;
@@ -109,39 +126,59 @@ namespace YModemWin
                             }
                             else
                             {
+                                var dataPacketSpan = transaction.StartChild("serial.packet.process", "data");
                                 HandleDataPacket(packetLength, packetType);
-
+                                dataPacketSpan.Finish();
                             }
                         }
                         else if (packetType == EOT)
                         {
+                            var eotSpan = transaction.StartChild("serial.handshake", "eot");
                             HandleEndOfTransmission();
+                            eotSpan.Finish();
                             continue;
-                        }else if (packetType ==CAN)
+                        }
+                        else if (packetType == CAN)
                         {
+                            transaction.Finish(SpanStatus.Aborted);
+                            transactionFinished = true;
                             status = -1;
                             isTransmissionComplete = true;
                             RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "接收任务被发送端取消", saveFileName, saveFileDate.ToShortDateString());
-
                         }
                     }
-                    else if (expectedPackageNo!=0)
+                    else if (expectedPackageNo != 0)
                     {
+                        transaction.Finish(SpanStatus.InternalError);
+                        transactionFinished = true;
                         status = -1;
                         isTransmissionComplete = true;
                         RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "数据接收超时", saveFileName, saveFileDate.ToShortDateString());
                     }
-                    else if (expectedPackageNo == 0)
+                    else
                     {
-                        SendChar(C); // 发送 'C' 字符，通知发送端准备接收
+                        SendChar(C);
                     }
                 }
+
+                transaction.Finish(status == 1 ? SpanStatus.Ok : SpanStatus.InternalError);
+                transactionFinished = true;
+            }
+            catch (Exception ex)
+            {
+                SentrySdk.CaptureException(ex);
+                transaction.Finish(SpanStatus.InternalError);
+                transactionFinished = true;
+                status = -1;
+                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, ex.Message, saveFileName, saveFileDate.ToShortDateString());
             }
             finally
             {
-                //serialPort.Close(); // 关闭串口
+                if (!transactionFinished)
+                {
+                    transaction.Finish();
+                }
             }
-
         }
 
         public void StopReceiving()
