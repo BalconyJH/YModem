@@ -25,6 +25,8 @@ public partial class MainWindow : FluentWindow
     private bool isReceiving;
     private bool isSendPortOpening;
     private bool isReceivePortOpening;
+    private bool isSendCancelling;
+    private bool isReceiveCancelling;
 
     // Batch updates to avoid per-item UI notifications
     private readonly RangeObservableCollection<string> sendFilesList = new();
@@ -142,7 +144,15 @@ public partial class MainWindow : FluentWindow
     {
         if (isSending)
         {
+            if (isSendCancelling)
+            {
+                return;
+            }
+
+            isSendCancelling = true;
             SendStatusTextBlock.Text = "Send status: cancel requested";
+            UpdateActionButtons();
+
             _ = Task.Run(() =>
             {
                 lock (serialLock)
@@ -245,7 +255,15 @@ public partial class MainWindow : FluentWindow
     {
         if (isReceiving)
         {
+            if (isReceiveCancelling)
+            {
+                return;
+            }
+
+            isReceiveCancelling = true;
             ReceiveStatusTextBlock.Text = "Receive status: cancel requested";
+            UpdateActionButtons();
+
             _ = Task.Run(() =>
             {
                 lock (serialLock)
@@ -463,6 +481,8 @@ public partial class MainWindow : FluentWindow
             receiver = null;
             isSending = false;
             isReceiving = false;
+            isSendCancelling = false;
+            isReceiveCancelling = false;
 
             if (activePort != null)
             {
@@ -482,14 +502,22 @@ public partial class MainWindow : FluentWindow
 
     private void UpdateActionButtons()
     {
-        SetActionButtonState(SendActionButton, isSending, "Start Send", isSendPortOpening);
-        SetActionButtonState(ReceiveActionButton, isReceiving, "Start Receive", isReceivePortOpening);
+        SetActionButtonState(SendActionButton, isSending, isSendCancelling, "Start Send", isSendPortOpening);
+        SetActionButtonState(ReceiveActionButton, isReceiving, isReceiveCancelling, "Start Receive", isReceivePortOpening);
     }
 
-    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isCancel, string startText, bool isBusy)
+    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isRunning, bool isCancelling, string startText, bool isBusy)
     {
-        button.Content = isCancel ? "Cancel" : startText;
-        button.Appearance = isCancel ? ControlAppearance.Danger : ControlAppearance.Primary;
-        button.IsEnabled = isCancel || !isBusy;
+        if (isRunning)
+        {
+            button.Content = isCancelling ? "Cancelling..." : "Cancel";
+            button.Appearance = ControlAppearance.Danger;
+            button.IsEnabled = !isCancelling;
+            return;
+        }
+
+        button.Content = startText;
+        button.Appearance = ControlAppearance.Primary;
+        button.IsEnabled = !isBusy;
     }
 }
