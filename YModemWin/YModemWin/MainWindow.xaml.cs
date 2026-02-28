@@ -23,6 +23,7 @@ public partial class MainWindow : FluentWindow
 
     private bool isSending;
     private bool isReceiving;
+    private bool isPortOpening;
 
     // Batch updates to avoid per-item UI notifications
     private readonly RangeObservableCollection<string> sendFilesList = new();
@@ -136,7 +137,7 @@ public partial class MainWindow : FluentWindow
         AppendLog("Serial ports refreshed.");
     }
 
-    private void OnStartSendClick(object sender, RoutedEventArgs e)
+    private async void OnStartSendClick(object sender, RoutedEventArgs e)
     {
         if (isSending)
         {
@@ -149,6 +150,11 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
+        if (isPortOpening)
+        {
+            return;
+        }
+
         var files = sendFilesList.ToList();
         if (files.Count == 0)
         {
@@ -157,16 +163,37 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        if (!TryCreateSerialPort(out var port, SendStatusTextBlock))
-        {
-            return;
-        }
-
         if (files.Any(static path => !File.Exists(path)))
         {
             SendStatusTextBlock.Text = "Send status: file not found in queue";
-            port.Dispose();
             return;
+        }
+
+        if (!TryGetSerialSettings(out var portName, out var baudRate, out var statusMessage))
+        {
+            SendStatusTextBlock.Text = statusMessage;
+            return;
+        }
+
+        isPortOpening = true;
+        SendStatusTextBlock.Text = "Send status: opening serial port...";
+        UpdateActionButtons();
+
+        SerialPort port;
+        try
+        {
+            port = await Task.Run(() => OpenSerialPort(portName, baudRate));
+        }
+        catch (Exception ex)
+        {
+            SendStatusTextBlock.Text = $"Send status: open serial failed ({ex.Message})";
+            AppendLog($"Send: open serial failed ({ex.Message})");
+            return;
+        }
+        finally
+        {
+            isPortOpening = false;
+            UpdateActionButtons();
         }
 
         lock (serialLock)
@@ -209,7 +236,7 @@ public partial class MainWindow : FluentWindow
         });
     }
 
-    private void OnStartReceiveClick(object sender, RoutedEventArgs e)
+    private async void OnStartReceiveClick(object sender, RoutedEventArgs e)
     {
         if (isReceiving)
         {
@@ -222,7 +249,7 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        if (!TryCreateSerialPort(out var port, ReceiveStatusTextBlock))
+        if (isPortOpening)
         {
             return;
         }
@@ -231,11 +258,37 @@ public partial class MainWindow : FluentWindow
         if (string.IsNullOrWhiteSpace(saveFolder))
         {
             ReceiveStatusTextBlock.Text = "Receive status: invalid save folder";
-            port.Dispose();
             return;
         }
 
         Directory.CreateDirectory(saveFolder);
+
+        if (!TryGetSerialSettings(out var portName, out var baudRate, out var statusMessage))
+        {
+            ReceiveStatusTextBlock.Text = statusMessage;
+            return;
+        }
+
+        isPortOpening = true;
+        ReceiveStatusTextBlock.Text = "Receive status: opening serial port...";
+        UpdateActionButtons();
+
+        SerialPort port;
+        try
+        {
+            port = await Task.Run(() => OpenSerialPort(portName, baudRate));
+        }
+        catch (Exception ex)
+        {
+            ReceiveStatusTextBlock.Text = $"Receive status: open serial failed ({ex.Message})";
+            AppendLog($"Receive: open serial failed ({ex.Message})");
+            return;
+        }
+        finally
+        {
+            isPortOpening = false;
+            UpdateActionButtons();
+        }
 
         lock (serialLock)
         {
@@ -270,33 +323,33 @@ public partial class MainWindow : FluentWindow
         });
     }
 
-    private bool TryCreateSerialPort(out SerialPort serialPort, Wpf.Ui.Controls.TextBlock statusTextBlock)
+    private bool TryGetSerialSettings(out string portName, out int baudRate, out string statusMessage)
     {
-        serialPort = null;
+        portName = string.Empty;
+        baudRate = 0;
+        statusMessage = string.Empty;
 
-        if (PortComboBox.SelectedItem is not string portName || string.IsNullOrWhiteSpace(portName))
+        if (PortComboBox.SelectedItem is not string selectedPort || string.IsNullOrWhiteSpace(selectedPort))
         {
-            statusTextBlock.Text = "Status: choose a serial port";
+            statusMessage = "Status: choose a serial port";
             return false;
         }
 
-        if (!int.TryParse(GetBaudRateText(), out var baudRate))
+        if (!int.TryParse(GetBaudRateText(), out baudRate))
         {
-            statusTextBlock.Text = "Status: invalid baud rate";
+            statusMessage = "Status: invalid baud rate";
             return false;
         }
 
-        try
-        {
-            serialPort = new SerialPort(portName, baudRate);
-            serialPort.Open();
-            return true;
-        }
-        catch (Exception ex)
-        {
-            statusTextBlock.Text = $"Status: open serial failed ({ex.Message})";
-            return false;
-        }
+        portName = selectedPort;
+        return true;
+    }
+
+    private static SerialPort OpenSerialPort(string portName, int baudRate)
+    {
+        var serialPort = new SerialPort(portName, baudRate);
+        serialPort.Open();
+        return serialPort;
     }
 
     private string GetBaudRateText()
@@ -420,13 +473,14 @@ public partial class MainWindow : FluentWindow
 
     private void UpdateActionButtons()
     {
-        SetActionButtonState(SendActionButton, isSending, "Start Send");
-        SetActionButtonState(ReceiveActionButton, isReceiving, "Start Receive");
+        SetActionButtonState(SendActionButton, isSending, "Start Send", isPortOpening);
+        SetActionButtonState(ReceiveActionButton, isReceiving, "Start Receive", isPortOpening);
     }
 
-    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isCancel, string startText)
+    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isCancel, string startText, bool isBusy)
     {
         button.Content = isCancel ? "Cancel" : startText;
         button.Appearance = isCancel ? ControlAppearance.Danger : ControlAppearance.Primary;
+        button.IsEnabled = isCancel || !isBusy;
     }
 }
