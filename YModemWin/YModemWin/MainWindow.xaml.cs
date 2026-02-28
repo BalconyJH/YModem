@@ -2,7 +2,6 @@ using System.IO;
 using System.IO.Ports;
 using System.Text;
 using System.Windows;
-using System.Windows.Data;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using Wpf.Ui.Controls;
@@ -26,6 +25,7 @@ public partial class MainWindow : FluentWindow
 
     // 使用 RangeObservableCollection 支持批量添加，避免多次 UI 更新
     private readonly RangeObservableCollection<string> sendFilesList = new();
+    private readonly HashSet<string> sendFilesSet = new(StringComparer.OrdinalIgnoreCase);
 
     public MainWindow()
     {
@@ -43,7 +43,7 @@ public partial class MainWindow : FluentWindow
 
     private void OnRefreshPortsClick(object sender, RoutedEventArgs e) => RefreshPorts();
 
-    private async void OnBrowseSendFileClick(object sender, RoutedEventArgs e)
+    private void OnBrowseSendFileClick(object sender, RoutedEventArgs e)
     {
         var picker = new OpenFileDialog
         {
@@ -58,36 +58,19 @@ public partial class MainWindow : FluentWindow
         }
 
         var selectedFiles = picker.FileNames;
-        
-        // 在 UI 线程创建现有文件列表的快照（避免跨线程访问）
-        var existingFilesSnapshot = sendFilesList.ToList();
-        
-        // 在后台线程处理文件筛选
-        var newFiles = await Task.Run(() =>
+        var newFiles = new List<string>(selectedFiles.Length);
+
+        foreach (var filePath in selectedFiles)
         {
-            var existingFiles = new HashSet<string>(existingFilesSnapshot, StringComparer.OrdinalIgnoreCase);
-            var filesToAdd = new List<string>(selectedFiles.Length);
-            
-            foreach (var filePath in selectedFiles)
+            if (sendFilesSet.Add(filePath))
             {
-                if (existingFiles.Add(filePath))
-                {
-                    filesToAdd.Add(filePath);
-                }
+                newFiles.Add(filePath);
             }
+        }
 
-            return filesToAdd;
-        });
-
-        // 使用静默添加 + 手动通知的方式批量更新
         if (newFiles.Count > 0)
         {
-            // 静默添加到底层集合（不触发任何通知）
-            sendFilesList.AddRangeSilent(newFiles);
-            
-            // 手动触发一次 Reset 通知，让 ListBox 刷新
-            var view = CollectionViewSource.GetDefaultView(sendFilesList);
-            view.Refresh();
+            sendFilesList.AddRange(newFiles);
         }
         
         SendInfoBar.IsOpen = false;
@@ -100,6 +83,7 @@ public partial class MainWindow : FluentWindow
     private void OnClearSendFilesClick(object sender, RoutedEventArgs e)
     {
         sendFilesList.Clear();
+        sendFilesSet.Clear();
         SendInfoBar.IsOpen = false;
         SendStatusTextBlock.Text = "Send status: queue cleared";
     }

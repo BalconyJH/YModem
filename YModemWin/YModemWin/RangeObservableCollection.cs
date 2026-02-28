@@ -9,19 +9,30 @@ namespace YModemWin;
 public class RangeObservableCollection<T> : ObservableCollection<T>
 {
     /// <summary>
-    /// Adds multiple items without triggering any UI updates
+    /// Adds multiple items and triggers a single reset notification.
     /// </summary>
-    public void AddRangeSilent(IEnumerable<T> items)
+    public void AddRange(IEnumerable<T> items)
     {
         if (items == null)
             throw new ArgumentNullException(nameof(items));
 
         CheckReentrancy();
+
+        var hasNewItem = false;
         
         foreach (var item in items)
         {
             Items.Add(item);
+            hasNewItem = true;
         }
+
+        if (!hasNewItem)
+        {
+            return;
+        }
+
+        OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs(nameof(Count)));
+        OnPropertyChanged(new System.ComponentModel.PropertyChangedEventArgs("Item[]"));
+        OnCollectionChanged(new NotifyCollectionChangedEventArgs(NotifyCollectionChangedAction.Reset));
     }
 }
-
