@@ -121,7 +121,7 @@ namespace YModemWin.Core
                                     Logger.Warning("Packet sequence mismatch detected");
                                     status = -1;
                                     isTransmissionComplete = true;
-                                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "包序号错误", saveFileName ?? "", saveFileDate.ToShortDateString());
+                                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Packet sequence number mismatch", saveFileName ?? "", saveFileDate.ToShortDateString());
                                 }
                             }
                             else
@@ -153,7 +153,7 @@ namespace YModemWin.Core
                         transactionFinished = true;
                         status = -1;
                         isTransmissionComplete = true;
-                        RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "数据接收超时", saveFileName ?? "", saveFileDate.ToShortDateString());
+                        RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Data receive timeout", saveFileName ?? "", saveFileDate.ToShortDateString());
                     }
                     else
                     {
@@ -257,7 +257,7 @@ namespace YModemWin.Core
                 if (bytesRead == 0)
                 {
                     status = -1;
-                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "数据接收超时", saveFileName ?? "", saveFileDate.ToShortDateString());
+                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Data receive timeout", saveFileName ?? "", saveFileDate.ToShortDateString());
                     return -1; // 超时或错误
                 }
                 }
@@ -291,7 +291,7 @@ namespace YModemWin.Core
                 }
                 else
                 {
-                    throw new InvalidOperationException("无法解析文件长度");
+                    throw new InvalidOperationException("Failed to parse file length");
                 }
             }
 
@@ -335,14 +335,14 @@ namespace YModemWin.Core
                     }
                     catch (Exception ex)
                     {
-                        throw new InvalidOperationException($"无法解析文件序列号: {ex.Message}");
+                        throw new InvalidOperationException($"Failed to parse file sequence number: {ex.Message}");
                     }
                 }
             }
 
             if (infoParts.Length == 0)
             {
-                throw new InvalidOperationException("文件信息包格式不正确");
+                throw new InvalidOperationException("Invalid file metadata packet format");
             }
 
             System.Threading.Thread.Sleep(100);
@@ -370,7 +370,7 @@ namespace YModemWin.Core
             {
                 SaveDataToFile(data);
                 SendChar(ACK);
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "正在接收文件" + saveFileName, saveFileName ?? "", saveFileDate.ToShortDateString()) ;
+                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receiving file " + saveFileName, saveFileName ?? "", saveFileDate.ToShortDateString()) ;
                 expectedPackageNo++;
             }
             else
@@ -395,7 +395,7 @@ namespace YModemWin.Core
             }else
             {
                 status = -1;
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "终止传输指令未正确响应", saveFileName ?? "", saveFileDate.ToShortDateString());
+                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "End-of-transmission command was not acknowledged correctly", saveFileName ?? "", saveFileDate.ToShortDateString());
             }
         }
         private void HandleFilesAllCompeted()
@@ -408,8 +408,8 @@ namespace YModemWin.Core
                 SendChar(ACK); // 发送确认信号
                 var span = DateTime.Now - dt;
                 status = 1;
-                //MessageBox.Show("接收耗时:" + span.TotalMilliseconds.ToString() + "毫秒", "接收成功", MessageBoxButtons.OK, MessageBoxIcon.None);
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "接收成功，耗时:" + span.TotalSeconds.ToString() + "秒", saveFileName ?? "", saveFileDate.ToShortDateString());
+                //MessageBox.Show("Receive elapsed:" + span.TotalMilliseconds.ToString() + "ms", "Receive completed", MessageBoxButtons.OK, MessageBoxIcon.None);
+                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive completed, elapsed: " + span.TotalSeconds.ToString() + "s", saveFileName ?? "", saveFileDate.ToShortDateString());
             }
         }
 

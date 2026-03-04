@@ -107,7 +107,7 @@ namespace YModemWin.Core
                     transaction.Finish(SpanStatus.InternalError);
                     transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status,
-                        "发送初始数据包错误");
+                        "Failed to send initial metadata packet");
                     status = -1;
                     return false;
                 }
@@ -117,7 +117,7 @@ namespace YModemWin.Core
                     transaction.Finish(SpanStatus.InternalError);
                     transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status,
-                        "未接收到正确的接收请求");
+                        "Did not receive expected receiver request");
                     status = -1;
                     return false;
                 }
@@ -140,7 +140,7 @@ namespace YModemWin.Core
                         packetNumber -= 256;
                     var fileName = System.IO.Path.GetFileName(path);
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packagesent, totalpackage, status,
-                        "正在发送文件 " + fileName);
+                        "Sending file " + fileName);
 
                     if (packetNumber % 32 == 0 || packetNumber == 1)
                     {
@@ -173,7 +173,7 @@ namespace YModemWin.Core
                     {
                         /* 发送数据包 */
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
-                            status, "数据传输错误，重发数据包。");
+                            status, "Data transfer error, resending packet.");
                         Logger.Warning("Data transfer error detected, resending packet {PacketNumber}", packetNumber);
                         status = -1;
                         // 重置流的位置回到开始
@@ -188,7 +188,7 @@ namespace YModemWin.Core
                         transactionFinished = true;
                         status = -1;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
-                            status, "发送任务被接收端取消了。");
+                            status, "Send task was canceled by receiver.");
                         Logger.Warning("Packet send failed or was canceled by receiver");
                         return false;
                     }
@@ -198,7 +198,7 @@ namespace YModemWin.Core
                         transactionFinished = true;
                         status = -1;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
-                            status, "接收端未响应发送的数据包。");
+                            status, "Receiver did not respond to sent packet.");
                         Logger.Warning("Packet send failed or was canceled by receiver");
                         return false;
                     }
@@ -217,7 +217,7 @@ namespace YModemWin.Core
                         transactionFinished = true;
                         status = -2;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
-                            status, "用户取消发送。");
+                            status, "Send canceled by user.");
 
                         return false;
                     }
@@ -233,7 +233,7 @@ namespace YModemWin.Core
                     transaction.Finish(SpanStatus.InternalError);
                     transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status,
-                        "接收端未正确响应结束请求。");
+                        "Receiver did not respond correctly to end request.");
                     Logger.Warning("Unable to complete transfer during EOT handshake");
                     status = -1;
                     return false;
@@ -251,7 +251,7 @@ namespace YModemWin.Core
                     transaction.Finish(SpanStatus.InternalError);
                     transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status,
-                        "接收端未正确响应结束请求。");
+                        "Receiver did not respond correctly to end request.");
                     Logger.Warning("Unable to complete transfer during EOT handshake");
                     status = -1;
                     return false;
@@ -266,7 +266,7 @@ namespace YModemWin.Core
                         transaction.Finish(SpanStatus.InternalError);
                         transactionFinished = true;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
-                            status, "接收端未正确响应结束请求。");
+                            status, "Receiver did not respond correctly to end request.");
                         Logger.Warning("Unable to complete transfer during EOT handshake");
                         status = -1;
                         return false;
@@ -292,7 +292,7 @@ namespace YModemWin.Core
                         transactionFinished = true;
                         Logger.Warning("Unable to complete transfer during EOT handshake");
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
-                            status, "接收端未正确响应结束请求。");
+                            status, "Receiver did not respond correctly to end request.");
                         status = -1;
                         return false;
                     }
@@ -301,8 +301,8 @@ namespace YModemWin.Core
                     var span = DateTime.Now - dt;
                     status = 1;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packagesent, totalpackage, status,
-                        "发送成功，耗时:" + span.TotalSeconds.ToString() + "秒");
-                    //MessageBox.Show("发送耗时:" + span.TotalMilliseconds.ToString() + "毫秒", "发送成功", MessageBoxButtons.OK, MessageBoxIcon.None);
+                        "Send completed, elapsed: " + span.TotalSeconds.ToString() + "s");
+                    //MessageBox.Show("Send elapsed:" + span.TotalMilliseconds.ToString() + "ms", "Send completed", MessageBoxButtons.OK, MessageBoxIcon.None);
                 }
 
                 transaction.Finish(SpanStatus.Ok);
@@ -316,14 +316,14 @@ namespace YModemWin.Core
                 transactionFinished = true;
                 status = -1;
                 RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status,
-                    "接收方超时");
+                    "Receiver timeout");
                 return false;
             }
             finally
             {
                 if (status == -1)
                 {
-                    //RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "发送失败");
+                    //RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "Send failed");
                 }
 
                 if (!transactionFinished)
@@ -377,7 +377,7 @@ namespace YModemWin.Core
             // 获取文件的最后修改时间
             var lastWriteTime = File.GetLastWriteTime(path);
 
-            // 手动计算Unix时间戳（从1970年1月1日到lastWriteTime的秒数）
+            // Compute Unix timestamp manually (from 1970-01-01 to lastWriteTime in seconds)
             var epoch = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
             var unixTime = (lastWriteTime.ToUniversalTime().Ticks - epoch.Ticks) / TimeSpan.TicksPerSecond;
 
