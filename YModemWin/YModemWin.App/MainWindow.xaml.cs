@@ -6,6 +6,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using System.Windows.Input;
 using DeviceProgramming.FileFormat;
 using DeviceProgramming.Memory;
 using Microsoft.Win32;
@@ -44,7 +45,7 @@ public partial class MainWindow : FluentWindow
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
         
         // Bind queue to list view
-        SendFilesListBox.ItemsSource = sendFilesList;
+        SendFilesListView.ItemsSource = sendFilesList;
         
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
         BaudRateComboBox.SelectedIndex = 4;
@@ -111,12 +112,47 @@ public partial class MainWindow : FluentWindow
         UpdateActionButtons();
     }
 
-    private void OnClearSendFilesClick(object sender, RoutedEventArgs e)
+    private void OnDeleteSendFilesClick(object sender, RoutedEventArgs e)
     {
-        sendFilesList.Clear();
-        sendFilesSet.Clear();
+        DeleteSelectedOrAllSendFiles();
+    }
+
+    private void OnSendFilesListKeyDown(object sender, KeyEventArgs e)
+    {
+        if (e.Key != Key.Delete)
+        {
+            return;
+        }
+
+        DeleteSelectedOrAllSendFiles();
+        e.Handled = true;
+    }
+
+    private void DeleteSelectedOrAllSendFiles()
+    {
+        var selectedFiles = SendFilesListView.SelectedItems.Cast<string>().ToList();
+        if (selectedFiles.Count == 0)
+        {
+            sendFilesList.Clear();
+            sendFilesSet.Clear();
+            SendInfoBar.IsOpen = false;
+            SendStatusTextBlock.Text = T("Status.SendQueueCleared");
+            UpdateActionButtons();
+            return;
+        }
+
+        foreach (var file in selectedFiles)
+        {
+            sendFilesSet.Remove(file);
+            sendFilesList.Remove(file);
+        }
+
         SendInfoBar.IsOpen = false;
-        SendStatusTextBlock.Text = T("Status.SendQueueCleared");
+        if (sendFilesList.Count == 0)
+        {
+            SendStatusTextBlock.Text = T("Status.SendQueueCleared");
+        }
+
         UpdateActionButtons();
     }
 
