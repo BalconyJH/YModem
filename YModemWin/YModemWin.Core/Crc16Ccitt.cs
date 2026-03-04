@@ -1,4 +1,4 @@
-namespace YModemWin
+namespace YModemWin.Core
 {
     public enum InitialCrcValue { Zeros, NonZero1 = 0xffff, NonZero2 = 0x1D0F }
 

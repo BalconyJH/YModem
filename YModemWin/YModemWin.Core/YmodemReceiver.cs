@@ -1,4 +1,4 @@
-namespace YModemWin
+namespace YModemWin.Core
 {
     using System;
     using System.IO;

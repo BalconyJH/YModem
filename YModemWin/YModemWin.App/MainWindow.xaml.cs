@@ -5,6 +5,7 @@ using System.Text;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using YModemWin.Core;
 using Wpf.Ui.Controls;
 
 namespace YModemWin;

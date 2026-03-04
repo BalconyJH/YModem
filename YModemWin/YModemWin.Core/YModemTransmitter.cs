@@ -1,8 +1,9 @@
 using System.IO;
 using System.IO.Ports;
 using System.Text;
+using Sentry;
 
-namespace YModemWin
+namespace YModemWin.Core
 {
     public class YModemTransmitter
     {
