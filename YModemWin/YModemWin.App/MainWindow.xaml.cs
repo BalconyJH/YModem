@@ -9,6 +9,7 @@ using System.Windows.Threading;
 using DeviceProgramming.FileFormat;
 using DeviceProgramming.Memory;
 using Microsoft.Win32;
+using Sentry;
 using YModemWin.Core;
 using Wpf.Ui.Controls;
 
@@ -554,42 +555,88 @@ public partial class MainWindow : FluentWindow
 
     private static void WarnIfFirmwareHasGaps(string filePath)
     {
+        var extension = Path.GetExtension(filePath);
+        var parser = GetFirmwareParserName(extension);
+
+        if (parser is null)
+        {
+            AppLogger.Info("Firmware parse skipped for '{FilePath}': parser not available for extension '{Extension}'.", filePath, extension);
+            return;
+        }
+
+        SentrySdk.AddBreadcrumb($"Firmware parse started: {Path.GetFileName(filePath)} ({extension})", category: "firmware.parse", level: BreadcrumbLevel.Info);
+
         try
         {
-            RawMemory? memory = null;
-            var extension = Path.GetExtension(filePath);
-
-            if (string.Equals(extension, ".hex", StringComparison.OrdinalIgnoreCase))
-            {
-                memory = IntelHex.ParseFile(filePath);
-            }
-            else if (string.Equals(extension, ".s19", StringComparison.OrdinalIgnoreCase)
-                     || string.Equals(extension, ".s37", StringComparison.OrdinalIgnoreCase)
-                     || string.Equals(extension, ".srec", StringComparison.OrdinalIgnoreCase))
-            {
-                memory = SRecord.ParseFile(filePath);
-            }
-
-            if (memory is null)
-            {
-                return;
-            }
-
+            var memory = ParseFirmwareMemory(filePath, extension);
             var segments = memory.Segments.OrderBy(static segment => segment.StartAddress).ToList();
+            var totalBytes = segments.Sum(static segment => (long)segment.Length);
+            var firstAddress = segments.Count > 0 ? segments[0].StartAddress : 0;
+            var lastAddress = segments.Count > 0 ? segments[^1].EndAddress : 0;
+
+            AppLogger.Info(
+                "Firmware parsed: file='{FilePath}', parser='{Parser}', segments={SegmentCount}, bytes={TotalBytes}, range=0x{StartAddress:X8}..0x{EndAddress:X8}.",
+                filePath,
+                parser,
+                segments.Count,
+                totalBytes,
+                firstAddress,
+                lastAddress);
+
+            var gapCount = 0;
             for (var i = 1; i < segments.Count; i++)
             {
                 var previous = segments[i - 1];
                 var current = segments[i];
                 if (current.StartAddress > previous.EndAddress + 1)
                 {
+                    gapCount++;
                     AppLogger.Warn("File '{FilePath}' has a gap in image data: 0x{GapStart:X8}..0x{GapEnd:X8}.", filePath, previous.EndAddress + 1, current.StartAddress - 1);
                 }
+            }
+
+            SentrySdk.AddBreadcrumb(
+                $"Firmware parse completed: {Path.GetFileName(filePath)}, parser={parser}, segments={segments.Count}, bytes={totalBytes}, gaps={gapCount}",
+                category: "firmware.parse",
+                level: gapCount > 0 ? BreadcrumbLevel.Warning : BreadcrumbLevel.Info);
+
+            if (gapCount > 0)
+            {
+                SentrySdk.CaptureMessage($"Firmware image has gaps: {Path.GetFileName(filePath)} (gaps={gapCount})", SentryLevel.Warning);
             }
         }
         catch (Exception ex)
         {
             AppLogger.Warn("Firmware parse skipped for '{FilePath}': {Reason}", filePath, ex.Message);
+            SentrySdk.CaptureException(ex);
         }
+    }
+
+    private static RawMemory ParseFirmwareMemory(string filePath, string extension)
+    {
+        if (string.Equals(extension, ".hex", StringComparison.OrdinalIgnoreCase))
+        {
+            return IntelHex.ParseFile(filePath);
+        }
+
+        return SRecord.ParseFile(filePath);
+    }
+
+    private static string? GetFirmwareParserName(string extension)
+    {
+        if (string.Equals(extension, ".hex", StringComparison.OrdinalIgnoreCase))
+        {
+            return nameof(IntelHex);
+        }
+
+        if (string.Equals(extension, ".s19", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".s37", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".srec", StringComparison.OrdinalIgnoreCase))
+        {
+            return nameof(SRecord);
+        }
+
+        return null;
     }
 
     protected override void OnClosed(EventArgs e)
