@@ -144,7 +144,7 @@ namespace YModemWin.Core
                             transactionFinished = true;
                             status = -1;
                             isTransmissionComplete = true;
-                            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "接收任务被发送端取消", saveFileName ?? "", saveFileDate.ToShortDateString());
+                            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive task was canceled by sender", saveFileName ?? "", saveFileDate.ToShortDateString());
                         }
                     }
                     else if (expectedPackageNo != 0)
