@@ -2,11 +2,13 @@ using System.IO;
 using System.IO.Ports;
 using System.Text;
 using Sentry;
+using Serilog;
 
 namespace YModemWin.Core
 {
     public class YModemTransmitter
     {
+        private static readonly ILogger Logger = Log.ForContext<YModemTransmitter>();
         /* 控制信号 */
         const byte SOH = 1; // 128字节包开头
         const byte STX = 2; // 1024字节包开头
@@ -55,7 +57,7 @@ namespace YModemWin.Core
             transaction.SetData("ymodem.file_size", fileStream.Length);
             //计算总段长
             totalpackage = (int)(fileStream.Length - 1) / YModemTransmitter.DataSize + 1;
-            Console.WriteLine("total section len=" + totalpackage.ToString());
+            Logger.Information("Prepared transfer with {TotalPacketCount} packet(s)", totalpackage);
 
             /* 数据包: 1029字节 */
             /* 头部: 3字节 */
@@ -140,7 +142,10 @@ namespace YModemWin.Core
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packagesent, totalpackage, status,
                         "正在发送文件 " + fileName);
 
-                    Console.WriteLine(packetNumber);
+                    if (packetNumber % 32 == 0 || packetNumber == 1)
+                    {
+                        Logger.Debug("Transmitted packet {PacketNumber}/{TotalPacketCount}", packetNumber, totalpackage);
+                    }
 
                     /* 计算反转数据包编号 */
                     invertedPacketNumber = 255 - packetNumber;
@@ -169,7 +174,7 @@ namespace YModemWin.Core
                         /* 发送数据包 */
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
                             status, "数据传输错误，重发数据包。");
-                        Console.WriteLine("数据传输错误，重发数据包。");
+                        Logger.Warning("Data transfer error detected, resending packet {PacketNumber}", packetNumber);
                         status = -1;
                         // 重置流的位置回到开始
                         fileStream.Position -= DataSize;
@@ -184,7 +189,7 @@ namespace YModemWin.Core
                         status = -1;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
                             status, "发送任务被接收端取消了。");
-                        Console.WriteLine("无法发送数据包。");
+                        Logger.Warning("Packet send failed or was canceled by receiver");
                         return false;
                     }
                     else
@@ -194,7 +199,7 @@ namespace YModemWin.Core
                         status = -1;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
                             status, "接收端未响应发送的数据包。");
-                        Console.WriteLine("无法发送数据包。");
+                        Logger.Warning("Packet send failed or was canceled by receiver");
                         return false;
                     }
 
@@ -229,7 +234,7 @@ namespace YModemWin.Core
                     transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status,
                         "接收端未正确响应结束请求。");
-                    Console.WriteLine("无法完成传输。");
+                    Logger.Warning("Unable to complete transfer during EOT handshake");
                     status = -1;
                     return false;
                 }
@@ -247,7 +252,7 @@ namespace YModemWin.Core
                     transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status,
                         "接收端未正确响应结束请求。");
-                    Console.WriteLine("无法完成传输。");
+                    Logger.Warning("Unable to complete transfer during EOT handshake");
                     status = -1;
                     return false;
                 }
@@ -262,7 +267,7 @@ namespace YModemWin.Core
                         transactionFinished = true;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
                             status, "接收端未正确响应结束请求。");
-                        Console.WriteLine("无法完成传输。");
+                        Logger.Warning("Unable to complete transfer during EOT handshake");
                         status = -1;
                         return false;
                     }
@@ -285,14 +290,14 @@ namespace YModemWin.Core
                     {
                         transaction.Finish(SpanStatus.InternalError);
                         transactionFinished = true;
-                        Console.WriteLine("无法完成传输。");
+                        Logger.Warning("Unable to complete transfer during EOT handshake");
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
                             status, "接收端未正确响应结束请求。");
                         status = -1;
                         return false;
                     }
 
-                    Console.WriteLine("文件传输成功");
+                    Logger.Information("File transfer completed successfully");
                     var span = DateTime.Now - dt;
                     status = 1;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packagesent, totalpackage, status,

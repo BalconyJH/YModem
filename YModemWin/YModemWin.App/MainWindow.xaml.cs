@@ -451,8 +451,14 @@ public partial class MainWindow : FluentWindow
 
     private static void SetProgressBarWaiting(System.Windows.Controls.ProgressBar progressBar)
     {
+        if (progressBar.IsIndeterminate)
+        {
+            return;
+        }
+
         progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
         progressBar.IsIndeterminate = true;
+        progressBar.BeginAnimation(UIElement.OpacityProperty, CreateOpacityAnimation(0.92, 1.0, 160));
     }
 
     private static void UpdateTransferProgressBar(System.Windows.Controls.ProgressBar progressBar, long total, double targetValue)
@@ -465,7 +471,11 @@ public partial class MainWindow : FluentWindow
 
         if (progressBar.IsIndeterminate)
         {
+            progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
             progressBar.IsIndeterminate = false;
+            progressBar.Value = targetValue;
+            progressBar.BeginAnimation(UIElement.OpacityProperty, CreateOpacityAnimation(0.92, 1.0, 160));
+            return;
         }
 
         AnimateProgressBar(progressBar, targetValue);
@@ -475,7 +485,20 @@ public partial class MainWindow : FluentWindow
     {
         progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
         progressBar.IsIndeterminate = false;
+        progressBar.BeginAnimation(UIElement.OpacityProperty, null);
+        progressBar.Opacity = 1;
         progressBar.Value = 0;
+    }
+
+    private static DoubleAnimation CreateOpacityAnimation(double from, double to, int durationMs)
+    {
+        return new DoubleAnimation
+        {
+            From = from,
+            To = to,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
     }
 
     private static void AnimateProgressBar(System.Windows.Controls.ProgressBar progressBar, double targetValue)

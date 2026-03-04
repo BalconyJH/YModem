@@ -4,10 +4,12 @@ namespace YModemWin.Core
     using System.IO;
     using System.IO.Ports;
     using Sentry;
+    using Serilog;
     using System.Text;
     
     public class YModemReceiver
     {
+        private static readonly ILogger Logger = Log.ForContext<YModemReceiver>();
         private const int PacketSize128 = 128; // 128 字节包大小
         private const int PacketSize1024 = 1024; // 1024 字节包大小
         private const byte SOH = 0x01; // 128 字节包标识
@@ -71,7 +73,10 @@ namespace YModemWin.Core
 
                 while (!isTransmissionComplete)
                 {
-                    Console.WriteLine(expectedPackageNo.ToString());
+                    if (expectedPackageNo % 32 == 0)
+                    {
+                        Logger.Debug("Waiting for packet #{ExpectedPacketNo}", expectedPackageNo);
+                    }
                     var receivePacketSpan = transaction.StartChild("serial.packet.receive", "receive_packet");
                     var packetLength = ReceivePacket();
                     receivePacketSpan.SetData("packet.length", packetLength);
@@ -113,7 +118,7 @@ namespace YModemWin.Core
                                 {
                                     transaction.Finish(SpanStatus.InternalError);
                                     transactionFinished = true;
-                                    Console.WriteLine("包序号错误");
+                                    Logger.Warning("Packet sequence mismatch detected");
                                     status = -1;
                                     isTransmissionComplete = true;
                                     RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "包序号错误", saveFileName ?? "", saveFileDate.ToShortDateString());
@@ -282,7 +287,7 @@ namespace YModemWin.Core
                 // 解析文件长度
                 if (long.TryParse(infoParts[0], out fileLength))
                 {
-                    Console.WriteLine($"接收到的文件长度: {fileLength} 字节");
+                    Logger.Information("Incoming file size: {FileLength} bytes", fileLength);
                 }
                 else
                 {
@@ -301,18 +306,18 @@ namespace YModemWin.Core
                         var secondsSinceEpoch = Convert.ToInt64(octalDateString, 8);
                         var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
                         saveFileDate = epoch.AddSeconds(secondsSinceEpoch);
-                        Console.WriteLine($"文件修改日期: {saveFileDate}");
+                        Logger.Debug("Parsed file timestamp: {FileTimestamp}", saveFileDate);
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"解析修改日期时出错: {ex.Message}");
+                        Logger.Warning(ex, "Failed to parse file timestamp, fallback to current UTC time");
                         saveFileDate = DateTime.UtcNow; // 如果解析出错，则使用接收日期
                     }
                 }
                 else
                 {
                     saveFileDate = DateTime.UtcNow; // 如果日期为0，则使用当前日期
-                    Console.WriteLine($"文件修改日期未知，使用接收日期: {saveFileDate}");
+                    Logger.Debug("File timestamp missing, fallback timestamp: {FallbackTimestamp}", saveFileDate);
                 }
             }
 
@@ -326,7 +331,7 @@ namespace YModemWin.Core
                     {
                         var serialNumber = Convert.ToInt32(serialNumberString, 8);
                         totalPackage = serialNumber;
-                        Console.WriteLine($"文件序列号: {serialNumber}");
+                        Logger.Debug("Parsed file sequence number: {SerialNumber}", serialNumber);
                     }
                     catch (Exception ex)
                     {
