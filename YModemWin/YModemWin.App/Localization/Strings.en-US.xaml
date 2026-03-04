@@ -65,4 +65,5 @@
   <sys:String x:Key="Status.DateFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">Date: {0}</sys:String>
   <sys:String x:Key="Hint.WarningTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">Notice</sys:String>
   <sys:String x:Key="Dialog.AllFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">All files (*.*)|*.*</sys:String>
+  <sys:String x:Key="Dialog.FirmwareFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">Firmware files (*.bin;*.hex;*.s19;*.s37;*.srec)|*.bin;*.hex;*.s19;*.s37;*.srec</sys:String>
 </ResourceDictionary>

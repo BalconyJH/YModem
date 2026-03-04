@@ -6,6 +6,8 @@ using System.Text;
 using System.Windows;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+using DeviceProgramming.FileFormat;
+using DeviceProgramming.Memory;
 using Microsoft.Win32;
 using YModemWin.Core;
 using Wpf.Ui.Controls;
@@ -58,7 +60,7 @@ public partial class MainWindow : FluentWindow
         {
             CheckFileExists = true,
             Multiselect = true,
-            Filter = T("Dialog.AllFilesFilter")
+            Filter = T("Dialog.FirmwareFilesFilter")
         };
 
         var totalStopwatch = Stopwatch.StartNew();
@@ -83,6 +85,7 @@ public partial class MainWindow : FluentWindow
             if (sendFilesSet.Add(normalizedPath))
             {
                 newFiles.Add(normalizedPath);
+                WarnIfFirmwareHasGaps(normalizedPath);
             }
         }
 
@@ -547,6 +550,46 @@ public partial class MainWindow : FluentWindow
     private static void AppendLog(string message)
     {
         AppLogger.Info("{Message}", message);
+    }
+
+    private static void WarnIfFirmwareHasGaps(string filePath)
+    {
+        try
+        {
+            RawMemory? memory = null;
+            var extension = Path.GetExtension(filePath);
+
+            if (string.Equals(extension, ".hex", StringComparison.OrdinalIgnoreCase))
+            {
+                memory = IntelHex.ParseFile(filePath);
+            }
+            else if (string.Equals(extension, ".s19", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(extension, ".s37", StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(extension, ".srec", StringComparison.OrdinalIgnoreCase))
+            {
+                memory = SRecord.ParseFile(filePath);
+            }
+
+            if (memory is null)
+            {
+                return;
+            }
+
+            var segments = memory.Segments.OrderBy(static segment => segment.StartAddress).ToList();
+            for (var i = 1; i < segments.Count; i++)
+            {
+                var previous = segments[i - 1];
+                var current = segments[i];
+                if (current.StartAddress > previous.EndAddress + 1)
+                {
+                    AppLogger.Warn("File '{FilePath}' has a gap in image data: 0x{GapStart:X8}..0x{GapEnd:X8}.", filePath, previous.EndAddress + 1, current.StartAddress - 1);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn("Firmware parse skipped for '{FilePath}': {Reason}", filePath, ex.Message);
+        }
     }
 
     protected override void OnClosed(EventArgs e)
