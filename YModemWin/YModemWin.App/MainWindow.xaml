@@ -195,11 +195,11 @@
                                     </ui:Button.Icon>
                                 </ui:Button>
 
-                                <ui:Button Content="{DynamicResource Button.Clear}"
+                                <ui:Button Content="{DynamicResource Button.Delete}"
                                            Style="{StaticResource ReadableSecondaryButtonStyle}"
                                            Appearance="Secondary"
                                            Margin="8,0,0,0"
-                                           Click="OnClearSendFilesClick">
+                                           Click="OnDeleteSendFilesClick">
                                     <ui:Button.Icon>
                                         <ui:SymbolIcon Symbol="Delete24"
                                                        FontSize="16"
@@ -230,12 +230,16 @@
                                 BorderThickness="1"
                                 BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                                 CornerRadius="{DynamicResource ControlCornerRadius}">
-                            <ListBox x:Name="SendFilesListBox"
-                                     BorderThickness="0"
-                                     Background="Transparent"
-                                     VirtualizingPanel.IsVirtualizing="True"
-                                     VirtualizingPanel.VirtualizationMode="Recycling"
-                                     VirtualizingPanel.ScrollUnit="Pixel" />
+                            <ListView x:Name="SendFilesListView"
+                                      BorderThickness="0"
+                                      Background="Transparent"
+                                      SelectionMode="Extended"
+                                      KeyDown="OnSendFilesListKeyDown"
+                                      ScrollViewer.HorizontalScrollBarVisibility="Visible"
+                                      ScrollViewer.VerticalScrollBarVisibility="Visible"
+                                      VirtualizingPanel.IsVirtualizing="True"
+                                      VirtualizingPanel.VirtualizationMode="Recycling"
+                                      VirtualizingPanel.ScrollUnit="Pixel" />
                         </Border>
 
                         <StackPanel Grid.Row="2">
@@ -435,9 +439,9 @@
                             CornerRadius="{DynamicResource ControlCornerRadius}">
                         <ui:TextBox x:Name="RuntimeLogTextBox"
                                     IsReadOnly="True"
-                                    TextWrapping="Wrap"
-                                    VerticalScrollBarVisibility="Auto"
-                                    HorizontalScrollBarVisibility="Disabled"
+                                    TextWrapping="NoWrap"
+                                    VerticalScrollBarVisibility="Visible"
+                                    HorizontalScrollBarVisibility="Visible"
                                     AcceptsReturn="True"
                                     FontFamily="Consolas"
                                     FontSize="12"

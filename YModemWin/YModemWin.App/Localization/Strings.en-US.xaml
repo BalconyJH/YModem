@@ -7,6 +7,7 @@
   <sys:String x:Key="Button.Refresh" xmlns:sys="clr-namespace:System;assembly=mscorlib">Refresh</sys:String>
   <sys:String x:Key="Button.Add" xmlns:sys="clr-namespace:System;assembly=mscorlib">Add</sys:String>
   <sys:String x:Key="Button.Clear" xmlns:sys="clr-namespace:System;assembly=mscorlib">Clear</sys:String>
+  <sys:String x:Key="Button.Delete" xmlns:sys="clr-namespace:System;assembly=mscorlib">Delete</sys:String>
   <sys:String x:Key="Button.Browse" xmlns:sys="clr-namespace:System;assembly=mscorlib">Browse</sys:String>
   <sys:String x:Key="Button.StartSend" xmlns:sys="clr-namespace:System;assembly=mscorlib">Start Send</sys:String>
   <sys:String x:Key="Button.StartReceive" xmlns:sys="clr-namespace:System;assembly=mscorlib">Start Receive</sys:String>
@@ -65,4 +66,5 @@
   <sys:String x:Key="Status.DateFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">Date: {0}</sys:String>
   <sys:String x:Key="Hint.WarningTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">Notice</sys:String>
   <sys:String x:Key="Dialog.AllFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">All files (*.*)|*.*</sys:String>
+  <sys:String x:Key="Dialog.FirmwareFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">Firmware files (*.bin;*.hex;*.s19;*.s37;*.srec)|*.bin;*.hex;*.s19;*.s37;*.srec</sys:String>
 </ResourceDictionary>

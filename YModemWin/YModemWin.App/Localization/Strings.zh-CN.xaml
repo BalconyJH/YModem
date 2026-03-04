@@ -7,6 +7,7 @@
   <sys:String x:Key="Button.Refresh" xmlns:sys="clr-namespace:System;assembly=mscorlib">刷新</sys:String>
   <sys:String x:Key="Button.Add" xmlns:sys="clr-namespace:System;assembly=mscorlib">添加</sys:String>
   <sys:String x:Key="Button.Clear" xmlns:sys="clr-namespace:System;assembly=mscorlib">清空</sys:String>
+  <sys:String x:Key="Button.Delete" xmlns:sys="clr-namespace:System;assembly=mscorlib">删除</sys:String>
   <sys:String x:Key="Button.Browse" xmlns:sys="clr-namespace:System;assembly=mscorlib">浏览</sys:String>
   <sys:String x:Key="Button.StartSend" xmlns:sys="clr-namespace:System;assembly=mscorlib">开始发送</sys:String>
   <sys:String x:Key="Button.StartReceive" xmlns:sys="clr-namespace:System;assembly=mscorlib">开始接收</sys:String>
@@ -65,4 +66,5 @@
   <sys:String x:Key="Status.DateFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">日期: {0}</sys:String>
   <sys:String x:Key="Hint.WarningTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">提示</sys:String>
   <sys:String x:Key="Dialog.AllFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">所有文件 (*.*)|*.*</sys:String>
+  <sys:String x:Key="Dialog.FirmwareFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">固件文件 (*.bin;*.hex;*.s19;*.s37;*.srec)|*.bin;*.hex;*.s19;*.s37;*.srec</sys:String>
 </ResourceDictionary>
