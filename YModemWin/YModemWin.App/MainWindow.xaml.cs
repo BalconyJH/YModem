@@ -225,7 +225,7 @@ public partial class MainWindow : FluentWindow
 
             activePort = port;
             transmitter = new YModemTransmitter(activePort, SendTimeoutCheckBox.IsChecked == true, OnSendStatus);
-            SendProgressBar.Value = 0;
+            SetProgressBarWaiting(SendProgressBar);
             lastSendUiUpdateUtc = DateTime.MinValue;
             isSending = true;
             UpdateActionButtons();
@@ -331,7 +331,7 @@ public partial class MainWindow : FluentWindow
 
             activePort = port;
             receiver = new YModemReceiver(activePort, ReceiveTimeoutCheckBox.IsChecked == true, saveFolder, OnReceiveStatus);
-            ReceiveProgressBar.Value = 0;
+            SetProgressBarWaiting(ReceiveProgressBar);
             lastReceiveUiUpdateUtc = DateTime.MinValue;
             isReceiving = true;
             UpdateActionButtons();
@@ -409,7 +409,7 @@ public partial class MainWindow : FluentWindow
 
         Dispatcher.BeginInvoke(() =>
         {
-            AnimateProgressBar(SendProgressBar, Math.Clamp(progress, 0, 100));
+            UpdateTransferProgressBar(SendProgressBar, total, Math.Clamp(progress, 0, 100));
             SendStatusTextBlock.Text = $"Send status: {message}";
             SendBytesTextBlock.Text = $"Send bytes: {sent}/{total}";
             SendPacketsTextBlock.Text = $"Send packets: {packetNo}/{totalPacket}";
@@ -433,7 +433,7 @@ public partial class MainWindow : FluentWindow
 
         Dispatcher.BeginInvoke(() =>
         {
-            AnimateProgressBar(ReceiveProgressBar, Math.Clamp(progress, 0, 100));
+            UpdateTransferProgressBar(ReceiveProgressBar, total, Math.Clamp(progress, 0, 100));
             ReceiveStatusTextBlock.Text = $"Receive status: {message}";
             ReceiveBytesTextBlock.Text = $"Receive bytes: {received}/{total}";
             ReceivePacketsTextBlock.Text = $"Receive packets: {packetNo}/{totalPacket}";
@@ -447,6 +447,36 @@ public partial class MainWindow : FluentWindow
         }
     }
 
+
+
+    private static void SetProgressBarWaiting(System.Windows.Controls.ProgressBar progressBar)
+    {
+        progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
+        progressBar.IsIndeterminate = true;
+    }
+
+    private static void UpdateTransferProgressBar(System.Windows.Controls.ProgressBar progressBar, long total, double targetValue)
+    {
+        if (total <= 0)
+        {
+            SetProgressBarWaiting(progressBar);
+            return;
+        }
+
+        if (progressBar.IsIndeterminate)
+        {
+            progressBar.IsIndeterminate = false;
+        }
+
+        AnimateProgressBar(progressBar, targetValue);
+    }
+
+    private static void ResetProgressBar(System.Windows.Controls.ProgressBar progressBar)
+    {
+        progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
+        progressBar.IsIndeterminate = false;
+        progressBar.Value = 0;
+    }
 
     private static void AnimateProgressBar(System.Windows.Controls.ProgressBar progressBar, double targetValue)
     {
@@ -513,7 +543,12 @@ public partial class MainWindow : FluentWindow
         }
 
         TaskBarProgress.SetValue(this, 0);
-        Dispatcher.BeginInvoke(UpdateActionButtons, DispatcherPriority.Background);
+        Dispatcher.BeginInvoke(() =>
+        {
+            ResetProgressBar(SendProgressBar);
+            ResetProgressBar(ReceiveProgressBar);
+            UpdateActionButtons();
+        }, DispatcherPriority.Background);
     }
 
     private void UpdateActionButtons()
