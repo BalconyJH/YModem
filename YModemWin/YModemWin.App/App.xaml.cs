@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Runtime.Versioning;
 using System.Windows;
 
@@ -11,6 +12,7 @@ public partial class App : Application
 
     protected override void OnStartup(StartupEventArgs e)
     {
+        LoadLocalizationResources();
         var dotenvPath = DotEnvLoader.Load();
 
         AppLogger.Initialize();
@@ -65,6 +67,36 @@ public partial class App : Application
 
         AppLogger.Info("Application startup complete.");
         base.OnStartup(e);
+    }
+
+
+    private void LoadLocalizationResources()
+    {
+        var isChinese = CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
+        var cultureResource = isChinese ? "Localization/Strings.zh-CN.xaml" : "Localization/Strings.en-US.xaml";
+
+        var dictionaries = Resources.MergedDictionaries;
+        for (var i = dictionaries.Count - 1; i >= 0; i--)
+        {
+            var source = dictionaries[i].Source?.OriginalString ?? string.Empty;
+            if (source.Contains("Localization/Strings.", StringComparison.OrdinalIgnoreCase))
+            {
+                dictionaries.RemoveAt(i);
+            }
+        }
+
+        dictionaries.Add(new ResourceDictionary
+        {
+            Source = new Uri("Localization/Strings.en-US.xaml", UriKind.Relative)
+        });
+
+        if (isChinese)
+        {
+            dictionaries.Add(new ResourceDictionary
+            {
+                Source = new Uri(cultureResource, UriKind.Relative)
+            });
+        }
     }
 
     protected override void OnExit(ExitEventArgs e)

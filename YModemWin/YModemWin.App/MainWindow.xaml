@@ -2,7 +2,7 @@
                  xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                  xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
-                 Title="YModem WPF"
+                 Title="{DynamicResource App.Title}"
                  Height="720"
                  Width="1200"
                  MinHeight="680"
@@ -53,7 +53,7 @@
                TargetType="{x:Type ui:Button}"
                BasedOn="{StaticResource ReadableSecondaryButtonStyle}">
             <Setter Property="Appearance" Value="Secondary" />
-            <Setter Property="Width" Value="130" />
+            <Setter Property="Width" Value="140" />
         </Style>
     </ui:FluentWindow.Resources>
 
@@ -63,7 +63,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="YModem WPF" />
+        <ui:TitleBar Grid.Row="0" Title="{DynamicResource App.Title}" />
 
         <Grid Grid.Row="1" Margin="20,12,20,20">
             <Grid.RowDefinitions>
@@ -84,7 +84,7 @@
 
                     <ui:TextBlock Grid.Row="0"
                                   FontTypography="BodyStrong"
-                                  Text="Serial Configuration"
+                                  Text="{DynamicResource Section.SerialConfig}"
                                   Margin="0,0,0,14" />
 
                     <Grid Grid.Row="1">
@@ -99,7 +99,7 @@
                                     Orientation="Horizontal"
                                     VerticalAlignment="Center">
                             <ui:TextBlock VerticalAlignment="Center"
-                                          Text="Port:"
+                                          Text="{DynamicResource Label.Port}"
                                           Margin="0,0,10,0"
                                           MinWidth="40" />
                             <ComboBox x:Name="PortComboBox"
@@ -107,7 +107,7 @@
                                       Height="38"
                                       VerticalContentAlignment="Center"
                                       Margin="0,0,10,0" />
-                            <ui:Button Content="Refresh"
+                            <ui:Button Content="{DynamicResource Button.Refresh}"
                                        Style="{StaticResource ReadableSecondaryButtonStyle}"
                                        Appearance="Secondary"
                                        Click="OnRefreshPortsClick" />
@@ -117,7 +117,7 @@
                                     Orientation="Horizontal"
                                     VerticalAlignment="Center">
                             <ui:TextBlock VerticalAlignment="Center"
-                                          Text="Baud Rate:"
+                                          Text="{DynamicResource Label.BaudRate}"
                                           Margin="0,0,10,0"
                                           MinWidth="76" />
                             <ComboBox x:Name="BaudRateComboBox"
@@ -140,12 +140,12 @@
                                     VerticalAlignment="Center">
                             <CheckBox x:Name="SendTimeoutCheckBox"
                                       IsChecked="True"
-                                      Content="Send Timeout"
+                                      Content="{DynamicResource Checkbox.SendTimeout}"
                                       Margin="0,0,18,0"
                                       VerticalAlignment="Center" />
                             <CheckBox x:Name="ReceiveTimeoutCheckBox"
                                       IsChecked="True"
-                                      Content="Receive Timeout"
+                                      Content="{DynamicResource Checkbox.ReceiveTimeout}"
                                       VerticalAlignment="Center" />
                         </StackPanel>
                     </Grid>
@@ -177,13 +177,13 @@
 
                             <ui:TextBlock Grid.Column="0"
                                           FontTypography="BodyStrong"
-                                          Text="Send Files"
+                                          Text="{DynamicResource Section.SendFiles}"
                                           VerticalAlignment="Center" />
 
                             <StackPanel Grid.Column="1"
                                         Orientation="Horizontal"
                                         VerticalAlignment="Center">
-                                <ui:Button Content="Add"
+                                <ui:Button Content="{DynamicResource Button.Add}"
                                            Style="{StaticResource ReadableSecondaryButtonStyle}"
                                            Appearance="Secondary"
                                            Click="OnBrowseSendFileClick">
@@ -195,7 +195,7 @@
                                     </ui:Button.Icon>
                                 </ui:Button>
 
-                                <ui:Button Content="Clear"
+                                <ui:Button Content="{DynamicResource Button.Clear}"
                                            Style="{StaticResource ReadableSecondaryButtonStyle}"
                                            Appearance="Secondary"
                                            Margin="8,0,0,0"
@@ -209,7 +209,7 @@
                                 </ui:Button>
 
                                 <ui:Button x:Name="SendActionButton"
-                                           Content="Start Send"
+                                           Content="{DynamicResource Button.StartSend}"
                                            Style="{StaticResource ActionButtonStyle}"
                                            MinWidth="120"
                                            Margin="8,0,0,0"
@@ -242,16 +242,17 @@
                             <ui:InfoBar x:Name="SendInfoBar"
                                         IsOpen="False"
                                         Severity="Warning"
-                                        Title="提示"
-                                        Message="请至少选择一个文件再开始发送。"
+                                        Title="{DynamicResource Hint.WarningTitle}"
+                                        Message="{DynamicResource Hint.SendSelectFiles}"
                                         Margin="0,0,0,10"/>
                             <ProgressBar x:Name="SendProgressBar"
+                                         Background="Transparent"
                                          Minimum="0"
                                          Maximum="100"
                                          Height="8"
                                          Margin="0,0,0,12" />
                             <ui:TextBlock x:Name="SendStatusTextBlock"
-                                          Text="Send status: idle"
+                                          Text="{DynamicResource Status.SendIdle}"
                                           Margin="0,0,0,10"
                                           FontSize="13" />
                             <Grid>
@@ -261,12 +262,12 @@
                                 </Grid.ColumnDefinitions>
                                 <ui:TextBlock x:Name="SendBytesTextBlock"
                                               Grid.Column="0"
-                                              Text="Bytes: 0/0"
+                                              Text="{DynamicResource Status.BytesZero}"
                                               FontSize="12"
                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <ui:TextBlock x:Name="SendPacketsTextBlock"
                                               Grid.Column="1"
-                                              Text="Packets: 0/0"
+                                              Text="{DynamicResource Status.PacketsZero}"
                                               HorizontalAlignment="Right"
                                               FontSize="12"
                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -293,12 +294,12 @@
 
                             <ui:TextBlock Grid.Column="0"
                                           FontTypography="BodyStrong"
-                                          Text="Receive Files"
+                                          Text="{DynamicResource Section.ReceiveFiles}"
                                           VerticalAlignment="Center" />
 
                             <ui:Button x:Name="ReceiveActionButton"
                                        Grid.Column="1"
-                                       Content="Start Receive"
+                                       Content="{DynamicResource Button.StartReceive}"
                                        Style="{StaticResource ActionButtonStyle}"
                                        MinWidth="120"
                                        Click="OnStartReceiveClick">
@@ -322,11 +323,11 @@
                                         Height="38"
                                         VerticalContentAlignment="Center"
                                         Padding="12,0"
-                                        PlaceholderText="Save folder path"
+                                        PlaceholderText="{DynamicResource Placeholder.SaveFolder}"
                                         Margin="0,0,8,0" />
 
                             <ui:Button Grid.Column="1"
-                                       Content="Browse"
+                                       Content="{DynamicResource Button.Browse}"
                                        Style="{StaticResource ReadableSecondaryButtonStyle}"
                                        Appearance="Secondary"
                                        Click="OnBrowseSaveFolderClick">
@@ -355,18 +356,18 @@
 
                                 <ui:TextBlock x:Name="ReceiveFileNameTextBlock"
                                               Grid.Row="0"
-                                              Text="File: -"
+                                              Text="{DynamicResource Status.FileEmpty}"
                                               FontSize="12"
                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}"
                                               Margin="0,0,0,6" />
                                 <ui:TextBlock x:Name="ReceiveFileDateTextBlock"
                                               Grid.Row="1"
-                                              Text="Date: -"
+                                              Text="{DynamicResource Status.DateEmpty}"
                                               FontSize="12"
                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
 
                                 <ui:TextBlock Grid.Row="2"
-                                              Text="Waiting for incoming transfer..."
+                                              Text="{DynamicResource Status.WaitIncoming}"
                                               HorizontalAlignment="Center"
                                               VerticalAlignment="Center"
                                               FontSize="13"
@@ -376,12 +377,13 @@
 
                         <StackPanel Grid.Row="3">
                             <ProgressBar x:Name="ReceiveProgressBar"
+                                         Background="Transparent"
                                          Minimum="0"
                                          Maximum="100"
                                          Height="8"
                                          Margin="0,0,0,12" />
                             <ui:TextBlock x:Name="ReceiveStatusTextBlock"
-                                          Text="Receive status: idle"
+                                          Text="{DynamicResource Status.ReceiveIdle}"
                                           Margin="0,0,0,10"
                                           FontSize="13" />
                             <Grid>
@@ -391,12 +393,12 @@
                                 </Grid.ColumnDefinitions>
                                 <ui:TextBlock x:Name="ReceiveBytesTextBlock"
                                               Grid.Column="0"
-                                              Text="Bytes: 0/0"
+                                              Text="{DynamicResource Status.BytesZero}"
                                               FontSize="12"
                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                                 <ui:TextBlock x:Name="ReceivePacketsTextBlock"
                                               Grid.Column="1"
-                                              Text="Packets: 0/0"
+                                              Text="{DynamicResource Status.PacketsZero}"
                                               HorizontalAlignment="Right"
                                               FontSize="12"
                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
@@ -417,11 +419,11 @@
 
                         <ui:TextBlock Grid.Column="0"
                                       FontTypography="BodyStrong"
-                                      Text="Runtime Log"
+                                      Text="{DynamicResource Section.RuntimeLog}"
                                       VerticalAlignment="Center" />
 
                         <ui:Button Grid.Column="1"
-                                   Content="Clear"
+                                   Content="{DynamicResource Button.Clear}"
                                    Style="{StaticResource ReadableSecondaryButtonStyle}"
                                    Appearance="Secondary"
                                    Click="OnClearLogClick">

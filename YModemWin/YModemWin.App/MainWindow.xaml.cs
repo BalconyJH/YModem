@@ -1,10 +1,13 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.IO.Ports;
 using System.Text;
 using System.Windows;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.Win32;
+using YModemWin.Core;
 using Wpf.Ui.Controls;
 
 namespace YModemWin;
@@ -54,7 +57,7 @@ public partial class MainWindow : FluentWindow
         {
             CheckFileExists = true,
             Multiselect = true,
-            Filter = "All files (*.*)|*.*"
+            Filter = T("Dialog.AllFilesFilter")
         };
 
         var totalStopwatch = Stopwatch.StartNew();
@@ -65,7 +68,7 @@ public partial class MainWindow : FluentWindow
         if (dialogResult != true || picker.FileNames.Length == 0)
         {
             totalStopwatch.Stop();
-            AppendLog($"Browse timing: ShowDialog={dialogStopwatch.ElapsedMilliseconds} ms, Dedup=0 ms, AddRange=0 ms, Total={totalStopwatch.ElapsedMilliseconds} ms (no files selected).");
+            AppendLog(TF("Log.BrowseNoSelection", dialogStopwatch.ElapsedMilliseconds, totalStopwatch.ElapsedMilliseconds));
             return;
         }
 
@@ -96,9 +99,9 @@ public partial class MainWindow : FluentWindow
         SendInfoBar.IsOpen = false;
 
         AppendLog(newFiles.Count > 0
-            ? $"Added {newFiles.Count} file(s) to send queue ({selectedFiles.Length - newFiles.Count} duplicate(s) skipped)."
-            : $"All {selectedFiles.Length} file(s) already in queue.");
-        AppendLog($"Browse timing: ShowDialog={dialogStopwatch.ElapsedMilliseconds} ms, Dedup={dedupStopwatch.ElapsedMilliseconds} ms, AddRange={addRangeStopwatch.ElapsedMilliseconds} ms, Total={totalStopwatch.ElapsedMilliseconds} ms, Selected={selectedFiles.Length}.");
+            ? TF("Log.BrowseAdded", newFiles.Count, selectedFiles.Length - newFiles.Count)
+            : TF("Log.BrowseAllDuplicate", selectedFiles.Length));
+        AppendLog(TF("Log.BrowseTiming", dialogStopwatch.ElapsedMilliseconds, dedupStopwatch.ElapsedMilliseconds, addRangeStopwatch.ElapsedMilliseconds, totalStopwatch.ElapsedMilliseconds, selectedFiles.Length));
 
         UpdateActionButtons();
     }
@@ -108,7 +111,7 @@ public partial class MainWindow : FluentWindow
         sendFilesList.Clear();
         sendFilesSet.Clear();
         SendInfoBar.IsOpen = false;
-        SendStatusTextBlock.Text = "Send status: queue cleared";
+        SendStatusTextBlock.Text = T("Status.SendQueueCleared");
         UpdateActionButtons();
     }
 
@@ -140,7 +143,7 @@ public partial class MainWindow : FluentWindow
             PortComboBox.SelectedIndex = 0;
         }
 
-        AppendLog("Serial ports refreshed.");
+        AppendLog(T("Log.PortsRefreshed"));
     }
 
     private async void OnStartSendClick(object sender, RoutedEventArgs e)
@@ -153,7 +156,7 @@ public partial class MainWindow : FluentWindow
             }
 
             isSendCancelling = true;
-            SendStatusTextBlock.Text = "Send status: cancel requested";
+            SendStatusTextBlock.Text = T("Status.SendCancelRequested");
             UpdateActionButtons();
 
             _ = Task.Run(() =>
@@ -164,7 +167,7 @@ public partial class MainWindow : FluentWindow
                 }
             });
 
-            AppendLog("Cancel requested for sending.");
+            AppendLog(T("Log.CancelSend"));
             return;
         }
 
@@ -181,7 +184,7 @@ public partial class MainWindow : FluentWindow
 
         if (files.Any(static path => !File.Exists(path)))
         {
-            SendStatusTextBlock.Text = "Send status: file not found in queue";
+            SendStatusTextBlock.Text = T("Status.SendFileMissing");
             return;
         }
 
@@ -192,7 +195,7 @@ public partial class MainWindow : FluentWindow
         }
 
         isSendPortOpening = true;
-        SendStatusTextBlock.Text = "Send status: opening serial port...";
+        SendStatusTextBlock.Text = T("Status.SendOpeningPort");
         UpdateActionButtons();
 
         SerialPort port;
@@ -202,8 +205,8 @@ public partial class MainWindow : FluentWindow
         }
         catch (Exception ex)
         {
-            SendStatusTextBlock.Text = $"Send status: open serial failed ({ex.Message})";
-            AppendLog($"Send: open serial failed ({ex.Message})");
+            SendStatusTextBlock.Text = TF("Status.SendOpenFailed", ex.Message);
+            AppendLog(TF("Log.SendOpenFailed", ex.Message));
             return;
         }
         finally
@@ -216,21 +219,21 @@ public partial class MainWindow : FluentWindow
         {
             if (activePort != null)
             {
-                SendStatusTextBlock.Text = "Send status: serial device busy";
+                SendStatusTextBlock.Text = T("Status.SendSerialBusy");
                 port.Dispose();
                 return;
             }
 
             activePort = port;
             transmitter = new YModemTransmitter(activePort, SendTimeoutCheckBox.IsChecked == true, OnSendStatus);
-            SendProgressBar.Value = 0;
+            SetProgressBarWaiting(SendProgressBar);
             lastSendUiUpdateUtc = DateTime.MinValue;
             isSending = true;
             UpdateActionButtons();
         }
 
         TaskBarProgress.SetValue(this, 0);
-        AppendLog($"Start sending {files.Count} file(s).");
+        AppendLog(TF("Log.StartSending", files.Count));
 
         _ = Task.Run(() =>
         {
@@ -262,7 +265,7 @@ public partial class MainWindow : FluentWindow
             }
 
             isReceiveCancelling = true;
-            ReceiveStatusTextBlock.Text = "Receive status: cancel requested";
+            ReceiveStatusTextBlock.Text = T("Status.ReceiveCancelRequested");
             UpdateActionButtons();
 
             _ = Task.Run(() =>
@@ -273,7 +276,7 @@ public partial class MainWindow : FluentWindow
                 }
             });
 
-            AppendLog("Cancel requested for receiving.");
+            AppendLog(T("Log.CancelReceive"));
             return;
         }
 
@@ -285,7 +288,7 @@ public partial class MainWindow : FluentWindow
         var saveFolder = SaveFolderTextBox.Text?.Trim();
         if (string.IsNullOrWhiteSpace(saveFolder))
         {
-            ReceiveStatusTextBlock.Text = "Receive status: invalid save folder";
+            ReceiveStatusTextBlock.Text = T("Status.ReceiveInvalidFolder");
             return;
         }
 
@@ -298,7 +301,7 @@ public partial class MainWindow : FluentWindow
         }
 
         isReceivePortOpening = true;
-        ReceiveStatusTextBlock.Text = "Receive status: opening serial port...";
+        ReceiveStatusTextBlock.Text = T("Status.ReceiveOpeningPort");
         UpdateActionButtons();
 
         SerialPort port;
@@ -308,8 +311,8 @@ public partial class MainWindow : FluentWindow
         }
         catch (Exception ex)
         {
-            ReceiveStatusTextBlock.Text = $"Receive status: open serial failed ({ex.Message})";
-            AppendLog($"Receive: open serial failed ({ex.Message})");
+            ReceiveStatusTextBlock.Text = TF("Status.ReceiveOpenFailed", ex.Message);
+            AppendLog(TF("Log.ReceiveOpenFailed", ex.Message));
             return;
         }
         finally
@@ -322,21 +325,21 @@ public partial class MainWindow : FluentWindow
         {
             if (activePort != null)
             {
-                ReceiveStatusTextBlock.Text = "Receive status: serial device busy";
+                ReceiveStatusTextBlock.Text = T("Status.ReceiveSerialBusy");
                 port.Dispose();
                 return;
             }
 
             activePort = port;
             receiver = new YModemReceiver(activePort, ReceiveTimeoutCheckBox.IsChecked == true, saveFolder, OnReceiveStatus);
-            ReceiveProgressBar.Value = 0;
+            SetProgressBarWaiting(ReceiveProgressBar);
             lastReceiveUiUpdateUtc = DateTime.MinValue;
             isReceiving = true;
             UpdateActionButtons();
         }
 
         TaskBarProgress.SetValue(this, 0);
-        AppendLog($"Start receiving into '{saveFolder}'.");
+        AppendLog(TF("Log.StartReceiving", saveFolder));
 
         _ = Task.Run(() =>
         {
@@ -359,13 +362,13 @@ public partial class MainWindow : FluentWindow
 
         if (PortComboBox.SelectedItem is not string selectedPort || string.IsNullOrWhiteSpace(selectedPort))
         {
-            statusMessage = "Status: choose a serial port";
+            statusMessage = T("Status.ChoosePort");
             return false;
         }
 
         if (!int.TryParse(GetBaudRateText(), out baudRate))
         {
-            statusMessage = "Status: invalid baud rate";
+            statusMessage = T("Status.InvalidBaudRate");
             return false;
         }
 
@@ -407,15 +410,15 @@ public partial class MainWindow : FluentWindow
 
         Dispatcher.BeginInvoke(() =>
         {
-            SendProgressBar.Value = Math.Clamp(progress, 0, 100);
-            SendStatusTextBlock.Text = $"Send status: {message}";
-            SendBytesTextBlock.Text = $"Send bytes: {sent}/{total}";
-            SendPacketsTextBlock.Text = $"Send packets: {packetNo}/{totalPacket}";
+            UpdateTransferProgressBar(SendProgressBar, total, Math.Clamp(progress, 0, 100));
+            SendStatusTextBlock.Text = TF("Status.SendStatusFormat", message);
+            SendBytesTextBlock.Text = TF("Status.SendBytesFormat", sent, total);
+            SendPacketsTextBlock.Text = TF("Status.SendPacketsFormat", packetNo, totalPacket);
         }, DispatcherPriority.Background);
 
         if (status != 0)
         {
-            AppendLog($"Send: {message}");
+            AppendLog(TF("Status.SendStatusFormat", message));
         }
     }
 
@@ -431,18 +434,84 @@ public partial class MainWindow : FluentWindow
 
         Dispatcher.BeginInvoke(() =>
         {
-            ReceiveProgressBar.Value = Math.Clamp(progress, 0, 100);
-            ReceiveStatusTextBlock.Text = $"Receive status: {message}";
-            ReceiveBytesTextBlock.Text = $"Receive bytes: {received}/{total}";
-            ReceivePacketsTextBlock.Text = $"Receive packets: {packetNo}/{totalPacket}";
-            ReceiveFileNameTextBlock.Text = $"File: {(string.IsNullOrWhiteSpace(fileName) ? "-" : fileName)}";
-            ReceiveFileDateTextBlock.Text = $"Date: {(string.IsNullOrWhiteSpace(fileDate) ? "-" : fileDate)}";
+            UpdateTransferProgressBar(ReceiveProgressBar, total, Math.Clamp(progress, 0, 100));
+            ReceiveStatusTextBlock.Text = TF("Status.ReceiveStatusFormat", message);
+            ReceiveBytesTextBlock.Text = TF("Status.ReceiveBytesFormat", received, total);
+            ReceivePacketsTextBlock.Text = TF("Status.ReceivePacketsFormat", packetNo, totalPacket);
+            ReceiveFileNameTextBlock.Text = TF("Status.FileFormat", string.IsNullOrWhiteSpace(fileName) ? "-" : fileName);
+            ReceiveFileDateTextBlock.Text = TF("Status.DateFormat", string.IsNullOrWhiteSpace(fileDate) ? "-" : fileDate);
         }, DispatcherPriority.Background);
 
         if (status != 0)
         {
-            AppendLog($"Receive: {message}");
+            AppendLog(TF("Status.ReceiveStatusFormat", message));
         }
+    }
+
+
+
+    private static void SetProgressBarWaiting(System.Windows.Controls.ProgressBar progressBar)
+    {
+        if (progressBar.IsIndeterminate)
+        {
+            return;
+        }
+
+        progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
+        progressBar.IsIndeterminate = true;
+        progressBar.BeginAnimation(UIElement.OpacityProperty, CreateOpacityAnimation(0.92, 1.0, 160));
+    }
+
+    private static void UpdateTransferProgressBar(System.Windows.Controls.ProgressBar progressBar, long total, double targetValue)
+    {
+        if (total <= 0)
+        {
+            SetProgressBarWaiting(progressBar);
+            return;
+        }
+
+        if (progressBar.IsIndeterminate)
+        {
+            progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
+            progressBar.IsIndeterminate = false;
+            progressBar.Value = targetValue;
+            progressBar.BeginAnimation(UIElement.OpacityProperty, CreateOpacityAnimation(0.92, 1.0, 160));
+            return;
+        }
+
+        AnimateProgressBar(progressBar, targetValue);
+    }
+
+    private static void ResetProgressBar(System.Windows.Controls.ProgressBar progressBar)
+    {
+        progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
+        progressBar.IsIndeterminate = false;
+        progressBar.BeginAnimation(UIElement.OpacityProperty, null);
+        progressBar.Opacity = 1;
+        progressBar.Value = 0;
+    }
+
+    private static DoubleAnimation CreateOpacityAnimation(double from, double to, int durationMs)
+    {
+        return new DoubleAnimation
+        {
+            From = from,
+            To = to,
+            Duration = TimeSpan.FromMilliseconds(durationMs),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+    }
+
+    private static void AnimateProgressBar(System.Windows.Controls.ProgressBar progressBar, double targetValue)
+    {
+        var animation = new DoubleAnimation
+        {
+            To = targetValue,
+            Duration = TimeSpan.FromMilliseconds(220),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+
+        progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, animation, HandoffBehavior.SnapshotAndReplace);
     }
 
     private static bool ShouldUpdateUi(ref DateTime lastUpdateUtc, long status)
@@ -462,6 +531,17 @@ public partial class MainWindow : FluentWindow
         lastUpdateUtc = now;
         return true;
     }
+
+    private static string T(string key)
+    {
+        return Application.Current.TryFindResource(key) as string ?? key;
+    }
+
+    private static string TF(string key, params object[] args)
+    {
+        return string.Format(CultureInfo.CurrentUICulture, T(key), args);
+    }
+
 
     private void AppendLog(string message)
     {
@@ -498,26 +578,31 @@ public partial class MainWindow : FluentWindow
         }
 
         TaskBarProgress.SetValue(this, 0);
-        Dispatcher.BeginInvoke(UpdateActionButtons, DispatcherPriority.Background);
+        Dispatcher.BeginInvoke(() =>
+        {
+            ResetProgressBar(SendProgressBar);
+            ResetProgressBar(ReceiveProgressBar);
+            UpdateActionButtons();
+        }, DispatcherPriority.Background);
     }
 
     private void UpdateActionButtons()
     {
-        SetActionButtonState(SendActionButton, isSending, isSendCancelling, "Start Send", isSendPortOpening, sendFilesList.Count > 0);
-        SetActionButtonState(ReceiveActionButton, isReceiving, isReceiveCancelling, "Start Receive", isReceivePortOpening, true);
+        SetActionButtonState(SendActionButton, isSending, isSendCancelling, "Button.StartSend", isSendPortOpening, sendFilesList.Count > 0);
+        SetActionButtonState(ReceiveActionButton, isReceiving, isReceiveCancelling, "Button.StartReceive", isReceivePortOpening, true);
     }
 
-    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isRunning, bool isCancelling, string startText, bool isBusy, bool canStart)
+    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isRunning, bool isCancelling, string startTextKey, bool isBusy, bool canStart)
     {
         if (isRunning)
         {
-            button.Content = isCancelling ? "Cancelling..." : "Cancel";
+            button.Content = isCancelling ? T("Button.Cancelling") : T("Button.Cancel");
             button.Appearance = ControlAppearance.Danger;
             button.IsEnabled = !isCancelling;
             return;
         }
 
-        button.Content = startText;
+        button.Content = T(startTextKey);
         button.Appearance = ControlAppearance.Primary;
         button.IsEnabled = canStart && !isBusy;
     }

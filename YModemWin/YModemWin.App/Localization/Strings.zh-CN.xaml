@@ -1,0 +1,68 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <sys:String x:Key="App.Title" xmlns:sys="clr-namespace:System;assembly=mscorlib">YModem 传输工具</sys:String>
+  <sys:String x:Key="Section.SerialConfig" xmlns:sys="clr-namespace:System;assembly=mscorlib">串口配置</sys:String>
+  <sys:String x:Key="Label.Port" xmlns:sys="clr-namespace:System;assembly=mscorlib">端口:</sys:String>
+  <sys:String x:Key="Label.BaudRate" xmlns:sys="clr-namespace:System;assembly=mscorlib">波特率:</sys:String>
+  <sys:String x:Key="Button.Refresh" xmlns:sys="clr-namespace:System;assembly=mscorlib">刷新</sys:String>
+  <sys:String x:Key="Button.Add" xmlns:sys="clr-namespace:System;assembly=mscorlib">添加</sys:String>
+  <sys:String x:Key="Button.Clear" xmlns:sys="clr-namespace:System;assembly=mscorlib">清空</sys:String>
+  <sys:String x:Key="Button.Browse" xmlns:sys="clr-namespace:System;assembly=mscorlib">浏览</sys:String>
+  <sys:String x:Key="Button.StartSend" xmlns:sys="clr-namespace:System;assembly=mscorlib">开始发送</sys:String>
+  <sys:String x:Key="Button.StartReceive" xmlns:sys="clr-namespace:System;assembly=mscorlib">开始接收</sys:String>
+  <sys:String x:Key="Button.Cancel" xmlns:sys="clr-namespace:System;assembly=mscorlib">取消</sys:String>
+  <sys:String x:Key="Button.Cancelling" xmlns:sys="clr-namespace:System;assembly=mscorlib">取消中...</sys:String>
+  <sys:String x:Key="Checkbox.SendTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送超时</sys:String>
+  <sys:String x:Key="Checkbox.ReceiveTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收超时</sys:String>
+  <sys:String x:Key="Section.SendFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送文件</sys:String>
+  <sys:String x:Key="Section.ReceiveFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收文件</sys:String>
+  <sys:String x:Key="Section.RuntimeLog" xmlns:sys="clr-namespace:System;assembly=mscorlib">运行日志</sys:String>
+  <sys:String x:Key="Hint.SendSelectFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">请先选择至少一个待发送文件。</sys:String>
+  <sys:String x:Key="Placeholder.SaveFolder" xmlns:sys="clr-namespace:System;assembly=mscorlib">保存目录路径</sys:String>
+  <sys:String x:Key="Status.SendIdle" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 空闲</sys:String>
+  <sys:String x:Key="Status.ReceiveIdle" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收状态: 空闲</sys:String>
+  <sys:String x:Key="Status.BytesZero" xmlns:sys="clr-namespace:System;assembly=mscorlib">字节: 0/0</sys:String>
+  <sys:String x:Key="Status.PacketsZero" xmlns:sys="clr-namespace:System;assembly=mscorlib">包: 0/0</sys:String>
+  <sys:String x:Key="Status.FileEmpty" xmlns:sys="clr-namespace:System;assembly=mscorlib">文件: -</sys:String>
+  <sys:String x:Key="Status.DateEmpty" xmlns:sys="clr-namespace:System;assembly=mscorlib">日期: -</sys:String>
+  <sys:String x:Key="Status.WaitIncoming" xmlns:sys="clr-namespace:System;assembly=mscorlib">等待接收传输...</sys:String>
+
+  <sys:String x:Key="Log.BrowseNoSelection" xmlns:sys="clr-namespace:System;assembly=mscorlib">浏览耗时: 打开对话框={0} ms, 去重=0 ms, 批量添加=0 ms, 总计={1} ms (未选择文件)。</sys:String>
+  <sys:String x:Key="Log.BrowseAdded" xmlns:sys="clr-namespace:System;assembly=mscorlib">已添加 {0} 个文件到发送队列（跳过重复 {1} 个）。</sys:String>
+  <sys:String x:Key="Log.BrowseAllDuplicate" xmlns:sys="clr-namespace:System;assembly=mscorlib">选中的 {0} 个文件均已在队列中。</sys:String>
+  <sys:String x:Key="Log.BrowseTiming" xmlns:sys="clr-namespace:System;assembly=mscorlib">浏览耗时: 打开对话框={0} ms, 去重={1} ms, 批量添加={2} ms, 总计={3} ms, 选择数量={4}。</sys:String>
+  <sys:String x:Key="Log.PortsRefreshed" xmlns:sys="clr-namespace:System;assembly=mscorlib">串口列表已刷新。</sys:String>
+  <sys:String x:Key="Log.CancelSend" xmlns:sys="clr-namespace:System;assembly=mscorlib">已请求取消发送。</sys:String>
+  <sys:String x:Key="Log.CancelReceive" xmlns:sys="clr-namespace:System;assembly=mscorlib">已请求取消接收。</sys:String>
+  <sys:String x:Key="Log.StartSending" xmlns:sys="clr-namespace:System;assembly=mscorlib">开始发送 {0} 个文件。</sys:String>
+  <sys:String x:Key="Log.StartReceiving" xmlns:sys="clr-namespace:System;assembly=mscorlib">开始接收到目录 '{0}'。</sys:String>
+  <sys:String x:Key="Log.SendOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送: 串口打开失败 ({0})</sys:String>
+  <sys:String x:Key="Log.ReceiveOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收: 串口打开失败 ({0})</sys:String>
+
+  <sys:String x:Key="Status.SendQueueCleared" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 队列已清空</sys:String>
+  <sys:String x:Key="Status.SendCancelRequested" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 已请求取消</sys:String>
+  <sys:String x:Key="Status.SendFileMissing" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 队列中存在不存在的文件</sys:String>
+  <sys:String x:Key="Status.SendOpeningPort" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 正在打开串口...</sys:String>
+  <sys:String x:Key="Status.SendOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 串口打开失败 ({0})</sys:String>
+  <sys:String x:Key="Status.SendSerialBusy" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 串口设备忙</sys:String>
+
+  <sys:String x:Key="Status.ReceiveCancelRequested" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收状态: 已请求取消</sys:String>
+  <sys:String x:Key="Status.ReceiveInvalidFolder" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收状态: 保存目录无效</sys:String>
+  <sys:String x:Key="Status.ReceiveOpeningPort" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收状态: 正在打开串口...</sys:String>
+  <sys:String x:Key="Status.ReceiveOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收状态: 串口打开失败 ({0})</sys:String>
+  <sys:String x:Key="Status.ReceiveSerialBusy" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收状态: 串口设备忙</sys:String>
+
+  <sys:String x:Key="Status.ChoosePort" xmlns:sys="clr-namespace:System;assembly=mscorlib">状态: 请选择串口</sys:String>
+  <sys:String x:Key="Status.InvalidBaudRate" xmlns:sys="clr-namespace:System;assembly=mscorlib">状态: 波特率无效</sys:String>
+
+  <sys:String x:Key="Status.SendStatusFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: {0}</sys:String>
+  <sys:String x:Key="Status.SendBytesFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送字节: {0}/{1}</sys:String>
+  <sys:String x:Key="Status.SendPacketsFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送包: {0}/{1}</sys:String>
+  <sys:String x:Key="Status.ReceiveStatusFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收状态: {0}</sys:String>
+  <sys:String x:Key="Status.ReceiveBytesFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收字节: {0}/{1}</sys:String>
+  <sys:String x:Key="Status.ReceivePacketsFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收包: {0}/{1}</sys:String>
+  <sys:String x:Key="Status.FileFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">文件: {0}</sys:String>
+  <sys:String x:Key="Status.DateFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">日期: {0}</sys:String>
+  <sys:String x:Key="Hint.WarningTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">提示</sys:String>
+  <sys:String x:Key="Dialog.AllFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">所有文件 (*.*)|*.*</sys:String>
+</ResourceDictionary>
