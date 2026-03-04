@@ -9,5 +9,6 @@
 
   <ItemGroup>
     <PackageReference Include="Sentry" Version="6.1.0" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.3" />
   </ItemGroup>
 </Project>
