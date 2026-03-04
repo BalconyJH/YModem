@@ -53,7 +53,7 @@
                TargetType="{x:Type ui:Button}"
                BasedOn="{StaticResource ReadableSecondaryButtonStyle}">
             <Setter Property="Appearance" Value="Secondary" />
-            <Setter Property="Width" Value="130" />
+            <Setter Property="Width" Value="140" />
         </Style>
     </ui:FluentWindow.Resources>
 

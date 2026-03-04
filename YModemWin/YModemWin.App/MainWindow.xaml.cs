@@ -3,6 +3,7 @@ using System.IO;
 using System.IO.Ports;
 using System.Text;
 using System.Windows;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using YModemWin.Core;
@@ -408,7 +409,7 @@ public partial class MainWindow : FluentWindow
 
         Dispatcher.BeginInvoke(() =>
         {
-            SendProgressBar.Value = Math.Clamp(progress, 0, 100);
+            AnimateProgressBar(SendProgressBar, Math.Clamp(progress, 0, 100));
             SendStatusTextBlock.Text = $"Send status: {message}";
             SendBytesTextBlock.Text = $"Send bytes: {sent}/{total}";
             SendPacketsTextBlock.Text = $"Send packets: {packetNo}/{totalPacket}";
@@ -432,7 +433,7 @@ public partial class MainWindow : FluentWindow
 
         Dispatcher.BeginInvoke(() =>
         {
-            ReceiveProgressBar.Value = Math.Clamp(progress, 0, 100);
+            AnimateProgressBar(ReceiveProgressBar, Math.Clamp(progress, 0, 100));
             ReceiveStatusTextBlock.Text = $"Receive status: {message}";
             ReceiveBytesTextBlock.Text = $"Receive bytes: {received}/{total}";
             ReceivePacketsTextBlock.Text = $"Receive packets: {packetNo}/{totalPacket}";
@@ -444,6 +445,19 @@ public partial class MainWindow : FluentWindow
         {
             AppendLog($"Receive: {message}");
         }
+    }
+
+
+    private static void AnimateProgressBar(System.Windows.Controls.ProgressBar progressBar, double targetValue)
+    {
+        var animation = new DoubleAnimation
+        {
+            To = targetValue,
+            Duration = TimeSpan.FromMilliseconds(220),
+            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+        };
+
+        progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, animation, HandoffBehavior.SnapshotAndReplace);
     }
 
     private static bool ShouldUpdateUi(ref DateTime lastUpdateUtc, long status)
