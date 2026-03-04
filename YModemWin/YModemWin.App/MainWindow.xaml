@@ -247,9 +247,10 @@
                                         Margin="0,0,0,10"/>
                             <ProgressBar x:Name="SendProgressBar"
                                          Background="Transparent"
+                                         BorderThickness="0"
                                          Minimum="0"
                                          Maximum="100"
-                                         Height="8"
+                                         Height="6"
                                          Margin="0,0,0,12" />
                             <ui:TextBlock x:Name="SendStatusTextBlock"
                                           Text="{DynamicResource Status.SendIdle}"
@@ -351,7 +352,6 @@
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
 
                                 <ui:TextBlock x:Name="ReceiveFileNameTextBlock"
@@ -365,22 +365,16 @@
                                               Text="{DynamicResource Status.DateEmpty}"
                                               FontSize="12"
                                               Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
-
-                                <ui:TextBlock Grid.Row="2"
-                                              Text="{DynamicResource Status.WaitIncoming}"
-                                              HorizontalAlignment="Center"
-                                              VerticalAlignment="Center"
-                                              FontSize="13"
-                                              Foreground="{DynamicResource TextFillColorSecondaryBrush}" />
                             </Grid>
                         </Border>
 
                         <StackPanel Grid.Row="3">
                             <ProgressBar x:Name="ReceiveProgressBar"
                                          Background="Transparent"
+                                         BorderThickness="0"
                                          Minimum="0"
                                          Maximum="100"
-                                         Height="8"
+                                         Height="6"
                                          Margin="0,0,0,12" />
                             <ui:TextBlock x:Name="ReceiveStatusTextBlock"
                                           Text="{DynamicResource Status.ReceiveIdle}"

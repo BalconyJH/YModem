@@ -47,6 +47,7 @@ public partial class MainWindow : FluentWindow
         BaudRateComboBox.SelectedIndex = 4;
         RefreshPorts();
         UpdateActionButtons();
+        AppLogger.RuntimeLogLineReceived += OnRuntimeLogLineReceived;
     }
 
     private void OnRefreshPortsClick(object sender, RoutedEventArgs e) => RefreshPorts();
@@ -543,13 +544,22 @@ public partial class MainWindow : FluentWindow
     }
 
 
-    private void AppendLog(string message)
+    private static void AppendLog(string message)
     {
         AppLogger.Info("{Message}", message);
+    }
 
+    protected override void OnClosed(EventArgs e)
+    {
+        AppLogger.RuntimeLogLineReceived -= OnRuntimeLogLineReceived;
+        base.OnClosed(e);
+    }
+
+    private void OnRuntimeLogLineReceived(string line)
+    {
         Dispatcher.BeginInvoke(() =>
         {
-            RuntimeLogTextBox.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+            RuntimeLogTextBox.AppendText(line);
             RuntimeLogTextBox.ScrollToEnd();
         }, DispatcherPriority.Background);
     }
