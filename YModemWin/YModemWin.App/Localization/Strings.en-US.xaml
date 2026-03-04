@@ -1,0 +1,68 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <sys:String x:Key="App.Title" xmlns:sys="clr-namespace:System;assembly=mscorlib">YModem WPF</sys:String>
+  <sys:String x:Key="Section.SerialConfig" xmlns:sys="clr-namespace:System;assembly=mscorlib">Serial Configuration</sys:String>
+  <sys:String x:Key="Label.Port" xmlns:sys="clr-namespace:System;assembly=mscorlib">Port:</sys:String>
+  <sys:String x:Key="Label.BaudRate" xmlns:sys="clr-namespace:System;assembly=mscorlib">Baud Rate:</sys:String>
+  <sys:String x:Key="Button.Refresh" xmlns:sys="clr-namespace:System;assembly=mscorlib">Refresh</sys:String>
+  <sys:String x:Key="Button.Add" xmlns:sys="clr-namespace:System;assembly=mscorlib">Add</sys:String>
+  <sys:String x:Key="Button.Clear" xmlns:sys="clr-namespace:System;assembly=mscorlib">Clear</sys:String>
+  <sys:String x:Key="Button.Browse" xmlns:sys="clr-namespace:System;assembly=mscorlib">Browse</sys:String>
+  <sys:String x:Key="Button.StartSend" xmlns:sys="clr-namespace:System;assembly=mscorlib">Start Send</sys:String>
+  <sys:String x:Key="Button.StartReceive" xmlns:sys="clr-namespace:System;assembly=mscorlib">Start Receive</sys:String>
+  <sys:String x:Key="Button.Cancel" xmlns:sys="clr-namespace:System;assembly=mscorlib">Cancel</sys:String>
+  <sys:String x:Key="Button.Cancelling" xmlns:sys="clr-namespace:System;assembly=mscorlib">Cancelling...</sys:String>
+  <sys:String x:Key="Checkbox.SendTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send Timeout</sys:String>
+  <sys:String x:Key="Checkbox.ReceiveTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive Timeout</sys:String>
+  <sys:String x:Key="Section.SendFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send Files</sys:String>
+  <sys:String x:Key="Section.ReceiveFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive Files</sys:String>
+  <sys:String x:Key="Section.RuntimeLog" xmlns:sys="clr-namespace:System;assembly=mscorlib">Runtime Log</sys:String>
+  <sys:String x:Key="Hint.SendSelectFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">Please select at least one file before sending.</sys:String>
+  <sys:String x:Key="Placeholder.SaveFolder" xmlns:sys="clr-namespace:System;assembly=mscorlib">Save folder path</sys:String>
+  <sys:String x:Key="Status.SendIdle" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: idle</sys:String>
+  <sys:String x:Key="Status.ReceiveIdle" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive status: idle</sys:String>
+  <sys:String x:Key="Status.BytesZero" xmlns:sys="clr-namespace:System;assembly=mscorlib">Bytes: 0/0</sys:String>
+  <sys:String x:Key="Status.PacketsZero" xmlns:sys="clr-namespace:System;assembly=mscorlib">Packets: 0/0</sys:String>
+  <sys:String x:Key="Status.FileEmpty" xmlns:sys="clr-namespace:System;assembly=mscorlib">File: -</sys:String>
+  <sys:String x:Key="Status.DateEmpty" xmlns:sys="clr-namespace:System;assembly=mscorlib">Date: -</sys:String>
+  <sys:String x:Key="Status.WaitIncoming" xmlns:sys="clr-namespace:System;assembly=mscorlib">Waiting for incoming transfer...</sys:String>
+
+  <sys:String x:Key="Log.BrowseNoSelection" xmlns:sys="clr-namespace:System;assembly=mscorlib">Browse timing: ShowDialog={0} ms, Dedup=0 ms, AddRange=0 ms, Total={1} ms (no files selected).</sys:String>
+  <sys:String x:Key="Log.BrowseAdded" xmlns:sys="clr-namespace:System;assembly=mscorlib">Added {0} file(s) to send queue ({1} duplicate(s) skipped).</sys:String>
+  <sys:String x:Key="Log.BrowseAllDuplicate" xmlns:sys="clr-namespace:System;assembly=mscorlib">All {0} file(s) already in queue.</sys:String>
+  <sys:String x:Key="Log.BrowseTiming" xmlns:sys="clr-namespace:System;assembly=mscorlib">Browse timing: ShowDialog={0} ms, Dedup={1} ms, AddRange={2} ms, Total={3} ms, Selected={4}.</sys:String>
+  <sys:String x:Key="Log.PortsRefreshed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Serial ports refreshed.</sys:String>
+  <sys:String x:Key="Log.CancelSend" xmlns:sys="clr-namespace:System;assembly=mscorlib">Cancel requested for sending.</sys:String>
+  <sys:String x:Key="Log.CancelReceive" xmlns:sys="clr-namespace:System;assembly=mscorlib">Cancel requested for receiving.</sys:String>
+  <sys:String x:Key="Log.StartSending" xmlns:sys="clr-namespace:System;assembly=mscorlib">Start sending {0} file(s).</sys:String>
+  <sys:String x:Key="Log.StartReceiving" xmlns:sys="clr-namespace:System;assembly=mscorlib">Start receiving into '{0}'.</sys:String>
+  <sys:String x:Key="Log.SendOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send: open serial failed ({0})</sys:String>
+  <sys:String x:Key="Log.ReceiveOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive: open serial failed ({0})</sys:String>
+
+  <sys:String x:Key="Status.SendQueueCleared" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: queue cleared</sys:String>
+  <sys:String x:Key="Status.SendCancelRequested" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: cancel requested</sys:String>
+  <sys:String x:Key="Status.SendFileMissing" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: file not found in queue</sys:String>
+  <sys:String x:Key="Status.SendOpeningPort" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: opening serial port...</sys:String>
+  <sys:String x:Key="Status.SendOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: open serial failed ({0})</sys:String>
+  <sys:String x:Key="Status.SendSerialBusy" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: serial device busy</sys:String>
+
+  <sys:String x:Key="Status.ReceiveCancelRequested" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive status: cancel requested</sys:String>
+  <sys:String x:Key="Status.ReceiveInvalidFolder" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive status: invalid save folder</sys:String>
+  <sys:String x:Key="Status.ReceiveOpeningPort" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive status: opening serial port...</sys:String>
+  <sys:String x:Key="Status.ReceiveOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive status: open serial failed ({0})</sys:String>
+  <sys:String x:Key="Status.ReceiveSerialBusy" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive status: serial device busy</sys:String>
+
+  <sys:String x:Key="Status.ChoosePort" xmlns:sys="clr-namespace:System;assembly=mscorlib">Status: choose a serial port</sys:String>
+  <sys:String x:Key="Status.InvalidBaudRate" xmlns:sys="clr-namespace:System;assembly=mscorlib">Status: invalid baud rate</sys:String>
+
+  <sys:String x:Key="Status.SendStatusFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: {0}</sys:String>
+  <sys:String x:Key="Status.SendBytesFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send bytes: {0}/{1}</sys:String>
+  <sys:String x:Key="Status.SendPacketsFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send packets: {0}/{1}</sys:String>
+  <sys:String x:Key="Status.ReceiveStatusFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive status: {0}</sys:String>
+  <sys:String x:Key="Status.ReceiveBytesFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive bytes: {0}/{1}</sys:String>
+  <sys:String x:Key="Status.ReceivePacketsFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive packets: {0}/{1}</sys:String>
+  <sys:String x:Key="Status.FileFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">File: {0}</sys:String>
+  <sys:String x:Key="Status.DateFormat" xmlns:sys="clr-namespace:System;assembly=mscorlib">Date: {0}</sys:String>
+  <sys:String x:Key="Hint.WarningTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">Notice</sys:String>
+  <sys:String x:Key="Dialog.AllFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">All files (*.*)|*.*</sys:String>
+</ResourceDictionary>
