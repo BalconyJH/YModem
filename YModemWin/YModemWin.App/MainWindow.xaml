@@ -435,9 +435,9 @@
                             CornerRadius="{DynamicResource ControlCornerRadius}">
                         <ui:TextBox x:Name="RuntimeLogTextBox"
                                     IsReadOnly="True"
-                                    TextWrapping="Wrap"
+                                    TextWrapping="NoWrap"
                                     VerticalScrollBarVisibility="Auto"
-                                    HorizontalScrollBarVisibility="Disabled"
+                                    HorizontalScrollBarVisibility="Auto"
                                     AcceptsReturn="True"
                                     FontFamily="Consolas"
                                     FontSize="12"

@@ -574,9 +574,10 @@ public partial class MainWindow : FluentWindow
             var firstAddress = segments.Count > 0 ? segments[0].StartAddress : 0;
             var lastAddress = segments.Count > 0 ? segments[^1].EndAddress : 0;
 
+            var fileName = Path.GetFileName(filePath);
             AppLogger.Info(
-                "Firmware parsed: file='{FilePath}', parser='{Parser}', segments={SegmentCount}, bytes={TotalBytes}, range=0x{StartAddress:X8}..0x{EndAddress:X8}.",
-                filePath,
+                "Firmware parsed: file='{FileName}', parser='{Parser}', segments={SegmentCount}, bytes={TotalBytes}, range=0x{StartAddress:X8}..0x{EndAddress:X8}.",
+                fileName,
                 parser,
                 segments.Count,
                 totalBytes,
