@@ -188,7 +188,7 @@ namespace YModemWin.Core
             SendChar(CAN);
             SendChar(CAN);
             status = -2;
-            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "用户取消接收", saveFileName ?? "", saveFileDate.ToShortDateString());
+            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive canceled by user", saveFileName ?? "", saveFileDate.ToShortDateString());
 
         }
 
