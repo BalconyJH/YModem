@@ -63,7 +63,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <ui:TitleBar Grid.Row="0" Title="{DynamicResource App.Title}" />
+        <ui:TitleBar Grid.Row="0" Title="{StaticResource App.Title}" />
 
         <Grid Grid.Row="1" Margin="20,12,20,20">
             <Grid.RowDefinitions>

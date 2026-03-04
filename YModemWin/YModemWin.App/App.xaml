@@ -8,6 +8,8 @@
             <ResourceDictionary.MergedDictionaries>
                 <ui:ThemesDictionary Theme="Dark" />
                 <ui:ControlsDictionary />
+                <!-- Design-time localization resources (will be replaced at runtime by App.xaml.cs) -->
+                <ResourceDictionary Source="Localization/Strings.en-US.xaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
