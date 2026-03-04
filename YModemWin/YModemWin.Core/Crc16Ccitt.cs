@@ -1,51 +1,71 @@
 namespace YModemWin.Core
 {
-    public enum InitialCrcValue { Zeros, NonZero1 = 0xffff, NonZero2 = 0x1D0F }
-
-    public class Crc16Ccitt
+    public enum InitialCrcValue : ushort
     {
-        const ushort poly = 0x1021;
-        ushort[] table = new ushort[256];
-        ushort initialValue = 0;
+        Zeros = 0x0000,
+        NonZero1 = 0xFFFF,
+        NonZero2 = 0x1D0F,
+    }
 
-        public ushort ComputeChecksum(byte[] bytes)
+    public sealed class Crc16Ccitt
+    {
+        private const ushort Poly = 0x1021;
+        private static readonly ushort[] Table = BuildTable();
+
+        private readonly ushort _initialValue;
+
+        public Crc16Ccitt(InitialCrcValue initialValue = InitialCrcValue.Zeros)
         {
-            var crc = this.initialValue;
-            for (var i = 0; i < bytes.Length; i++)
+            _initialValue = (ushort)initialValue;
+        }
+
+        public ushort ComputeChecksum(byte[] bytes) => Compute(bytes);
+
+        public ushort Compute(ReadOnlySpan<byte> data)
+        {
+            var crc = _initialValue;
+
+            foreach (var b in data)
             {
-                crc = (ushort)((crc << 8) ^ table[((crc >> 8) ^ (0xff & bytes[i]))]);
+                var idx = (byte)((crc >> 8) ^ b);
+                crc = (ushort)((crc << 8) ^ Table[idx]);
             }
+
             return crc;
         }
 
         public byte[] ComputeChecksumBytes(byte[] bytes)
         {
-            var crc = ComputeChecksum(bytes);
-            return new byte[] { (byte)(crc >> 8), (byte)(crc & 0x00ff) };
+            var crc = Compute(bytes);
+            return new[] { (byte)(crc >> 8), (byte)crc };
         }
 
-        public Crc16Ccitt(InitialCrcValue initialValue)
+        public void WriteChecksumBigEndian(ReadOnlySpan<byte> data, Span<byte> destination)
         {
-            this.initialValue = (ushort)initialValue;
-            ushort temp, a;
+            var crc = Compute(data);
+            destination[0] = (byte)(crc >> 8);
+            destination[1] = (byte)crc;
+        }
+
+        private static ushort[] BuildTable()
+        {
+            var table = new ushort[256];
+
             for (var i = 0; i < table.Length; i++)
             {
-                temp = 0;
-                a = (ushort)(i << 8);
+                ushort crc = 0;
+                ushort v = (ushort)(i << 8);
+
                 for (var j = 0; j < 8; j++)
                 {
-                    if (((temp ^ a) & 0x8000) != 0)
-                    {
-                        temp = (ushort)((temp << 1) ^ poly);
-                    }
-                    else
-                    {
-                        temp <<= 1;
-                    }
-                    a <<= 1;
+                    crc = (ushort)(((crc ^ v) & 0x8000) != 0 ? (crc << 1) ^ Poly : crc << 1);
+                    v <<= 1;
                 }
-                table[i] = temp;
+
+                table[i] = crc;
             }
+
+            return table;
         }
     }
 }
