@@ -24,4 +24,17 @@
     <ItemGroup>
         <ProjectReference Include="..\YModemWin.Core\YModemWin.Core.csproj" />
     </ItemGroup>
+
+
+    <ItemGroup>
+        <Content Include="$(NuGetPackageRoot)wpf-ui/4.2.0/**/en-US/Wpf.Ui.resources.dll"
+                 Link="en-US/Wpf.Ui.resources.dll"
+                 CopyToOutputDirectory="PreserveNewest"
+                 Visible="false" />
+        <Content Include="$(NuGetPackageRoot)wpf-ui/4.2.0/**/zh-CN/Wpf.Ui.resources.dll"
+                 Link="zh-CN/Wpf.Ui.resources.dll"
+                 CopyToOutputDirectory="PreserveNewest"
+                 Visible="false" />
+    </ItemGroup>
+
 </Project>
