@@ -18,124 +18,135 @@
                 Padding="12"
                 CornerRadius="8"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-            <WrapGrid HorizontalAlignment="Stretch"
-                      Orientation="Horizontal"
-                      MaximumRowsOrColumns="20"
-                      ItemWidth="170"
-                      ItemHeight="44">
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <TextBlock x:Name="PortLabelTextBlock" VerticalAlignment="Center" />
-                    <ComboBox x:Name="PortComboBox" Width="105" DropDownOpened="OnSerialComboBoxDropDownOpened" />
-                </StackPanel>
-                <Button x:Name="RefreshPortsButton" Click="OnRefreshPortsClick" Margin="6,0,0,0" />
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0,0,0">
-                    <TextBlock x:Name="BaudRateLabelTextBlock" VerticalAlignment="Center" />
-                    <ComboBox x:Name="BaudRateComboBox" Width="110" DropDownOpened="OnSerialComboBoxDropDownOpened">
-                        <ComboBoxItem Content="9600" />
-                        <ComboBoxItem Content="19200" />
-                        <ComboBoxItem Content="38400" />
-                        <ComboBoxItem Content="57600" />
-                        <ComboBoxItem Content="115200" />
-                    </ComboBox>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0,0,0">
-                    <CheckBox x:Name="SendTimeoutCheckBox" IsChecked="True" />
-                    <ComboBox x:Name="SendTimeoutComboBox" Width="80" DropDownOpened="OnSerialComboBoxDropDownOpened">
-                        <ComboBoxItem Content="0s" />
-                        <ComboBoxItem Content="1s" />
-                        <ComboBoxItem Content="2s" />
-                        <ComboBoxItem Content="4s" />
-                    </ComboBox>
-                </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0,0,0">
-                    <CheckBox x:Name="ReceiveTimeoutCheckBox" IsChecked="True" />
-                    <ComboBox x:Name="ReceiveTimeoutComboBox" Width="80" DropDownOpened="OnSerialComboBoxDropDownOpened">
-                        <ComboBoxItem Content="0s" />
-                        <ComboBoxItem Content="1s" />
-                        <ComboBoxItem Content="2s" />
-                        <ComboBoxItem Content="4s" />
-                    </ComboBox>
-                </StackPanel>
-                <CheckBox x:Name="SendParsedSegmentsCheckBox" Margin="6,0,0,0" VerticalAlignment="Center" />
-            </WrapGrid>
+            <Grid RowSpacing="10">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <TextBlock x:Name="SerialSectionTextBlock" FontWeight="SemiBold" />
+
+                <WrapGrid Grid.Row="1"
+                          HorizontalAlignment="Stretch"
+                          Orientation="Horizontal"
+                          MaximumRowsOrColumns="20"
+                          ItemWidth="190"
+                          ItemHeight="44">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <TextBlock x:Name="PortLabelTextBlock" VerticalAlignment="Center" />
+                        <ComboBox x:Name="PortComboBox" Width="112" DropDownOpened="OnSerialComboBoxDropDownOpened" />
+                    </StackPanel>
+                    <Button x:Name="RefreshPortsButton" Click="OnRefreshPortsClick" Margin="6,0,0,0" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0,0,0">
+                        <TextBlock x:Name="BaudRateLabelTextBlock" VerticalAlignment="Center" />
+                        <ComboBox x:Name="BaudRateComboBox" Width="110" DropDownOpened="OnSerialComboBoxDropDownOpened">
+                            <ComboBoxItem Content="9600" />
+                            <ComboBoxItem Content="19200" />
+                            <ComboBoxItem Content="38400" />
+                            <ComboBoxItem Content="57600" />
+                            <ComboBoxItem Content="115200" />
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0,0,0">
+                        <CheckBox x:Name="SendTimeoutCheckBox" IsChecked="True" />
+                        <ComboBox x:Name="SendTimeoutComboBox" Width="80" DropDownOpened="OnSerialComboBoxDropDownOpened">
+                            <ComboBoxItem Content="0s" />
+                            <ComboBoxItem Content="1s" />
+                            <ComboBoxItem Content="2s" />
+                            <ComboBoxItem Content="4s" />
+                        </ComboBox>
+                    </StackPanel>
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0,0,0">
+                        <CheckBox x:Name="ReceiveTimeoutCheckBox" IsChecked="True" />
+                        <ComboBox x:Name="ReceiveTimeoutComboBox" Width="80" DropDownOpened="OnSerialComboBoxDropDownOpened">
+                            <ComboBoxItem Content="0s" />
+                            <ComboBoxItem Content="1s" />
+                            <ComboBoxItem Content="2s" />
+                            <ComboBoxItem Content="4s" />
+                        </ComboBox>
+                    </StackPanel>
+                    <CheckBox x:Name="SendParsedSegmentsCheckBox" Margin="6,0,0,0" VerticalAlignment="Center" />
+                </WrapGrid>
+            </Grid>
         </Border>
 
-        <Grid Grid.Row="1" ColumnSpacing="12">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" />
-                <ColumnDefinition Width="*" />
-            </Grid.ColumnDefinitions>
+        <muxc:TabView Grid.Row="1"
+                      IsAddTabButtonVisible="False"
+                      TabWidthMode="Equal"
+                      Background="Transparent">
+            <muxc:TabViewItem x:Name="SendTabItem" IsClosable="False">
+                <muxc:TabViewItem.Header>
+                    <TextBlock x:Name="SendSectionTextBlock" />
+                </muxc:TabViewItem.Header>
+                <Border Padding="12"
+                        CornerRadius="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
 
-            <Border Grid.Column="0"
-                    Padding="12"
-                    CornerRadius="8"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                <Grid RowSpacing="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <TextBlock x:Name="SendSectionTextBlock" FontWeight="SemiBold" />
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
-                        <Button x:Name="AddSendFileButton" Click="OnBrowseSendFileClick" />
-                        <Button x:Name="DeleteSendFilesButton" Click="OnDeleteSendFilesClick" />
-                        <Button x:Name="SendActionButton" Click="OnStartSendClick" />
-                    </StackPanel>
-                    <ListView Grid.Row="2" x:Name="SendFilesListView" SelectionMode="Extended" KeyDown="OnSendFilesListKeyDown" />
-                    <muxc:InfoBar Grid.Row="3" x:Name="SendInfoBar" IsOpen="False" Severity="Warning" />
-                    <ProgressBar Grid.Row="4" x:Name="SendProgressBar" Height="6" Minimum="0" Maximum="100" />
-                    <TextBlock Grid.Row="5" x:Name="SendStatusTextBlock" />
-                    <StackPanel Grid.Row="6" Orientation="Horizontal" Spacing="16">
-                        <TextBlock x:Name="SendBytesTextBlock" />
-                        <TextBlock x:Name="SendPacketsTextBlock" />
-                    </StackPanel>
-                </Grid>
-            </Border>
-
-            <Border Grid.Column="1"
-                    Padding="12"
-                    CornerRadius="8"
-                    Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                <Grid RowSpacing="8">
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <TextBlock x:Name="ReceiveSectionTextBlock" FontWeight="SemiBold" />
-                    <Grid Grid.Row="1" ColumnSpacing="8">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="Auto" />
-                        </Grid.ColumnDefinitions>
-                        <Button Grid.Column="0" x:Name="ReceiveActionButton" Click="OnStartReceiveClick" />
-                        <TextBox Grid.Column="1" x:Name="SaveFolderTextBox" />
-                        <Button Grid.Column="2" x:Name="BrowseSaveFolderButton" Click="OnBrowseSaveFolderClick" />
+                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                            <Button x:Name="AddSendFileButton" Click="OnBrowseSendFileClick" />
+                            <Button x:Name="DeleteSendFilesButton" Click="OnDeleteSendFilesClick" />
+                            <Button x:Name="SendActionButton" Click="OnStartSendClick" />
+                        </StackPanel>
+                        <ListView Grid.Row="1" x:Name="SendFilesListView" SelectionMode="Extended" KeyDown="OnSendFilesListKeyDown" />
+                        <muxc:InfoBar Grid.Row="2" x:Name="SendInfoBar" IsOpen="False" Severity="Warning" />
+                        <ProgressBar Grid.Row="3" x:Name="SendProgressBar" Height="6" Minimum="0" Maximum="100" />
+                        <TextBlock Grid.Row="4" x:Name="SendStatusTextBlock" />
+                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="16">
+                            <TextBlock x:Name="SendBytesTextBlock" />
+                            <TextBlock x:Name="SendPacketsTextBlock" />
+                        </StackPanel>
                     </Grid>
-                    <TextBlock Grid.Row="2" x:Name="ReceiveFileNameTextBlock" />
-                    <TextBlock Grid.Row="3" x:Name="ReceiveFileDateTextBlock" />
-                    <ProgressBar Grid.Row="4" x:Name="ReceiveProgressBar" Height="6" Minimum="0" Maximum="100" />
-                    <StackPanel Grid.Row="5" Spacing="4">
-                        <TextBlock x:Name="ReceiveStatusTextBlock" />
-                        <StackPanel Orientation="Horizontal" Spacing="16">
+                </Border>
+            </muxc:TabViewItem>
+
+            <muxc:TabViewItem x:Name="ReceiveTabItem" IsClosable="False">
+                <muxc:TabViewItem.Header>
+                    <TextBlock x:Name="ReceiveSectionTextBlock" />
+                </muxc:TabViewItem.Header>
+                <Border Padding="12"
+                        CornerRadius="8"
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                    <Grid RowSpacing="8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <Grid Grid.Row="0" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Button Grid.Column="0" x:Name="ReceiveActionButton" Click="OnStartReceiveClick" />
+                            <TextBox Grid.Column="1" x:Name="SaveFolderTextBox" />
+                            <Button Grid.Column="2" x:Name="BrowseSaveFolderButton" Click="OnBrowseSaveFolderClick" />
+                        </Grid>
+                        <TextBlock Grid.Row="1" x:Name="ReceiveFileNameTextBlock" />
+                        <TextBlock Grid.Row="2" x:Name="ReceiveFileDateTextBlock" />
+                        <ProgressBar Grid.Row="3" x:Name="ReceiveProgressBar" Height="6" Minimum="0" Maximum="100" />
+                        <TextBlock Grid.Row="4" x:Name="ReceiveStatusTextBlock" />
+                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="16">
                             <TextBlock x:Name="ReceiveBytesTextBlock" />
                             <TextBlock x:Name="ReceivePacketsTextBlock" />
                         </StackPanel>
-                    </StackPanel>
-                </Grid>
-            </Border>
-        </Grid>
+                    </Grid>
+                </Border>
+            </muxc:TabViewItem>
+        </muxc:TabView>
 
         <Border Grid.Row="2"
                 Padding="12"

@@ -8,6 +8,7 @@ using DeviceProgramming.Memory;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
 using Windows.System;
 using WinRT.Interop;
@@ -45,6 +46,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        SystemBackdrop = new MicaBackdrop();
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
         SendFilesListView.ItemsSource = sendFilesList;
@@ -76,6 +78,7 @@ public partial class MainWindow : Window
         ClearLogButton.Content = T("Button.Clear");
         SaveFolderTextBox.PlaceholderText = T("Placeholder.SaveFolder");
 
+        SerialSectionTextBlock.Text = T("Section.SerialConfig");
         SendSectionTextBlock.Text = T("Section.SendFiles");
         ReceiveSectionTextBlock.Text = T("Section.ReceiveFiles");
 
