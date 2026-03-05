@@ -9,12 +9,21 @@
 
     <Grid Padding="16" RowSpacing="12" UseLayoutRounding="True" Background="#FF1A1C20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="36" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="220" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="#FF23272E">
+            <TextBlock x:Name="TitleBarTextBlock" Text="YModem WinUI 3"
+                       Margin="12,0,0,0"
+                       VerticalAlignment="Center"
+                       Foreground="#FFE6E6E6"
+                       Opacity="0.92" />
+        </Grid>
+
+        <Border Grid.Row="1"
                 Padding="12"
                 CornerRadius="8"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
@@ -70,7 +79,7 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="1" RowSpacing="8">
+        <Grid Grid.Row="2" RowSpacing="8">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -157,7 +166,7 @@
             </Grid>
         </Grid>
 
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
                 Padding="12"
                 CornerRadius="8"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">

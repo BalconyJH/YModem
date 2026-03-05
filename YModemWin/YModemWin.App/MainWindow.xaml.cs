@@ -67,6 +67,8 @@ public partial class MainWindow
     public MainWindow()
     {
         InitializeComponent();
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
         TryApplySystemBackdrop();
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
@@ -154,19 +156,19 @@ public partial class MainWindow
 
         var titleBar = appWindow.TitleBar;
         var foreground = Windows.UI.Color.FromArgb(255, 230, 230, 230);
-        var background = Windows.UI.Color.FromArgb(255, 43, 45, 49);
+        var transparent = Windows.UI.Colors.Transparent;
         var hoverBackground = Windows.UI.Color.FromArgb(255, 62, 65, 71);
         var pressedBackground = Windows.UI.Color.FromArgb(255, 74, 77, 84);
 
         titleBar.ForegroundColor = foreground;
-        titleBar.BackgroundColor = background;
+        titleBar.BackgroundColor = transparent;
         titleBar.InactiveForegroundColor = foreground;
-        titleBar.InactiveBackgroundColor = background;
+        titleBar.InactiveBackgroundColor = transparent;
 
         titleBar.ButtonForegroundColor = foreground;
-        titleBar.ButtonBackgroundColor = background;
+        titleBar.ButtonBackgroundColor = transparent;
         titleBar.ButtonInactiveForegroundColor = foreground;
-        titleBar.ButtonInactiveBackgroundColor = background;
+        titleBar.ButtonInactiveBackgroundColor = transparent;
         titleBar.ButtonHoverForegroundColor = foreground;
         titleBar.ButtonHoverBackgroundColor = hoverBackground;
         titleBar.ButtonPressedForegroundColor = foreground;
@@ -301,6 +303,7 @@ public partial class MainWindow
     private void ApplyLocalizedTexts()
     {
         Title = T("App.Title");
+        TitleBarTextBlock.Text = Title;
         PortLabelTextBlock.Text = T("Label.Port");
         BaudRateLabelTextBlock.Text = T("Label.BaudRate");
         SendTimeoutCheckBox.Content = T("Checkbox.SendTimeout");
