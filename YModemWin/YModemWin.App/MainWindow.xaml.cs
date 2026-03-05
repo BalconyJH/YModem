@@ -155,6 +155,8 @@ public partial class MainWindow
         }
 
         var titleBar = appWindow.TitleBar;
+        titleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+
         var foreground = Windows.UI.Color.FromArgb(255, 230, 230, 230);
         var transparent = Windows.UI.Color.FromArgb(0, 0, 0, 0);
         var hoverBackground = Windows.UI.Color.FromArgb(255, 62, 65, 71);

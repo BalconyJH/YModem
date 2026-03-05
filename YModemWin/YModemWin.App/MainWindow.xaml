@@ -7,23 +7,23 @@
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d">
 
-    <Grid Padding="16" RowSpacing="12" UseLayoutRounding="True" Background="#FF1A1C20">
+    <Grid RowSpacing="0" UseLayoutRounding="True" Background="#FF1A1C20">
         <Grid.RowDefinitions>
-            <RowDefinition Height="36" />
+            <RowDefinition Height="40" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="220" />
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="#FF23272E">
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="#FF23272E" HorizontalAlignment="Stretch">
             <TextBlock x:Name="TitleBarTextBlock" Text="YModem"
                        Margin="12,0,0,0"
                        VerticalAlignment="Center"
                        Foreground="#FFE6E6E6"
-                       Opacity="0.92" />
+                       Opacity="0.92" IsHitTestVisible="False" />
         </Grid>
 
-        <Border Grid.Row="1"
+        <Border Grid.Row="1" Margin="16,12,16,0"
                 Padding="12"
                 CornerRadius="8"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
@@ -79,7 +79,7 @@
             </Grid>
         </Border>
 
-        <Grid Grid.Row="2" RowSpacing="8">
+        <Grid Grid.Row="2" RowSpacing="8" Margin="16,12,16,0">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
@@ -166,7 +166,7 @@
             </Grid>
         </Grid>
 
-        <Border Grid.Row="3"
+        <Border Grid.Row="3" Margin="16,12,16,16"
                 Padding="12"
                 CornerRadius="8"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
