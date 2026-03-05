@@ -26,18 +26,18 @@
 
                 <TextBlock x:Name="SerialSectionTextBlock" FontWeight="SemiBold" />
 
-                <WrapGrid Grid.Row="1"
-                          HorizontalAlignment="Stretch"
-                          Orientation="Horizontal"
-                          MaximumRowsOrColumns="20"
-                          ItemWidth="190"
-                          ItemHeight="44">
+                <ItemsControl Grid.Row="1">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="6" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <TextBlock x:Name="PortLabelTextBlock" VerticalAlignment="Center" />
                         <ComboBox x:Name="PortComboBox" Width="112" DropDownOpened="OnSerialComboBoxDropDownOpened" />
                     </StackPanel>
-                    <Button x:Name="RefreshPortsButton" Click="OnRefreshPortsClick" Margin="6,0,0,0" />
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0,0,0">
+                    <Button x:Name="RefreshPortsButton" Click="OnRefreshPortsClick" />
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <TextBlock x:Name="BaudRateLabelTextBlock" VerticalAlignment="Center" />
                         <ComboBox x:Name="BaudRateComboBox" Width="110" DropDownOpened="OnSerialComboBoxDropDownOpened">
                             <ComboBoxItem Content="9600" />
@@ -47,7 +47,7 @@
                             <ComboBoxItem Content="115200" />
                         </ComboBox>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <CheckBox x:Name="SendTimeoutCheckBox" IsChecked="True" />
                         <ComboBox x:Name="SendTimeoutComboBox" Width="80" DropDownOpened="OnSerialComboBoxDropDownOpened">
                             <ComboBoxItem Content="0s" />
@@ -56,7 +56,7 @@
                             <ComboBoxItem Content="4s" />
                         </ComboBox>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="6,0,0,0">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <CheckBox x:Name="ReceiveTimeoutCheckBox" IsChecked="True" />
                         <ComboBox x:Name="ReceiveTimeoutComboBox" Width="80" DropDownOpened="OnSerialComboBoxDropDownOpened">
                             <ComboBoxItem Content="0s" />
@@ -65,8 +65,8 @@
                             <ComboBoxItem Content="4s" />
                         </ComboBox>
                     </StackPanel>
-                    <CheckBox x:Name="SendParsedSegmentsCheckBox" Margin="6,0,0,0" VerticalAlignment="Center" />
-                </WrapGrid>
+                    <CheckBox x:Name="SendParsedSegmentsCheckBox" VerticalAlignment="Center" />
+                </ItemsControl>
             </Grid>
         </Border>
 
