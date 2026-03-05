@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Ports;
+using System.Runtime.InteropServices;
 using System.Text;
 using DeviceProgramming.FileFormat;
 using DeviceProgramming.Memory;
@@ -66,15 +67,28 @@ public partial class MainWindow : Window
 
     private void ApplySystemBackdrop()
     {
-        if (MicaController.IsSupported())
+        try
         {
-            SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
-            return;
-        }
+            if (MicaController.IsSupported())
+            {
+                SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
+                return;
+            }
 
-        if (DesktopAcrylicController.IsSupported())
+            if (DesktopAcrylicController.IsSupported())
+            {
+                SystemBackdrop = new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop();
+            }
+        }
+        catch (COMException ex)
         {
-            SystemBackdrop = new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop();
+            AppLogger.Warn(ex, "System backdrop initialization failed. Falling back to default backdrop.");
+            SystemBackdrop = null;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn(ex, "Unexpected backdrop initialization error. Falling back to default backdrop.");
+            SystemBackdrop = null;
         }
     }
 
