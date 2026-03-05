@@ -19,6 +19,7 @@ namespace YModemWin;
 public partial class MainWindow : FluentWindow
 {
     private const int UiUpdateIntervalMs = 120;
+    private const int StatusLogIntervalMs = 1500;
 
     private SerialPort? activePort;
     private YModemTransmitter? transmitter;
@@ -27,6 +28,10 @@ public partial class MainWindow : FluentWindow
 
     private DateTime lastSendUiUpdateUtc = DateTime.MinValue;
     private DateTime lastReceiveUiUpdateUtc = DateTime.MinValue;
+    private DateTime lastSendStatusLogUtc = DateTime.MinValue;
+    private DateTime lastReceiveStatusLogUtc = DateTime.MinValue;
+    private string lastSendStatusMessage = string.Empty;
+    private string lastReceiveStatusMessage = string.Empty;
 
     private bool isSending;
     private bool isReceiving;
@@ -229,6 +234,20 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
+        var sendParsedSegmentsOnly = SendParsedSegmentsCheckBox.IsChecked == true;
+        IReadOnlyList<PreparedSendFile> preparedFiles;
+
+        try
+        {
+            preparedFiles = PrepareSendFiles(files, sendParsedSegmentsOnly);
+        }
+        catch (Exception ex)
+        {
+            SendStatusTextBlock.Text = TF("Status.SendPrepareFailed", ex.Message);
+            AppendLog(TF("Log.SendPrepareFailed", ex.Message));
+            return;
+        }
+
         if (!TryGetSerialSettings(out var portName, out var baudRate, out var statusMessage))
         {
             SendStatusTextBlock.Text = statusMessage;
@@ -274,19 +293,24 @@ public partial class MainWindow : FluentWindow
         }
 
         TaskBarProgress.SetValue(this, 0);
-        AppendLog(TF("Log.StartSending", files.Count));
+        AppendLog(TF("Log.StartSending", preparedFiles.Count));
 
         _ = Task.Run(() =>
         {
             try
             {
-                if (files.Count == 1)
+                for (var i = 0; i < preparedFiles.Count; i++)
                 {
-                    transmitter!.YmodemSendFile(files[0]);
-                }
-                else
-                {
-                    transmitter!.YmodemSendFiles(files);
+                    var file = preparedFiles[i];
+                    var isLastFile = i == preparedFiles.Count - 1;
+
+                    if (file.ParsedPayload is null)
+                    {
+                        transmitter!.YmodemSendFile(file.SourcePath, isLastFile);
+                        continue;
+                    }
+
+                    transmitter!.YmodemSendParsedData(file.DisplayFileName, file.LastWriteTime, file.ParsedPayload, isLastFile);
                 }
             }
             finally
@@ -457,7 +481,7 @@ public partial class MainWindow : FluentWindow
             SendPacketsTextBlock.Text = TF("Status.SendPacketsFormat", packetNo, totalPacket);
         }, DispatcherPriority.Background);
 
-        if (status != 0)
+        if (ShouldAppendStatusLog(status, message, ref lastSendStatusMessage, ref lastSendStatusLogUtc))
         {
             AppendLog(TF("Status.SendStatusFormat", message));
         }
@@ -483,7 +507,7 @@ public partial class MainWindow : FluentWindow
             ReceiveFileDateTextBlock.Text = TF("Status.DateFormat", string.IsNullOrWhiteSpace(fileDate) ? "-" : fileDate);
         }, DispatcherPriority.Background);
 
-        if (status != 0)
+        if (ShouldAppendStatusLog(status, message, ref lastReceiveStatusMessage, ref lastReceiveStatusLogUtc))
         {
             AppendLog(TF("Status.ReceiveStatusFormat", message));
         }
@@ -573,6 +597,37 @@ public partial class MainWindow : FluentWindow
         return true;
     }
 
+    private static bool ShouldAppendStatusLog(long status, string message, ref string lastMessage, ref DateTime lastLogUtc)
+    {
+        if (status == 0)
+        {
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
+        if (status is 1 or -1 or -2)
+        {
+            lastMessage = message;
+            lastLogUtc = now;
+            return true;
+        }
+
+        if (!string.Equals(lastMessage, message, StringComparison.Ordinal))
+        {
+            lastMessage = message;
+            lastLogUtc = now;
+            return true;
+        }
+
+        if ((now - lastLogUtc).TotalMilliseconds < StatusLogIntervalMs)
+        {
+            return false;
+        }
+
+        lastLogUtc = now;
+        return true;
+    }
+
     private static string T(string key)
     {
         return Application.Current.TryFindResource(key) as string ?? key;
@@ -587,6 +642,73 @@ public partial class MainWindow : FluentWindow
     private static void AppendLog(string message)
     {
         AppLogger.Info("{Message}", message);
+    }
+
+    private IReadOnlyList<PreparedSendFile> PrepareSendFiles(IReadOnlyList<string> sourceFiles, bool sendParsedSegmentsOnly)
+    {
+        var preparedFiles = new List<PreparedSendFile>(sourceFiles.Count);
+
+        foreach (var sourceFile in sourceFiles)
+        {
+            if (!sendParsedSegmentsOnly)
+            {
+                preparedFiles.Add(PreparedSendFile.FromRawFile(sourceFile));
+                continue;
+            }
+
+            var extension = Path.GetExtension(sourceFile);
+            var parser = GetFirmwareParserName(extension);
+            if (parser is null)
+            {
+                preparedFiles.Add(PreparedSendFile.FromRawFile(sourceFile));
+                continue;
+            }
+
+            var memory = ParseFirmwareMemory(sourceFile, extension);
+            var segments = memory.Segments.OrderBy(static segment => segment.StartAddress).ToList();
+            if (segments.Count == 0)
+            {
+                throw new InvalidDataException($"No data segments found in '{Path.GetFileName(sourceFile)}'.");
+            }
+
+            using var stream = new MemoryStream();
+            long writtenBytes = 0;
+
+            foreach (var segment in segments)
+            {
+                if (segment.Data is not { Length: > 0 })
+                {
+                    continue;
+                }
+
+                stream.Write(segment.Data, 0, segment.Data.Length);
+                writtenBytes += segment.Data.Length;
+            }
+
+            if (writtenBytes <= 0)
+            {
+                throw new InvalidDataException($"No payload bytes found in '{Path.GetFileName(sourceFile)}'.");
+            }
+
+            var payload = stream.ToArray();
+            preparedFiles.Add(PreparedSendFile.FromParsedData(sourceFile, payload));
+            AppendLog(TF("Log.SendPreparedParsedPayload", Path.GetFileName(sourceFile), parser, segments.Count, writtenBytes));
+        }
+
+        return preparedFiles;
+    }
+
+    private sealed record PreparedSendFile(string SourcePath, string DisplayFileName, DateTime LastWriteTime, byte[]? ParsedPayload)
+    {
+        public static PreparedSendFile FromRawFile(string path)
+        {
+            return new PreparedSendFile(path, Path.GetFileName(path), File.GetLastWriteTime(path), null);
+        }
+
+        public static PreparedSendFile FromParsedData(string sourcePath, byte[] payload)
+        {
+            return new PreparedSendFile(sourcePath, Path.GetFileName(sourcePath), File.GetLastWriteTime(sourcePath), payload);
+        }
     }
 
     private static void WarnIfFirmwareHasGaps(string filePath)
