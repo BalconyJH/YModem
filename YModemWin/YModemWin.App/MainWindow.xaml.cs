@@ -48,7 +48,7 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
-        ApplySystemBackdrop();
+        TryApplySystemBackdrop();
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
         SendFilesListView.ItemsSource = sendFilesList;
@@ -64,6 +64,23 @@ public partial class MainWindow : Window
         Closed += OnWindowClosed;
     }
 
+
+
+    private void TryApplySystemBackdrop()
+    {
+        var enableBackdrop = string.Equals(
+            Environment.GetEnvironmentVariable("YMODEM_ENABLE_SYSTEM_BACKDROP"),
+            "1",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!enableBackdrop)
+        {
+            AppLogger.Info("System backdrop is disabled. Set YMODEM_ENABLE_SYSTEM_BACKDROP=1 to enable.");
+            return;
+        }
+
+        ApplySystemBackdrop();
+    }
 
     private void ApplySystemBackdrop()
     {
