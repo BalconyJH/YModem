@@ -45,6 +45,7 @@ public partial class MainWindow : Window
     private readonly RangeObservableCollection<string> sendFilesList = new();
     private readonly HashSet<string> sendFilesSet = new(StringComparer.OrdinalIgnoreCase);
     private bool runtimeLogUiEnabled = true;
+    private bool runtimeLogSubscriptionEnabled;
 
     public MainWindow()
     {
@@ -61,7 +62,7 @@ public partial class MainWindow : Window
         ApplyLocalizedTexts();
         RefreshPorts();
         UpdateActionButtons();
-        AppLogger.RuntimeLogLineReceived += OnRuntimeLogLineReceived;
+        ConfigureRuntimeLogUi();
         Closed += OnWindowClosed;
     }
 
@@ -81,6 +82,25 @@ public partial class MainWindow : Window
         }
 
         ApplySystemBackdrop();
+    }
+
+    private void ConfigureRuntimeLogUi()
+    {
+        runtimeLogUiEnabled = string.Equals(
+            Environment.GetEnvironmentVariable("YMODEM_ENABLE_RUNTIME_LOG_UI"),
+            "1",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!runtimeLogUiEnabled)
+        {
+            RuntimeLogTextBox.Text = "Runtime log UI is disabled by default. Set YMODEM_ENABLE_RUNTIME_LOG_UI=1 to enable.";
+            ClearLogButton.IsEnabled = false;
+            AppLogger.Info("Runtime log UI is disabled. Set YMODEM_ENABLE_RUNTIME_LOG_UI=1 to enable.");
+            return;
+        }
+
+        runtimeLogSubscriptionEnabled = true;
+        AppLogger.RuntimeLogLineReceived += OnRuntimeLogLineReceived;
     }
 
     private void ApplySystemBackdrop()
@@ -142,7 +162,11 @@ public partial class MainWindow : Window
 
     private void OnWindowClosed(object sender, WindowEventArgs args)
     {
-        AppLogger.RuntimeLogLineReceived -= OnRuntimeLogLineReceived;
+        if (runtimeLogSubscriptionEnabled)
+        {
+            AppLogger.RuntimeLogLineReceived -= OnRuntimeLogLineReceived;
+            runtimeLogSubscriptionEnabled = false;
+        }
     }
 
     private void OnRefreshPortsClick(object sender, RoutedEventArgs e) => RefreshPorts();
@@ -889,6 +913,12 @@ public partial class MainWindow : Window
             catch (Exception ex)
             {
                 runtimeLogUiEnabled = false;
+                if (runtimeLogSubscriptionEnabled)
+                {
+                    AppLogger.RuntimeLogLineReceived -= OnRuntimeLogLineReceived;
+                    runtimeLogSubscriptionEnabled = false;
+                }
+
                 AppLogger.Warn("Runtime log UI append failed. Disabling runtime log textbox updates. Exception: {Exception}", ex);
             }
         });
