@@ -54,6 +54,8 @@ public partial class MainWindow : FluentWindow
         
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
         BaudRateComboBox.SelectedIndex = 4;
+        SendTimeoutComboBox.SelectedIndex = 2;
+        ReceiveTimeoutComboBox.SelectedIndex = 2;
         RefreshPorts();
         UpdateActionButtons();
         AppLogger.RuntimeLogLineReceived += OnRuntimeLogLineReceived;
@@ -234,6 +236,20 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
+        var sendParsedSegmentsOnly = SendParsedSegmentsCheckBox.IsChecked == true;
+        IReadOnlyList<PreparedSendFile> preparedFiles;
+
+        try
+        {
+            preparedFiles = PrepareSendFiles(files, sendParsedSegmentsOnly);
+        }
+        catch (Exception ex)
+        {
+            SendStatusTextBlock.Text = TF("Status.SendPrepareFailed", ex.Message);
+            AppendLog(TF("Log.SendPrepareFailed", ex.Message));
+            return;
+        }
+
         if (!TryGetSerialSettings(out var portName, out var baudRate, out var statusMessage))
         {
             SendStatusTextBlock.Text = statusMessage;
@@ -271,7 +287,8 @@ public partial class MainWindow : FluentWindow
             }
 
             activePort = port;
-            transmitter = new YModemTransmitter(activePort, SendTimeoutCheckBox.IsChecked == true, OnSendStatus);
+            var sendTimeoutSeconds = SendTimeoutCheckBox.IsChecked == true ? GetTimeoutSeconds(SendTimeoutComboBox) : 0;
+            transmitter = new YModemTransmitter(activePort, sendTimeoutSeconds, OnSendStatus);
             SetProgressBarWaiting(SendProgressBar);
             lastSendUiUpdateUtc = DateTime.MinValue;
             isSending = true;
@@ -279,19 +296,24 @@ public partial class MainWindow : FluentWindow
         }
 
         TaskBarProgress.SetValue(this, 0);
-        AppendLog(TF("Log.StartSending", files.Count));
+        AppendLog(TF("Log.StartSending", preparedFiles.Count));
 
         _ = Task.Run(() =>
         {
             try
             {
-                if (files.Count == 1)
+                for (var i = 0; i < preparedFiles.Count; i++)
                 {
-                    transmitter!.YmodemSendFile(files[0]);
-                }
-                else
-                {
-                    transmitter!.YmodemSendFiles(files);
+                    var file = preparedFiles[i];
+                    var isLastFile = i == preparedFiles.Count - 1;
+
+                    if (file.ParsedPayload is null)
+                    {
+                        transmitter!.YmodemSendFile(file.SourcePath, isLastFile);
+                        continue;
+                    }
+
+                    transmitter!.YmodemSendParsedData(file.DisplayFileName, file.LastWriteTime, file.ParsedPayload, isLastFile);
                 }
             }
             finally
@@ -377,7 +399,8 @@ public partial class MainWindow : FluentWindow
             }
 
             activePort = port;
-            receiver = new YModemReceiver(activePort, ReceiveTimeoutCheckBox.IsChecked == true, saveFolder, OnReceiveStatus);
+            var receiveTimeoutSeconds = ReceiveTimeoutCheckBox.IsChecked == true ? GetTimeoutSeconds(ReceiveTimeoutComboBox) : 0;
+            receiver = new YModemReceiver(activePort, receiveTimeoutSeconds, saveFolder, OnReceiveStatus);
             SetProgressBarWaiting(ReceiveProgressBar);
             lastReceiveUiUpdateUtc = DateTime.MinValue;
             isReceiving = true;
@@ -439,9 +462,50 @@ public partial class MainWindow : FluentWindow
         };
     }
 
+    private static int GetTimeoutSeconds(System.Windows.Controls.ComboBox comboBox)
+    {
+        var rawValue = comboBox.SelectedItem switch
+        {
+            System.Windows.Controls.ComboBoxItem item => item.Content?.ToString() ?? string.Empty,
+            string value => value,
+            _ => comboBox.Text
+        };
+
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return 0;
+        }
+
+        var digitsBuilder = new StringBuilder();
+        foreach (var c in rawValue)
+        {
+            if (char.IsDigit(c))
+            {
+                digitsBuilder.Append(c);
+            }
+        }
+
+        if (!int.TryParse(digitsBuilder.ToString(), out var seconds))
+        {
+            return 0;
+        }
+
+        return Math.Max(0, seconds);
+    }
+
     private void OnClearLogClick(object sender, RoutedEventArgs e)
     {
         RuntimeLogTextBox.Clear();
+    }
+
+    private void OnSerialComboBoxDropDownOpened(object sender, EventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ComboBox comboBox)
+        {
+            return;
+        }
+
+        comboBox.Dispatcher.BeginInvoke(() => comboBox.Focus(), DispatcherPriority.Background);
     }
 
     private void OnSendStatus(long sent, long total, long packetNo, long totalPacket, long status, string message)
@@ -623,6 +687,73 @@ public partial class MainWindow : FluentWindow
     private static void AppendLog(string message)
     {
         AppLogger.Info("{Message}", message);
+    }
+
+    private IReadOnlyList<PreparedSendFile> PrepareSendFiles(IReadOnlyList<string> sourceFiles, bool sendParsedSegmentsOnly)
+    {
+        var preparedFiles = new List<PreparedSendFile>(sourceFiles.Count);
+
+        foreach (var sourceFile in sourceFiles)
+        {
+            if (!sendParsedSegmentsOnly)
+            {
+                preparedFiles.Add(PreparedSendFile.FromRawFile(sourceFile));
+                continue;
+            }
+
+            var extension = Path.GetExtension(sourceFile);
+            var parser = GetFirmwareParserName(extension);
+            if (parser is null)
+            {
+                preparedFiles.Add(PreparedSendFile.FromRawFile(sourceFile));
+                continue;
+            }
+
+            var memory = ParseFirmwareMemory(sourceFile, extension);
+            var segments = memory.Segments.OrderBy(static segment => segment.StartAddress).ToList();
+            if (segments.Count == 0)
+            {
+                throw new InvalidDataException($"No data segments found in '{Path.GetFileName(sourceFile)}'.");
+            }
+
+            using var stream = new MemoryStream();
+            long writtenBytes = 0;
+
+            foreach (var segment in segments)
+            {
+                if (segment.Data is not { Length: > 0 })
+                {
+                    continue;
+                }
+
+                stream.Write(segment.Data, 0, segment.Data.Length);
+                writtenBytes += segment.Data.Length;
+            }
+
+            if (writtenBytes <= 0)
+            {
+                throw new InvalidDataException($"No payload bytes found in '{Path.GetFileName(sourceFile)}'.");
+            }
+
+            var payload = stream.ToArray();
+            preparedFiles.Add(PreparedSendFile.FromParsedData(sourceFile, payload));
+            AppendLog(TF("Log.SendPreparedParsedPayload", Path.GetFileName(sourceFile), parser, segments.Count, writtenBytes));
+        }
+
+        return preparedFiles;
+    }
+
+    private sealed record PreparedSendFile(string SourcePath, string DisplayFileName, DateTime LastWriteTime, byte[]? ParsedPayload)
+    {
+        public static PreparedSendFile FromRawFile(string path)
+        {
+            return new PreparedSendFile(path, Path.GetFileName(path), File.GetLastWriteTime(path), null);
+        }
+
+        public static PreparedSendFile FromParsedData(string sourcePath, byte[] payload)
+        {
+            return new PreparedSendFile(sourcePath, Path.GetFileName(sourcePath), File.GetLastWriteTime(sourcePath), payload);
+        }
     }
 
     private static void WarnIfFirmwareHasGaps(string filePath)

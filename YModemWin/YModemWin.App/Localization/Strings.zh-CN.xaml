@@ -15,6 +15,7 @@
   <sys:String x:Key="Button.Cancelling" xmlns:sys="clr-namespace:System;assembly=mscorlib">取消中...</sys:String>
   <sys:String x:Key="Checkbox.SendTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送超时</sys:String>
   <sys:String x:Key="Checkbox.ReceiveTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收超时</sys:String>
+  <sys:String x:Key="Checkbox.SendParsedSegments" xmlns:sys="clr-namespace:System;assembly=mscorlib">仅发送解析后的数据段</sys:String>
   <sys:String x:Key="Section.SendFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送文件</sys:String>
   <sys:String x:Key="Section.ReceiveFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收文件</sys:String>
   <sys:String x:Key="Section.RuntimeLog" xmlns:sys="clr-namespace:System;assembly=mscorlib">运行日志</sys:String>
@@ -39,6 +40,8 @@
   <sys:String x:Key="Log.StartReceiving" xmlns:sys="clr-namespace:System;assembly=mscorlib">开始接收到目录 '{0}'。</sys:String>
   <sys:String x:Key="Log.SendOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送: 串口打开失败 ({0})</sys:String>
   <sys:String x:Key="Log.ReceiveOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收: 串口打开失败 ({0})</sys:String>
+  <sys:String x:Key="Log.SendPrepareFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送: 发送载荷准备失败 ({0})</sys:String>
+  <sys:String x:Key="Log.SendPreparedParsedPayload" xmlns:sys="clr-namespace:System;assembly=mscorlib">已准备解析载荷: 文件='{0}', 解析器='{1}', 数据段={2}, 字节={3}。</sys:String>
 
   <sys:String x:Key="Status.SendQueueCleared" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 队列已清空</sys:String>
   <sys:String x:Key="Status.SendCancelRequested" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 已请求取消</sys:String>
@@ -46,6 +49,7 @@
   <sys:String x:Key="Status.SendOpeningPort" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 正在打开串口...</sys:String>
   <sys:String x:Key="Status.SendOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 串口打开失败 ({0})</sys:String>
   <sys:String x:Key="Status.SendSerialBusy" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 串口设备忙</sys:String>
+  <sys:String x:Key="Status.SendPrepareFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送状态: 发送载荷准备失败 ({0})</sys:String>
 
   <sys:String x:Key="Status.ReceiveCancelRequested" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收状态: 已请求取消</sys:String>
   <sys:String x:Key="Status.ReceiveInvalidFolder" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收状态: 保存目录无效</sys:String>

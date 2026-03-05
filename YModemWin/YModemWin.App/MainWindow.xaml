@@ -4,9 +4,9 @@
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  Title="{DynamicResource App.Title}"
                  Height="720"
-                 Width="1200"
+                 Width="1320"
                  MinHeight="680"
-                 MinWidth="1100"
+                 MinWidth="1320"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
                  WindowCornerPreference="Round">
@@ -105,9 +105,10 @@
                             <!-- Wpf.Ui styles the default WPF ComboBox; do not use ui:ComboBox. -->
                             <ComboBox x:Name="PortComboBox"
                                       Width="170"
-                                      Height="38"
+                                      Height="34"
                                       VerticalContentAlignment="Center"
-                                      Margin="0,0,10,0" />
+                                      Margin="0,0,10,0"
+                                      DropDownOpened="OnSerialComboBoxDropDownOpened" />
                             <ui:Button Content="{DynamicResource Button.Refresh}"
                                        Style="{StaticResource ReadableSecondaryButtonStyle}"
                                        Appearance="Secondary"
@@ -124,8 +125,9 @@
                             <!-- Keep using standard ComboBox based on Wpf.Ui official examples. -->
                             <ComboBox x:Name="BaudRateComboBox"
                                       Width="140"
-                                      Height="38"
-                                      VerticalContentAlignment="Center">
+                                      Height="34"
+                                      VerticalContentAlignment="Center"
+                                      DropDownOpened="OnSerialComboBoxDropDownOpened">
                                 <ComboBoxItem Content="9600" />
                                 <ComboBoxItem Content="19200" />
                                 <ComboBoxItem Content="38400" />
@@ -140,14 +142,51 @@
                                     Orientation="Horizontal"
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center">
-                            <CheckBox x:Name="SendTimeoutCheckBox"
-                                      IsChecked="True"
-                                      Content="{DynamicResource Checkbox.SendTimeout}"
-                                      Margin="0,0,18,0"
-                                      VerticalAlignment="Center" />
-                            <CheckBox x:Name="ReceiveTimeoutCheckBox"
-                                      IsChecked="True"
-                                      Content="{DynamicResource Checkbox.ReceiveTimeout}"
+                            <StackPanel Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,14,0">
+                                <CheckBox x:Name="SendTimeoutCheckBox"
+                                          IsChecked="True"
+                                          Content="{DynamicResource Checkbox.SendTimeout}"
+                                          Margin="0,0,8,0"
+                                          VerticalAlignment="Center" />
+                                <ComboBox x:Name="SendTimeoutComboBox"
+                                          Width="88"
+                                          Height="34"
+                                          IsEditable="False"
+                                          VerticalContentAlignment="Center"
+                                          DropDownOpened="OnSerialComboBoxDropDownOpened">
+                                    <ComboBoxItem Content="0s" />
+                                    <ComboBoxItem Content="1s" />
+                                    <ComboBoxItem Content="2s" />
+                                    <ComboBoxItem Content="4s" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,18,0">
+                                <CheckBox x:Name="ReceiveTimeoutCheckBox"
+                                          IsChecked="True"
+                                          Content="{DynamicResource Checkbox.ReceiveTimeout}"
+                                          Margin="0,0,8,0"
+                                          VerticalAlignment="Center" />
+                                <ComboBox x:Name="ReceiveTimeoutComboBox"
+                                          Width="88"
+                                          Height="34"
+                                          IsEditable="False"
+                                          VerticalContentAlignment="Center"
+                                          DropDownOpened="OnSerialComboBoxDropDownOpened">
+                                    <ComboBoxItem Content="0s" />
+                                    <ComboBoxItem Content="1s" />
+                                    <ComboBoxItem Content="2s" />
+                                    <ComboBoxItem Content="4s" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <CheckBox x:Name="SendParsedSegmentsCheckBox"
+                                      IsChecked="False"
+                                      Content="{DynamicResource Checkbox.SendParsedSegments}"
                                       VerticalAlignment="Center" />
                         </StackPanel>
                     </Grid>

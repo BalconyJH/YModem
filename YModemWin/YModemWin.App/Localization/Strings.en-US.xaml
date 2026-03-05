@@ -15,6 +15,7 @@
   <sys:String x:Key="Button.Cancelling" xmlns:sys="clr-namespace:System;assembly=mscorlib">Cancelling...</sys:String>
   <sys:String x:Key="Checkbox.SendTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send Timeout</sys:String>
   <sys:String x:Key="Checkbox.ReceiveTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive Timeout</sys:String>
+  <sys:String x:Key="Checkbox.SendParsedSegments" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send Parsed Segments Only</sys:String>
   <sys:String x:Key="Section.SendFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send Files</sys:String>
   <sys:String x:Key="Section.ReceiveFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive Files</sys:String>
   <sys:String x:Key="Section.RuntimeLog" xmlns:sys="clr-namespace:System;assembly=mscorlib">Runtime Log</sys:String>
@@ -39,6 +40,8 @@
   <sys:String x:Key="Log.StartReceiving" xmlns:sys="clr-namespace:System;assembly=mscorlib">Start receiving into '{0}'.</sys:String>
   <sys:String x:Key="Log.SendOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send: open serial failed ({0})</sys:String>
   <sys:String x:Key="Log.ReceiveOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive: open serial failed ({0})</sys:String>
+  <sys:String x:Key="Log.SendPrepareFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send: payload prepare failed ({0})</sys:String>
+  <sys:String x:Key="Log.SendPreparedParsedPayload" xmlns:sys="clr-namespace:System;assembly=mscorlib">Prepared parsed payload: file='{0}', parser='{1}', segments={2}, bytes={3}.</sys:String>
 
   <sys:String x:Key="Status.SendQueueCleared" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: queue cleared</sys:String>
   <sys:String x:Key="Status.SendCancelRequested" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: cancel requested</sys:String>
@@ -46,6 +49,7 @@
   <sys:String x:Key="Status.SendOpeningPort" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: opening serial port...</sys:String>
   <sys:String x:Key="Status.SendOpenFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: open serial failed ({0})</sys:String>
   <sys:String x:Key="Status.SendSerialBusy" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: serial device busy</sys:String>
+  <sys:String x:Key="Status.SendPrepareFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send status: payload prepare failed ({0})</sys:String>
 
   <sys:String x:Key="Status.ReceiveCancelRequested" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive status: cancel requested</sys:String>
   <sys:String x:Key="Status.ReceiveInvalidFolder" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive status: invalid save folder</sys:String>

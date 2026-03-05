@@ -34,39 +34,45 @@ namespace YModemWin.Core
         //完成包号，总包号，文件名
         Action<long, long, long, long, long, string>? RefreshSendUI = null;
 
-        public YModemTransmitter(SerialPort sp, bool timeout, Action<long, long, long, long, long, string> action)
+        public YModemTransmitter(SerialPort sp, int timeoutSeconds, Action<long, long, long, long, long, string> action)
         {
             status = 0;
             serialPort = sp;
             RefreshSendUI = action;
             dt = new DateTime(0);
-            serialPort.ReadTimeout = timeout ? 3000 : 1000000;
+            serialPort.ReadTimeout = timeoutSeconds <= 0 ? 1000000 : timeoutSeconds * 1000;
         }
 
         //支持多文件传输，如果是仅发送一个文件，或者是多个文件的最后一个文件，输入参数isLastFile默认为真
         public bool YmodemSendFile(string path, bool isLastFile = true)
         {
+            using var fileStream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            var fileName = System.IO.Path.GetFileName(path);
+            var lastWriteTime = File.GetLastWriteTime(path);
+            return YmodemSendStream(fileStream, fileName, lastWriteTime, isLastFile);
+        }
+
+        public bool YmodemSendParsedData(string originalFileName, DateTime lastWriteTime, byte[] payload, bool isLastFile = true)
+        {
+            using var memoryStream = new MemoryStream(payload, writable: false);
+            return YmodemSendStream(memoryStream, originalFileName, lastWriteTime, isLastFile);
+        }
+
+        private bool YmodemSendStream(Stream fileStream, string fileName, DateTime lastWriteTime, bool isLastFile)
+        {
             userCancel = false;
             isTramsitting = true;
-            Path = path;
+            Path = fileName;
             var transaction = SentrySdk.StartTransaction("ymodem.send", "serial.transfer");
             var transactionFinished = false;
             transaction.SetTag("ymodem.mode", isLastFile ? "single-or-last" : "multi");
-            transaction.SetTag("ymodem.file_name", System.IO.Path.GetFileName(path));
-            var fileStream = new FileStream(@path, FileMode.Open, FileAccess.Read);
+            transaction.SetTag("ymodem.file_name", fileName);
             transaction.SetData("ymodem.file_size", fileStream.Length);
-            //计算总段长
             totalpackage = (int)(fileStream.Length - 1) / YModemTransmitter.DataSize + 1;
             Logger.Information("Prepared transfer with {TotalPacketCount} packet(s)", totalpackage);
 
-            /* 数据包: 1029字节 */
-            /* 头部: 3字节 */
-            // STX
-
             var invertedPacketNumber = 255;
-            /* 数据: 1024字节 */
             var data = new byte[DataSize];
-            /* 尾部: 2字节 */
             var CRC = new byte[CrcSize];
 
             var crc16Ccitt = new Crc16Ccitt(InitialCrcValue.Zeros);
@@ -75,7 +81,6 @@ namespace YModemWin.Core
 
             try
             {
-                /* 发送包含文件名和文件大小的初始数据包 */
                 var waitReceiverReadySpan = transaction.StartChild("serial.handshake", "wait_receiver_ready");
                 while (isTramsitting)
                 {
@@ -98,8 +103,7 @@ namespace YModemWin.Core
                 if (dt.Ticks == 0) dt = DateTime.Now;
 
                 var metadataPacketSpan = transaction.StartChild("serial.packet.send", "initial_metadata_packet");
-                sendYmodemInitialPacket(STX, packetNumber, invertedPacketNumber, data, DataSize, Path, fileStream, CRC,
-                    CrcSize);
+                sendYmodemInitialPacket(STX, packetNumber, invertedPacketNumber, data, DataSize, fileName, fileStream.Length, lastWriteTime, CRC, CrcSize);
                 var read = (byte)serialPort.ReadByte();
                 metadataPacketSpan.Finish();
                 if (read != ACK)
@@ -122,23 +126,19 @@ namespace YModemWin.Core
                     return false;
                 }
 
-                /* 循环发送数据包，直到发送完最后一个字节 */
                 int packageReadCount;
                 do
                 {
-                    /* 如果这是最后一个数据包，用0填充剩余字节 */
                     packageReadCount = fileStream.Read(data, 0, DataSize);
                     if (packageReadCount == 0) break;
                     if (packageReadCount != DataSize)
                         for (var i = packageReadCount; i < DataSize; i++)
                             data[i] = 0x1A;
 
-                    /* 计算数据包编号 */
                     packetNumber++;
                     packagesent++;
                     if (packetNumber > 255)
                         packetNumber -= 256;
-                    var fileName = System.IO.Path.GetFileName(path);
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packagesent, totalpackage, status,
                         "Sending file " + fileName);
 
@@ -147,38 +147,30 @@ namespace YModemWin.Core
                         Logger.Debug("Transmitted packet {PacketNumber}/{TotalPacketCount}", packetNumber, totalpackage);
                     }
 
-                    /* 计算反转数据包编号 */
                     invertedPacketNumber = 255 - packetNumber;
-
-                    /* 计算CRC校验码 */
-
                     CRC = crc16Ccitt.ComputeChecksumBytes(data);
 
-                    /* 发送数据包 */
                     var dataPacketSpan = transaction.StartChild("serial.packet.send", "data_packet");
                     dataPacketSpan.SetData("packet.number", packetNumber);
                     sendYmodemPacket(STX, packetNumber, invertedPacketNumber, data, DataSize, CRC, CrcSize);
 
-                    /* 等待ACK信号 */
                     var signal = serialPort.ReadByte();
                     dataPacketSpan.SetData("packet.signal", signal);
                     dataPacketSpan.Finish();
                     if (signal == ACK)
                     {
-                        //System.Threading.Thread.Sleep(1);
                         status = 2;
                     }
-                    //数传传输错误，重传数据
                     else if (signal == NAK)
                     {
-                        /* 发送数据包 */
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
                             status, "Data transfer error, resending packet.");
                         Logger.Warning("Data transfer error detected, resending packet {PacketNumber}", packetNumber);
                         status = -1;
-                        // 重置流的位置回到开始
-                        fileStream.Position -= DataSize;
-                        //重置包号
+                        if (fileStream.CanSeek)
+                        {
+                            fileStream.Position -= DataSize;
+                        }
                         packagesent--;
                         packetNumber--;
                     }
@@ -223,10 +215,8 @@ namespace YModemWin.Core
                     }
                 } while (DataSize == packageReadCount && isTramsitting);
 
-                /* 发送EOT（通知接收方传输结束） */
                 serialPort.Write(new byte[] { EOT }, 0, 1);
 
-                /* 获取ACK（接收方确认EOT） */
                 var act = serialPort.ReadByte();
                 if ((act != ACK) && (act != NAK))
                 {
@@ -239,13 +229,11 @@ namespace YModemWin.Core
                     return false;
                 }
 
-                /* 获取NAK（发送方重新发送EOT） */
                 if (act == NAK)
                 {
                     serialPort.Write(new byte[] { EOT }, 0, 1);
                 }
 
-                /* 获取ACK（接收方确认EOT） */
                 if (serialPort.ReadByte() != ACK)
                 {
                     transaction.Finish(SpanStatus.InternalError);
@@ -257,10 +245,8 @@ namespace YModemWin.Core
                     return false;
                 }
 
-                //如果是最后一个文件发送文件组发送完成包
                 if (isLastFile)
                 {
-                    /* 获取ACK（接收方确认C信号） */
                     if (serialPort.ReadByte() != C)
                     {
                         transaction.Finish(SpanStatus.InternalError);
@@ -272,7 +258,6 @@ namespace YModemWin.Core
                         return false;
                     }
 
-                    /* 发送关闭数据包 */
                     packetNumber = 0;
                     invertedPacketNumber = 255;
                     data = new byte[128];
@@ -280,12 +265,10 @@ namespace YModemWin.Core
                     data[1] = data[3] = data[5] = 0x30;
                     data[2] = data[4] = 0x20;
                     CRC = new byte[CrcSize];
-                    /* 计算CRC校验码 */
                     CRC = crc16Ccitt.ComputeChecksumBytes(data);
 
                     sendYmodemClosingPacket(SOH, packetNumber, invertedPacketNumber, data, 128, CRC, CrcSize);
 
-                    /* 获取ACK（接收方确认下载完成） */
                     if (serialPort.ReadByte() != ACK)
                     {
                         transaction.Finish(SpanStatus.InternalError);
@@ -302,13 +285,11 @@ namespace YModemWin.Core
                     status = 1;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packagesent, totalpackage, status,
                         "Send completed, elapsed: " + span.TotalSeconds.ToString() + "s");
-                    //MessageBox.Show("Send elapsed:" + span.TotalMilliseconds.ToString() + "ms", "Send completed", MessageBoxButtons.OK, MessageBoxIcon.None);
                 }
 
                 transaction.Finish(SpanStatus.Ok);
                 transactionFinished = true;
             }
-
             catch (Exception ex)
             {
                 SentrySdk.CaptureException(ex);
@@ -321,19 +302,11 @@ namespace YModemWin.Core
             }
             finally
             {
-                if (status == -1)
-                {
-                    //RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "Send failed");
-                }
-
                 if (!transactionFinished)
                 {
                     transaction.Finish();
                 }
-
-                fileStream.Close();
             }
-
 
             return true;
         }
@@ -367,15 +340,11 @@ namespace YModemWin.Core
         }
 
         private void sendYmodemInitialPacket(byte STX, int packetNumber, int invertedPacketNumber, byte[] data,
-            int dataSize, string path, FileStream fileStream, byte[] CRC, int crcSize)
+            int dataSize, string fileName, long fileLength, DateTime lastWriteTime, byte[] CRC, int crcSize)
         {
-            var fileName = System.IO.Path.GetFileName(path);
             // YModem协议不允许字符串中出现空格，将空格替换为下划线
             fileName = fileName.Replace(" ", "_");
-            var fileSize = fileStream.Length.ToString();
-
-            // 获取文件的最后修改时间
-            var lastWriteTime = File.GetLastWriteTime(path);
+            var fileSize = fileLength.ToString();
 
             // Compute Unix timestamp manually (from 1970-01-01 to lastWriteTime in seconds)
             var epoch = new DateTimeOffset(1970, 1, 1, 0, 0, 0, TimeSpan.Zero);
