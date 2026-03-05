@@ -58,6 +58,7 @@ public partial class MainWindow
     private bool windowConstraintsInitialized;
     private bool preferredMinimumApiUnavailableLogged;
     private bool defaultWindowSizeApplied;
+    private bool titleBarConfigured;
     private IntPtr hwnd = IntPtr.Zero;
     private IntPtr previousWndProc = IntPtr.Zero;
     private WndProcDelegate? wndProcDelegate;
@@ -106,6 +107,7 @@ public partial class MainWindow
         }
 
         ApplyDefaultWindowSize(windowHandle);
+        ConfigureTitleBar(windowHandle);
 
         if (TryApplyPresenterPreferredMinimum(windowHandle))
         {
@@ -135,6 +137,42 @@ public partial class MainWindow
 
         appWindow.Resize(new Windows.Graphics.SizeInt32 { Width = widthPx, Height = heightPx });
         defaultWindowSizeApplied = true;
+    }
+
+    private void ConfigureTitleBar(IntPtr windowHandle)
+    {
+        if (titleBarConfigured)
+        {
+            return;
+        }
+
+        var appWindow = TryGetAppWindow(windowHandle);
+        if (appWindow is null)
+        {
+            return;
+        }
+
+        var titleBar = appWindow.TitleBar;
+        var foreground = Windows.UI.Color.FromArgb(255, 230, 230, 230);
+        var background = Windows.UI.Color.FromArgb(255, 43, 45, 49);
+        var hoverBackground = Windows.UI.Color.FromArgb(255, 62, 65, 71);
+        var pressedBackground = Windows.UI.Color.FromArgb(255, 74, 77, 84);
+
+        titleBar.ForegroundColor = foreground;
+        titleBar.BackgroundColor = background;
+        titleBar.InactiveForegroundColor = foreground;
+        titleBar.InactiveBackgroundColor = background;
+
+        titleBar.ButtonForegroundColor = foreground;
+        titleBar.ButtonBackgroundColor = background;
+        titleBar.ButtonInactiveForegroundColor = foreground;
+        titleBar.ButtonInactiveBackgroundColor = background;
+        titleBar.ButtonHoverForegroundColor = foreground;
+        titleBar.ButtonHoverBackgroundColor = hoverBackground;
+        titleBar.ButtonPressedForegroundColor = foreground;
+        titleBar.ButtonPressedBackgroundColor = pressedBackground;
+
+        titleBarConfigured = true;
     }
 
     private bool TryApplyPresenterPreferredMinimum(IntPtr windowHandle)
