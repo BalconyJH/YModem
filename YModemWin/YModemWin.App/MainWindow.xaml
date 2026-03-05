@@ -140,19 +140,49 @@
                                     Orientation="Horizontal"
                                     HorizontalAlignment="Right"
                                     VerticalAlignment="Center">
-                            <CheckBox x:Name="SendTimeoutCheckBox"
-                                      IsChecked="True"
-                                      Content="{DynamicResource Checkbox.SendTimeout}"
-                                      Margin="0,0,18,0"
-                                      VerticalAlignment="Center" />
+                            <StackPanel Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,14,0">
+                                <CheckBox x:Name="SendTimeoutCheckBox"
+                                          IsChecked="True"
+                                          Content="{DynamicResource Checkbox.SendTimeout}"
+                                          Margin="0,0,8,0"
+                                          VerticalAlignment="Center" />
+                                <ComboBox x:Name="SendTimeoutComboBox"
+                                          Width="88"
+                                          Height="34"
+                                          IsEditable="True"
+                                          VerticalContentAlignment="Center">
+                                    <ComboBoxItem Content="0s" />
+                                    <ComboBoxItem Content="1s" />
+                                    <ComboBoxItem Content="2s" />
+                                    <ComboBoxItem Content="4s" />
+                                </ComboBox>
+                            </StackPanel>
+
+                            <StackPanel Orientation="Horizontal"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,18,0">
+                                <CheckBox x:Name="ReceiveTimeoutCheckBox"
+                                          IsChecked="True"
+                                          Content="{DynamicResource Checkbox.ReceiveTimeout}"
+                                          Margin="0,0,8,0"
+                                          VerticalAlignment="Center" />
+                                <ComboBox x:Name="ReceiveTimeoutComboBox"
+                                          Width="88"
+                                          Height="34"
+                                          IsEditable="True"
+                                          VerticalContentAlignment="Center">
+                                    <ComboBoxItem Content="0s" />
+                                    <ComboBoxItem Content="1s" />
+                                    <ComboBoxItem Content="2s" />
+                                    <ComboBoxItem Content="4s" />
+                                </ComboBox>
+                            </StackPanel>
+
                             <CheckBox x:Name="SendParsedSegmentsCheckBox"
                                       IsChecked="False"
                                       Content="{DynamicResource Checkbox.SendParsedSegments}"
-                                      Margin="0,0,18,0"
-                                      VerticalAlignment="Center" />
-                            <CheckBox x:Name="ReceiveTimeoutCheckBox"
-                                      IsChecked="True"
-                                      Content="{DynamicResource Checkbox.ReceiveTimeout}"
                                       VerticalAlignment="Center" />
                         </StackPanel>
                     </Grid>

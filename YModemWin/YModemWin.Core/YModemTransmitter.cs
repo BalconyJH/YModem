@@ -34,13 +34,13 @@ namespace YModemWin.Core
         //完成包号，总包号，文件名
         Action<long, long, long, long, long, string>? RefreshSendUI = null;
 
-        public YModemTransmitter(SerialPort sp, bool timeout, Action<long, long, long, long, long, string> action)
+        public YModemTransmitter(SerialPort sp, int timeoutSeconds, Action<long, long, long, long, long, string> action)
         {
             status = 0;
             serialPort = sp;
             RefreshSendUI = action;
             dt = new DateTime(0);
-            serialPort.ReadTimeout = timeout ? 3000 : 1000000;
+            serialPort.ReadTimeout = timeoutSeconds <= 0 ? 1000000 : timeoutSeconds * 1000;
         }
 
         //支持多文件传输，如果是仅发送一个文件，或者是多个文件的最后一个文件，输入参数isLastFile默认为真

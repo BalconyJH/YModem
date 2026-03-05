@@ -37,17 +37,11 @@ namespace YModemWin.Core
         
         //完成字节，总字节，文件名，文件日期
         Action<long, long, long, long, long, string, string, string>? RefreshReceiveUI=null;
-        public YModemReceiver(SerialPort sp,bool timeout,string path, Action<long,long, long, long, long, string,string, string> action)
+        public YModemReceiver(SerialPort sp, int timeoutSeconds, string path, Action<long,long, long, long, long, string,string, string> action)
         {
             serialPort = sp;
 
-            if (timeout)
-            {
-                serialPort.ReadTimeout = 3000;
-            }else
-            {
-                serialPort.ReadTimeout = 8000;
-            }
+            serialPort.ReadTimeout = timeoutSeconds <= 0 ? 1000000 : timeoutSeconds * 1000;
             saveDirectory = path;
             isTransmissionComplete = false;
             status = 0;

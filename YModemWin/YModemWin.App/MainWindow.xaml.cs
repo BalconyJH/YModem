@@ -54,6 +54,8 @@ public partial class MainWindow : FluentWindow
         
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
         BaudRateComboBox.SelectedIndex = 4;
+        SendTimeoutComboBox.SelectedIndex = 2;
+        ReceiveTimeoutComboBox.SelectedIndex = 2;
         RefreshPorts();
         UpdateActionButtons();
         AppLogger.RuntimeLogLineReceived += OnRuntimeLogLineReceived;
@@ -285,7 +287,8 @@ public partial class MainWindow : FluentWindow
             }
 
             activePort = port;
-            transmitter = new YModemTransmitter(activePort, SendTimeoutCheckBox.IsChecked == true, OnSendStatus);
+            var sendTimeoutSeconds = SendTimeoutCheckBox.IsChecked == true ? GetTimeoutSeconds(SendTimeoutComboBox) : 0;
+            transmitter = new YModemTransmitter(activePort, sendTimeoutSeconds, OnSendStatus);
             SetProgressBarWaiting(SendProgressBar);
             lastSendUiUpdateUtc = DateTime.MinValue;
             isSending = true;
@@ -396,7 +399,8 @@ public partial class MainWindow : FluentWindow
             }
 
             activePort = port;
-            receiver = new YModemReceiver(activePort, ReceiveTimeoutCheckBox.IsChecked == true, saveFolder, OnReceiveStatus);
+            var receiveTimeoutSeconds = ReceiveTimeoutCheckBox.IsChecked == true ? GetTimeoutSeconds(ReceiveTimeoutComboBox) : 0;
+            receiver = new YModemReceiver(activePort, receiveTimeoutSeconds, saveFolder, OnReceiveStatus);
             SetProgressBarWaiting(ReceiveProgressBar);
             lastReceiveUiUpdateUtc = DateTime.MinValue;
             isReceiving = true;
@@ -456,6 +460,37 @@ public partial class MainWindow : FluentWindow
             string value => value,
             _ => BaudRateComboBox.Text
         };
+    }
+
+    private static int GetTimeoutSeconds(System.Windows.Controls.ComboBox comboBox)
+    {
+        var rawValue = comboBox.SelectedItem switch
+        {
+            System.Windows.Controls.ComboBoxItem item => item.Content?.ToString() ?? string.Empty,
+            string value => value,
+            _ => comboBox.Text
+        };
+
+        if (string.IsNullOrWhiteSpace(rawValue))
+        {
+            return 0;
+        }
+
+        var digitsBuilder = new StringBuilder();
+        foreach (var c in rawValue)
+        {
+            if (char.IsDigit(c))
+            {
+                digitsBuilder.Append(c);
+            }
+        }
+
+        if (!int.TryParse(digitsBuilder.ToString(), out var seconds))
+        {
+            return 0;
+        }
+
+        return Math.Max(0, seconds);
     }
 
     private void OnClearLogClick(object sender, RoutedEventArgs e)
