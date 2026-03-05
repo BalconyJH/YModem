@@ -18,7 +18,7 @@ public partial class App : Application
         RequestedTheme = ApplicationTheme.Dark;
         UnhandledException += (_, eventArgs) =>
         {
-            AppLogger.Error(eventArgs.Exception, "Unhandled UI exception\n{StackTrace}", eventArgs.Exception.StackTrace);
+            AppLogger.Error(eventArgs.Exception, "Unhandled UI exception\n{StackTrace}", eventArgs.Exception.StackTrace ?? "(no stack trace)");
             Sentry.SentrySdk.CaptureException(eventArgs.Exception);
             eventArgs.Handled = true;
         };

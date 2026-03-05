@@ -39,5 +39,6 @@
     <Content Include="..\..\YModem.png" Link="Assets\YModem.png" CopyToOutputDirectory="PreserveNewest" />
     <Page Remove="Localization\*.xaml" />
     <Content Include="Localization\*.xaml" CopyToOutputDirectory="PreserveNewest" />
+    <PRIResource Remove="Localization\*.xaml" />
   </ItemGroup>
 </Project>
