@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using DeviceProgramming.FileFormat;
 using DeviceProgramming.Memory;
+using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
@@ -22,6 +23,8 @@ public partial class MainWindow : Window
 {
     private const int UiUpdateIntervalMs = 120;
     private const int StatusLogIntervalMs = 1500;
+    private const int MinWindowWidthDip = 1450;
+    private const int MinWindowHeightDip = 750;
 
     private SerialPort? activePort;
     private YModemTransmitter? transmitter;
@@ -46,6 +49,7 @@ public partial class MainWindow : Window
     private readonly HashSet<string> sendFilesSet = new(StringComparer.OrdinalIgnoreCase);
     private bool runtimeLogUiEnabled = true;
     private bool runtimeLogSubscriptionEnabled;
+    private bool windowConstraintsInitialized;
 
     public MainWindow()
     {
@@ -63,9 +67,42 @@ public partial class MainWindow : Window
         RefreshPorts();
         UpdateActionButtons();
         ConfigureRuntimeLogUi();
+        Activated += OnWindowActivated;
         Closed += OnWindowClosed;
     }
 
+
+
+    private void OnWindowActivated(object sender, WindowActivatedEventArgs args)
+    {
+        EnsureWindowSizeConstraints();
+    }
+
+    private void EnsureWindowSizeConstraints()
+    {
+        if (windowConstraintsInitialized)
+        {
+            return;
+        }
+
+        var windowHandle = WindowNative.GetWindowHandle(this);
+        if (windowHandle == IntPtr.Zero)
+        {
+            return;
+        }
+
+        var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
+        var appWindow = AppWindow.GetFromWindowId(windowId);
+
+        if (appWindow.Presenter is not OverlappedPresenter presenter)
+        {
+            return;
+        }
+
+        presenter.PreferredMinimumWidth = MinWindowWidthDip;
+        presenter.PreferredMinimumHeight = MinWindowHeightDip;
+        windowConstraintsInitialized = true;
+    }
 
 
     private void TryApplySystemBackdrop()
