@@ -156,7 +156,7 @@ public partial class MainWindow
 
         var titleBar = appWindow.TitleBar;
         var foreground = Windows.UI.Color.FromArgb(255, 230, 230, 230);
-        var transparent = Windows.UI.Colors.Transparent;
+        var transparent = Windows.UI.Color.FromArgb(0, 0, 0, 0);
         var hoverBackground = Windows.UI.Color.FromArgb(255, 62, 65, 71);
         var pressedBackground = Windows.UI.Color.FromArgb(255, 74, 77, 84);
 
