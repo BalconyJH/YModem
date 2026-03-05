@@ -82,12 +82,12 @@ public partial class MainWindow : Window
         }
         catch (COMException ex)
         {
-            AppLogger.Warn(ex, "System backdrop initialization failed. Falling back to default backdrop.");
+            AppLogger.Warn("System backdrop initialization failed. Falling back to default backdrop. Exception: {Exception}", ex);
             SystemBackdrop = null;
         }
         catch (Exception ex)
         {
-            AppLogger.Warn(ex, "Unexpected backdrop initialization error. Falling back to default backdrop.");
+            AppLogger.Warn("Unexpected backdrop initialization error. Falling back to default backdrop. Exception: {Exception}", ex);
             SystemBackdrop = null;
         }
     }
