@@ -18,7 +18,7 @@ public partial class App : Application
         RequestedTheme = ApplicationTheme.Dark;
         UnhandledException += (_, eventArgs) =>
         {
-            AppLogger.Error(eventArgs.Exception, "Unhandled UI exception");
+            AppLogger.Error(eventArgs.Exception, "Unhandled UI exception\n{StackTrace}", eventArgs.Exception.StackTrace);
             Sentry.SentrySdk.CaptureException(eventArgs.Exception);
             eventArgs.Handled = true;
         };
@@ -84,12 +84,12 @@ public partial class App : Application
     private void LoadLocalizationResources()
     {
         var basePath = AppContext.BaseDirectory;
-        AddLocalizationDictionary(Path.Combine(basePath, "Localization", "Strings.en-US.xaml"));
+        AddLocalizationDictionary(Path.Combine(basePath, "Localization", "Strings.en-us.xaml"));
 
         var isChinese = CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
         if (isChinese)
         {
-            AddLocalizationDictionary(Path.Combine(basePath, "Localization", "Strings.zh-CN.xaml"));
+            AddLocalizationDictionary(Path.Combine(basePath, "Localization", "Strings.zh-cn.xaml"));
         }
     }
 
