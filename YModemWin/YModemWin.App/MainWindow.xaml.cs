@@ -19,6 +19,7 @@ namespace YModemWin;
 public partial class MainWindow : FluentWindow
 {
     private const int UiUpdateIntervalMs = 120;
+    private const int StatusLogIntervalMs = 1500;
 
     private SerialPort? activePort;
     private YModemTransmitter? transmitter;
@@ -27,6 +28,10 @@ public partial class MainWindow : FluentWindow
 
     private DateTime lastSendUiUpdateUtc = DateTime.MinValue;
     private DateTime lastReceiveUiUpdateUtc = DateTime.MinValue;
+    private DateTime lastSendStatusLogUtc = DateTime.MinValue;
+    private DateTime lastReceiveStatusLogUtc = DateTime.MinValue;
+    private string lastSendStatusMessage = string.Empty;
+    private string lastReceiveStatusMessage = string.Empty;
 
     private bool isSending;
     private bool isReceiving;
@@ -457,7 +462,7 @@ public partial class MainWindow : FluentWindow
             SendPacketsTextBlock.Text = TF("Status.SendPacketsFormat", packetNo, totalPacket);
         }, DispatcherPriority.Background);
 
-        if (status != 0)
+        if (ShouldAppendStatusLog(status, message, ref lastSendStatusMessage, ref lastSendStatusLogUtc))
         {
             AppendLog(TF("Status.SendStatusFormat", message));
         }
@@ -483,7 +488,7 @@ public partial class MainWindow : FluentWindow
             ReceiveFileDateTextBlock.Text = TF("Status.DateFormat", string.IsNullOrWhiteSpace(fileDate) ? "-" : fileDate);
         }, DispatcherPriority.Background);
 
-        if (status != 0)
+        if (ShouldAppendStatusLog(status, message, ref lastReceiveStatusMessage, ref lastReceiveStatusLogUtc))
         {
             AppendLog(TF("Status.ReceiveStatusFormat", message));
         }
@@ -570,6 +575,37 @@ public partial class MainWindow : FluentWindow
         }
 
         lastUpdateUtc = now;
+        return true;
+    }
+
+    private static bool ShouldAppendStatusLog(long status, string message, ref string lastMessage, ref DateTime lastLogUtc)
+    {
+        if (status == 0)
+        {
+            return false;
+        }
+
+        var now = DateTime.UtcNow;
+        if (status is 1 or -1 or -2)
+        {
+            lastMessage = message;
+            lastLogUtc = now;
+            return true;
+        }
+
+        if (!string.Equals(lastMessage, message, StringComparison.Ordinal))
+        {
+            lastMessage = message;
+            lastLogUtc = now;
+            return true;
+        }
+
+        if ((now - lastLogUtc).TotalMilliseconds < StatusLogIntervalMs)
+        {
+            return false;
+        }
+
+        lastLogUtc = now;
         return true;
     }
 
