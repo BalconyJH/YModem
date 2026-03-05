@@ -55,6 +55,11 @@
             <Setter Property="Appearance" Value="Secondary" />
             <Setter Property="Width" Value="140" />
         </Style>
+
+        <Style x:Key="SerialConfigComboBoxStyle" TargetType="{x:Type ComboBox}">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
     </ui:FluentWindow.Resources>
 
     <Grid>
@@ -104,9 +109,8 @@
                                           MinWidth="40" />
                             <!-- Wpf.Ui styles the default WPF ComboBox; do not use ui:ComboBox. -->
                             <ComboBox x:Name="PortComboBox"
+                                      Style="{StaticResource SerialConfigComboBoxStyle}"
                                       Width="170"
-                                      Height="38"
-                                      VerticalContentAlignment="Center"
                                       Margin="0,0,10,0" />
                             <ui:Button Content="{DynamicResource Button.Refresh}"
                                        Style="{StaticResource ReadableSecondaryButtonStyle}"
@@ -123,9 +127,8 @@
                                           MinWidth="76" />
                             <!-- Keep using standard ComboBox based on Wpf.Ui official examples. -->
                             <ComboBox x:Name="BaudRateComboBox"
-                                      Width="140"
-                                      Height="38"
-                                      VerticalContentAlignment="Center">
+                                      Style="{StaticResource SerialConfigComboBoxStyle}"
+                                      Width="140">
                                 <ComboBoxItem Content="9600" />
                                 <ComboBoxItem Content="19200" />
                                 <ComboBoxItem Content="38400" />
@@ -149,10 +152,9 @@
                                           Margin="0,0,8,0"
                                           VerticalAlignment="Center" />
                                 <ComboBox x:Name="SendTimeoutComboBox"
+                                          Style="{StaticResource SerialConfigComboBoxStyle}"
                                           Width="88"
-                                          Height="34"
-                                          IsEditable="True"
-                                          VerticalContentAlignment="Center">
+                                          IsEditable="False">
                                     <ComboBoxItem Content="0s" />
                                     <ComboBoxItem Content="1s" />
                                     <ComboBoxItem Content="2s" />
@@ -169,10 +171,9 @@
                                           Margin="0,0,8,0"
                                           VerticalAlignment="Center" />
                                 <ComboBox x:Name="ReceiveTimeoutComboBox"
+                                          Style="{StaticResource SerialConfigComboBoxStyle}"
                                           Width="88"
-                                          Height="34"
-                                          IsEditable="True"
-                                          VerticalContentAlignment="Center">
+                                          IsEditable="False">
                                     <ComboBoxItem Content="0s" />
                                     <ComboBoxItem Content="1s" />
                                     <ComboBoxItem Content="2s" />
