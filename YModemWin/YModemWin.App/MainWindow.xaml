@@ -102,6 +102,7 @@
                                           Text="{DynamicResource Label.Port}"
                                           Margin="0,0,10,0"
                                           MinWidth="40" />
+                            <!-- Wpf.Ui styles the default WPF ComboBox; do not use ui:ComboBox. -->
                             <ComboBox x:Name="PortComboBox"
                                       Width="170"
                                       Height="38"
@@ -120,6 +121,7 @@
                                           Text="{DynamicResource Label.BaudRate}"
                                           Margin="0,0,10,0"
                                           MinWidth="76" />
+                            <!-- Keep using standard ComboBox based on Wpf.Ui official examples. -->
                             <ComboBox x:Name="BaudRateComboBox"
                                       Width="140"
                                       Height="38"
