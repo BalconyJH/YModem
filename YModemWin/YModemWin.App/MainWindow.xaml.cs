@@ -44,6 +44,7 @@ public partial class MainWindow : Window
 
     private readonly RangeObservableCollection<string> sendFilesList = new();
     private readonly HashSet<string> sendFilesSet = new(StringComparer.OrdinalIgnoreCase);
+    private bool runtimeLogUiEnabled = true;
 
     public MainWindow()
     {
@@ -868,10 +869,28 @@ public partial class MainWindow : Window
 
     private void OnRuntimeLogLineReceived(string line)
     {
+        if (!runtimeLogUiEnabled)
+        {
+            return;
+        }
+
         _ = DispatcherQueue.TryEnqueue(() =>
         {
-            RuntimeLogTextBox.Text += line;
-            RuntimeLogTextBox.Select(RuntimeLogTextBox.Text.Length, 0);
+            if (!runtimeLogUiEnabled)
+            {
+                return;
+            }
+
+            try
+            {
+                RuntimeLogTextBox.Text += line;
+                RuntimeLogTextBox.SelectionStart = RuntimeLogTextBox.Text.Length;
+            }
+            catch (Exception ex)
+            {
+                runtimeLogUiEnabled = false;
+                AppLogger.Warn("Runtime log UI append failed. Disabling runtime log textbox updates. Exception: {Exception}", ex);
+            }
         });
     }
 
