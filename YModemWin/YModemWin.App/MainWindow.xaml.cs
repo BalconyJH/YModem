@@ -25,6 +25,9 @@ public partial class MainWindow : Window
     private const int StatusLogIntervalMs = 1500;
     private const int MinWindowWidthDip = 1450;
     private const int MinWindowHeightDip = 750;
+    private const int WmGetMinMaxInfo = 0x0024;
+    private const int GwlWndProc = -4;
+    private const uint MonitorDefaultToNearest = 0x00000002;
 
     private SerialPort? activePort;
     private YModemTransmitter? transmitter;
@@ -50,6 +53,10 @@ public partial class MainWindow : Window
     private bool runtimeLogUiEnabled = true;
     private bool runtimeLogSubscriptionEnabled;
     private bool windowConstraintsInitialized;
+    private bool preferredMinimumApiUnavailableLogged;
+    private IntPtr hwnd = IntPtr.Zero;
+    private IntPtr previousWndProc = IntPtr.Zero;
+    private WndProcDelegate? wndProcDelegate;
 
     public MainWindow()
     {
@@ -91,17 +98,72 @@ public partial class MainWindow : Window
             return;
         }
 
-        var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
-        var appWindow = AppWindow.GetFromWindowId(windowId);
+        if (TryApplyPresenterPreferredMinimum(windowHandle))
+        {
+            windowConstraintsInitialized = true;
+            return;
+        }
 
-        if (appWindow.Presenter is not OverlappedPresenter presenter)
+        EnsureLegacyWindowSizeConstraints(windowHandle);
+    }
+
+    private bool TryApplyPresenterPreferredMinimum(IntPtr windowHandle)
+    {
+        var appWindow = TryGetAppWindow(windowHandle);
+        if (appWindow?.Presenter is not OverlappedPresenter presenter)
+        {
+            return false;
+        }
+
+        var presenterType = presenter.GetType();
+        var minimumWidthProperty = presenterType.GetProperty("PreferredMinimumWidth");
+        var minimumHeightProperty = presenterType.GetProperty("PreferredMinimumHeight");
+
+        if (minimumWidthProperty?.CanWrite == true && minimumHeightProperty?.CanWrite == true)
+        {
+            minimumWidthProperty.SetValue(presenter, MinWindowWidthDip);
+            minimumHeightProperty.SetValue(presenter, MinWindowHeightDip);
+            return true;
+        }
+
+        if (!preferredMinimumApiUnavailableLogged)
+        {
+            AppLogger.Warn("OverlappedPresenter preferred minimum API is unavailable in the current Windows App SDK runtime; falling back to Win32 min-size constraints.");
+            preferredMinimumApiUnavailableLogged = true;
+        }
+
+        return false;
+    }
+
+    private static AppWindow? TryGetAppWindow(IntPtr windowHandle)
+    {
+        var win32InteropType = typeof(AppWindow).Assembly.GetType("Microsoft.UI.Win32Interop");
+        var getWindowIdMethod = win32InteropType?.GetMethod("GetWindowIdFromWindow", new[] { typeof(IntPtr) });
+        if (getWindowIdMethod is null)
+        {
+            return null;
+        }
+
+        var windowId = getWindowIdMethod.Invoke(null, new object[] { windowHandle });
+        if (windowId is null)
+        {
+            return null;
+        }
+
+        var getFromWindowIdMethod = typeof(AppWindow).GetMethod("GetFromWindowId", new[] { windowId.GetType() });
+        return getFromWindowIdMethod?.Invoke(null, new[] { windowId }) as AppWindow;
+    }
+
+    private void EnsureLegacyWindowSizeConstraints(IntPtr windowHandle)
+    {
+        if (hwnd != IntPtr.Zero)
         {
             return;
         }
 
-        presenter.PreferredMinimumWidth = MinWindowWidthDip;
-        presenter.PreferredMinimumHeight = MinWindowHeightDip;
-        windowConstraintsInitialized = true;
+        hwnd = windowHandle;
+        wndProcDelegate = WindowProc;
+        previousWndProc = SetWindowLongPtr(hwnd, GwlWndProc, Marshal.GetFunctionPointerForDelegate(wndProcDelegate));
     }
 
 
@@ -199,11 +261,77 @@ public partial class MainWindow : Window
 
     private void OnWindowClosed(object sender, WindowEventArgs args)
     {
+        if (hwnd != IntPtr.Zero && previousWndProc != IntPtr.Zero)
+        {
+            _ = SetWindowLongPtr(hwnd, GwlWndProc, previousWndProc);
+            previousWndProc = IntPtr.Zero;
+            hwnd = IntPtr.Zero;
+            wndProcDelegate = null;
+        }
+
         if (runtimeLogSubscriptionEnabled)
         {
             AppLogger.RuntimeLogLineReceived -= OnRuntimeLogLineReceived;
             runtimeLogSubscriptionEnabled = false;
         }
+    }
+
+    private IntPtr WindowProc(IntPtr currentWindowHandle, uint message, IntPtr wParam, IntPtr lParam)
+    {
+        if (message == WmGetMinMaxInfo)
+        {
+            ApplyWindowMinimumSize(currentWindowHandle, lParam);
+        }
+
+        return CallWindowProc(previousWndProc, currentWindowHandle, message, wParam, lParam);
+    }
+
+    private static void ApplyWindowMinimumSize(IntPtr currentWindowHandle, IntPtr lParam)
+    {
+        var minMaxInfo = Marshal.PtrToStructure<MinMaxInfo>(lParam);
+        var monitor = MonitorFromWindow(currentWindowHandle, MonitorDefaultToNearest);
+        var dpi = monitor != IntPtr.Zero ? GetDpiForMonitor(monitor, MonitorDpiType.EffectiveDpi, out var dpiX, out _) == 0 ? dpiX : 96u : 96u;
+        var scale = dpi / 96f;
+
+        minMaxInfo.ptMinTrackSize.X = (int)MathF.Ceiling(MinWindowWidthDip * scale);
+        minMaxInfo.ptMinTrackSize.Y = (int)MathF.Ceiling(MinWindowHeightDip * scale);
+        Marshal.StructureToPtr(minMaxInfo, lParam, true);
+    }
+
+    [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
+    private static extern IntPtr SetWindowLongPtr(IntPtr windowHandle, int index, IntPtr newLong);
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr CallWindowProc(IntPtr previousWindowProc, IntPtr windowHandle, uint message, IntPtr wParam, IntPtr lParam);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr windowHandle, uint flags);
+
+    [DllImport("shcore.dll")]
+    private static extern int GetDpiForMonitor(IntPtr monitorHandle, MonitorDpiType dpiType, out uint dpiX, out uint dpiY);
+
+    private delegate IntPtr WndProcDelegate(IntPtr currentWindowHandle, uint message, IntPtr wParam, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct Point
+    {
+        public int X;
+        public int Y;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MinMaxInfo
+    {
+        public Point ptReserved;
+        public Point ptMaxSize;
+        public Point ptMaxPosition;
+        public Point ptMinTrackSize;
+        public Point ptMaxTrackSize;
+    }
+
+    private enum MonitorDpiType
+    {
+        EffectiveDpi = 0,
     }
 
     private void OnRefreshPortsClick(object sender, RoutedEventArgs e) => RefreshPorts();
