@@ -364,6 +364,7 @@ public partial class MainWindow
         SaveFolderTextBox.PlaceholderText = T("Placeholder.SaveFolder");
 
         SerialSectionTextBlock.Text = T("Section.SerialConfig");
+        RuntimeLogSectionTextBlock.Text = T("Section.RuntimeLog");
         SendSelectorBarItem.Text = T("Section.SendFiles");
         ReceiveSelectorBarItem.Text = T("Section.ReceiveFiles");
 

@@ -182,9 +182,16 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="ClearLogButton" Click="OnClearLogClick" />
-                </StackPanel>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="RuntimeLogSectionTextBlock"
+                               VerticalAlignment="Center"
+                               FontWeight="SemiBold" />
+                    <Button Grid.Column="1" x:Name="ClearLogButton" Click="OnClearLogClick" />
+                </Grid>
                 <TextBox Grid.Row="1" x:Name="RuntimeLogTextBox" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" />
             </Grid>
         </Border>
