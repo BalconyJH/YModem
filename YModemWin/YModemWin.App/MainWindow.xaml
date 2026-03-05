@@ -102,7 +102,7 @@
                                           Text="{DynamicResource Label.Port}"
                                           Margin="0,0,10,0"
                                           MinWidth="40" />
-                            <ui:ComboBox x:Name="PortComboBox"
+                            <ComboBox x:Name="PortComboBox"
                                       Width="170"
                                       Height="38"
                                       VerticalContentAlignment="Center"
@@ -120,7 +120,7 @@
                                           Text="{DynamicResource Label.BaudRate}"
                                           Margin="0,0,10,0"
                                           MinWidth="76" />
-                            <ui:ComboBox x:Name="BaudRateComboBox"
+                            <ComboBox x:Name="BaudRateComboBox"
                                       Width="140"
                                       Height="38"
                                       VerticalContentAlignment="Center">
@@ -131,7 +131,7 @@
                                 <ComboBoxItem Content="115200" />
                                 <ComboBoxItem Content="230400" />
                                 <ComboBoxItem Content="460800" />
-                            </ui:ComboBox>
+                            </ComboBox>
                         </StackPanel>
 
                         <StackPanel Grid.Column="3"
