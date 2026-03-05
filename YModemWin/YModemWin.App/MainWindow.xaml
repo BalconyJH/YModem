@@ -4,9 +4,9 @@
                  xmlns:ui="http://schemas.lepo.co/wpfui/2022/xaml"
                  Title="{DynamicResource App.Title}"
                  Height="720"
-                 Width="1200"
+                 Width="1320"
                  MinHeight="680"
-                 MinWidth="1100"
+                 MinWidth="1320"
                  ExtendsContentIntoTitleBar="True"
                  WindowBackdropType="Mica"
                  WindowCornerPreference="Round">
