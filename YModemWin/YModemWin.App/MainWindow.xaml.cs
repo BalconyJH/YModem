@@ -19,7 +19,7 @@ using YModemWin.Core;
 
 namespace YModemWin;
 
-public partial class MainWindow : Window
+public partial class MainWindow
 {
     private const int UiUpdateIntervalMs = 120;
     private const int StatusLogIntervalMs = 1500;

@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Xml.Linq;
 using Microsoft.UI.Xaml;
@@ -9,11 +10,14 @@ namespace YModemWin;
 
 public partial class App : Application
 {
+    private static readonly IntPtr DpiAwarenessContextPerMonitorAwareV2 = new(-4);
+
     private IDisposable? sentrySdk;
     private Window? mainWindow;
 
     public App()
     {
+        TryEnablePerMonitorDpiAwareness();
         InitializeComponent();
         RequestedTheme = ApplicationTheme.Dark;
         UnhandledException += (_, eventArgs) =>
@@ -80,6 +84,22 @@ public partial class App : Application
         mainWindow = new MainWindow();
         mainWindow.Activate();
     }
+
+
+    private static void TryEnablePerMonitorDpiAwareness()
+    {
+        try
+        {
+            _ = SetProcessDpiAwarenessContext(DpiAwarenessContextPerMonitorAwareV2);
+        }
+        catch
+        {
+            // Ignore failures because the process may already have a DPI context.
+        }
+    }
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetProcessDpiAwarenessContext(IntPtr dpiFlag);
 
     private void LoadLocalizationResources()
     {
