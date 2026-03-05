@@ -23,8 +23,10 @@ public partial class MainWindow
 {
     private const int UiUpdateIntervalMs = 120;
     private const int StatusLogIntervalMs = 1500;
-    private const int MinWindowWidthDip = 1450;
+    private const int MinWindowWidthDip = 1200;
     private const int MinWindowHeightDip = 750;
+    private const int DefaultWindowWidthDip = 1200;
+    private const int DefaultWindowHeightDip = 750;
     private const int WmGetMinMaxInfo = 0x0024;
     private const int GwlWndProc = -4;
     private const uint MonitorDefaultToNearest = 0x00000002;
@@ -54,6 +56,7 @@ public partial class MainWindow
     private bool runtimeLogSubscriptionEnabled;
     private bool windowConstraintsInitialized;
     private bool preferredMinimumApiUnavailableLogged;
+    private bool defaultWindowSizeApplied;
     private IntPtr hwnd = IntPtr.Zero;
     private IntPtr previousWndProc = IntPtr.Zero;
     private WndProcDelegate? wndProcDelegate;
@@ -99,6 +102,8 @@ public partial class MainWindow
             return;
         }
 
+        ApplyDefaultWindowSize(windowHandle);
+
         if (TryApplyPresenterPreferredMinimum(windowHandle))
         {
             windowConstraintsInitialized = true;
@@ -106,6 +111,27 @@ public partial class MainWindow
         }
 
         EnsureLegacyWindowSizeConstraints(windowHandle);
+    }
+
+    private void ApplyDefaultWindowSize(IntPtr windowHandle)
+    {
+        if (defaultWindowSizeApplied)
+        {
+            return;
+        }
+
+        var appWindow = TryGetAppWindow(windowHandle);
+        if (appWindow is null)
+        {
+            return;
+        }
+
+        var scale = GetWindowScale(windowHandle);
+        var widthPx = Math.Max(1, (int)MathF.Ceiling(DefaultWindowWidthDip * scale));
+        var heightPx = Math.Max(1, (int)MathF.Ceiling(DefaultWindowHeightDip * scale));
+
+        appWindow.Resize(new Windows.Graphics.SizeInt32 { Width = widthPx, Height = heightPx });
+        defaultWindowSizeApplied = true;
     }
 
     private bool TryApplyPresenterPreferredMinimum(IntPtr windowHandle)
@@ -303,13 +329,22 @@ public partial class MainWindow
     private static void ApplyWindowMinimumSize(IntPtr currentWindowHandle, IntPtr lParam)
     {
         var minMaxInfo = Marshal.PtrToStructure<MinMaxInfo>(lParam);
-        var monitor = MonitorFromWindow(currentWindowHandle, MonitorDefaultToNearest);
-        var dpi = monitor != IntPtr.Zero ? GetDpiForMonitor(monitor, MonitorDpiType.EffectiveDpi, out var dpiX, out _) == 0 ? dpiX : 96u : 96u;
-        var scale = dpi / 96f;
+        var scale = GetWindowScale(currentWindowHandle);
 
         minMaxInfo.ptMinTrackSize.X = (int)MathF.Ceiling(MinWindowWidthDip * scale);
         minMaxInfo.ptMinTrackSize.Y = (int)MathF.Ceiling(MinWindowHeightDip * scale);
         Marshal.StructureToPtr(minMaxInfo, lParam, true);
+    }
+
+    private static float GetWindowScale(IntPtr windowHandle)
+    {
+        var monitor = MonitorFromWindow(windowHandle, MonitorDefaultToNearest);
+        if (monitor != IntPtr.Zero && GetDpiForMonitor(monitor, MonitorDpiType.EffectiveDpi, out var dpiX, out _) == 0)
+        {
+            return dpiX / 96f;
+        }
+
+        return 1f;
     }
 
     [DllImport("user32.dll", EntryPoint = "SetWindowLongPtrW", SetLastError = true)]
@@ -355,58 +390,76 @@ public partial class MainWindow
         var totalStopwatch = Stopwatch.StartNew();
         var dialogStopwatch = Stopwatch.StartNew();
 
-        var picker = new FileOpenPicker();
-        picker.FileTypeFilter.Add(".bin");
-        picker.FileTypeFilter.Add(".hex");
-        picker.FileTypeFilter.Add(".s19");
-        picker.FileTypeFilter.Add(".s37");
-        picker.FileTypeFilter.Add(".srec");
-        picker.SuggestedStartLocation = PickerLocationId.ComputerFolder;
+        try
+        {
+            var picker = new FileOpenPicker();
+            picker.FileTypeFilter.Add(".bin");
+            picker.FileTypeFilter.Add(".hex");
+            picker.FileTypeFilter.Add(".s19");
+            picker.FileTypeFilter.Add(".s37");
+            picker.FileTypeFilter.Add(".srec");
+            picker.SuggestedStartLocation = PickerLocationId.ComputerFolder;
 
-        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
-        var files = await picker.PickMultipleFilesAsync();
-        dialogStopwatch.Stop();
+            var windowHandle = WindowNative.GetWindowHandle(this);
+            if (windowHandle == IntPtr.Zero)
+            {
+                AppendLog("Cannot open file picker because window handle is not ready.");
+                return;
+            }
 
-        if (files is null || files.Count == 0)
+            InitializeWithWindow.Initialize(picker, windowHandle);
+            var files = await picker.PickMultipleFilesAsync();
+            dialogStopwatch.Stop();
+
+            if (files is null || files.Count == 0)
+            {
+                totalStopwatch.Stop();
+                AppendLog(TF("Log.BrowseNoSelection", dialogStopwatch.ElapsedMilliseconds, totalStopwatch.ElapsedMilliseconds));
+                return;
+            }
+
+            var selectedFiles = files.Select(static f => f.Path).ToArray();
+            var newFiles = new List<string>(selectedFiles.Length);
+
+            var dedupStopwatch = Stopwatch.StartNew();
+            foreach (var filePath in selectedFiles)
+            {
+                var normalizedPath = Path.GetFullPath(filePath);
+                if (sendFilesSet.Add(normalizedPath))
+                {
+                    newFiles.Add(normalizedPath);
+                    WarnIfFirmwareHasGaps(normalizedPath);
+                }
+            }
+
+            dedupStopwatch.Stop();
+
+            var addRangeStopwatch = Stopwatch.StartNew();
+            if (newFiles.Count > 0)
+            {
+                sendFilesList.AddRange(newFiles);
+            }
+
+            addRangeStopwatch.Stop();
+            totalStopwatch.Stop();
+
+            SendInfoBar.IsOpen = false;
+
+            AppendLog(newFiles.Count > 0
+                ? TF("Log.BrowseAdded", newFiles.Count, selectedFiles.Length - newFiles.Count)
+                : TF("Log.BrowseAllDuplicate", selectedFiles.Length));
+            AppendLog(TF("Log.BrowseTiming", dialogStopwatch.ElapsedMilliseconds, dedupStopwatch.ElapsedMilliseconds, addRangeStopwatch.ElapsedMilliseconds, totalStopwatch.ElapsedMilliseconds, selectedFiles.Length));
+
+            UpdateActionButtons();
+        }
+        catch (COMException ex)
         {
             totalStopwatch.Stop();
-            AppendLog(TF("Log.BrowseNoSelection", dialogStopwatch.ElapsedMilliseconds, totalStopwatch.ElapsedMilliseconds));
-            return;
+            dialogStopwatch.Stop();
+            AppLogger.Error(ex, "File picker failed while browsing send files.");
+            SendStatusTextBlock.Text = "Failed to open file picker. Please try again.";
+            AppendLog("File picker failed due to a COM error. Try reopening the app or selecting files again.");
         }
-
-        var selectedFiles = files.Select(static f => f.Path).ToArray();
-        var newFiles = new List<string>(selectedFiles.Length);
-
-        var dedupStopwatch = Stopwatch.StartNew();
-        foreach (var filePath in selectedFiles)
-        {
-            var normalizedPath = Path.GetFullPath(filePath);
-            if (sendFilesSet.Add(normalizedPath))
-            {
-                newFiles.Add(normalizedPath);
-                WarnIfFirmwareHasGaps(normalizedPath);
-            }
-        }
-
-        dedupStopwatch.Stop();
-
-        var addRangeStopwatch = Stopwatch.StartNew();
-        if (newFiles.Count > 0)
-        {
-            sendFilesList.AddRange(newFiles);
-        }
-
-        addRangeStopwatch.Stop();
-        totalStopwatch.Stop();
-
-        SendInfoBar.IsOpen = false;
-
-        AppendLog(newFiles.Count > 0
-            ? TF("Log.BrowseAdded", newFiles.Count, selectedFiles.Length - newFiles.Count)
-            : TF("Log.BrowseAllDuplicate", selectedFiles.Length));
-        AppendLog(TF("Log.BrowseTiming", dialogStopwatch.ElapsedMilliseconds, dedupStopwatch.ElapsedMilliseconds, addRangeStopwatch.ElapsedMilliseconds, totalStopwatch.ElapsedMilliseconds, selectedFiles.Length));
-
-        UpdateActionButtons();
     }
 
     private void OnDeleteSendFilesClick(object sender, RoutedEventArgs e) => DeleteSelectedOrAllSendFiles();
@@ -452,13 +505,30 @@ public partial class MainWindow
 
     private async void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
     {
-        var picker = new FolderPicker();
-        picker.FileTypeFilter.Add("*");
-        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
-        var folder = await picker.PickSingleFolderAsync();
-        if (folder is not null)
+        try
         {
-            SaveFolderTextBox.Text = folder.Path;
+            var picker = new FolderPicker();
+            picker.FileTypeFilter.Add("*");
+
+            var windowHandle = WindowNative.GetWindowHandle(this);
+            if (windowHandle == IntPtr.Zero)
+            {
+                AppendLog("Cannot open folder picker because window handle is not ready.");
+                return;
+            }
+
+            InitializeWithWindow.Initialize(picker, windowHandle);
+            var folder = await picker.PickSingleFolderAsync();
+            if (folder is not null)
+            {
+                SaveFolderTextBox.Text = folder.Path;
+            }
+        }
+        catch (COMException ex)
+        {
+            AppLogger.Error(ex, "Folder picker failed while browsing save folder.");
+            ReceiveStatusTextBlock.Text = "Failed to open folder picker. Please try again.";
+            AppendLog("Folder picker failed due to a COM error. Try reopening the app or selecting a folder again.");
         }
     }
 
