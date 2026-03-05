@@ -524,7 +524,10 @@ public partial class MainWindow : Window
     {
         if (sender is ComboBox comboBox)
         {
-            _ = DispatcherQueue.TryEnqueue(comboBox.Focus);
+            _ = DispatcherQueue.TryEnqueue(() =>
+            {
+                _ = comboBox.Focus(FocusState.Programmatic);
+            });
         }
     }
 
@@ -564,7 +567,7 @@ public partial class MainWindow : Window
         });
     }
 
-    private void OnReceiveStatus(long sent, long total, long packetNo, long totalPacket, long status, string message, string fileName, DateTime fileDate)
+    private void OnReceiveStatus(long sent, long total, long packetNo, long totalPacket, long status, string message, string fileName, string fileDateText)
     {
         if (!ShouldUpdateUi(ref lastReceiveUiUpdateUtc, status))
         {
@@ -581,7 +584,8 @@ public partial class MainWindow : Window
             ReceiveBytesTextBlock.Text = TF("Status.ReceiveBytesFormat", sent, total);
             ReceivePacketsTextBlock.Text = TF("Status.ReceivePacketsFormat", packetNo, totalPacket);
             ReceiveFileNameTextBlock.Text = TF("Status.FileFormat", string.IsNullOrWhiteSpace(fileName) ? "-" : fileName);
-            ReceiveFileDateTextBlock.Text = TF("Status.DateFormat", fileDate == DateTime.MinValue ? "-" : fileDate.ToString(CultureInfo.CurrentUICulture));
+            var shownDate = string.IsNullOrWhiteSpace(fileDateText) ? "-" : fileDateText;
+            ReceiveFileDateTextBlock.Text = TF("Status.DateFormat", shownDate);
 
             if (ShouldAppendStatusLog(status, message, ref lastReceiveStatusMessage, ref lastReceiveStatusLogUtc))
             {
