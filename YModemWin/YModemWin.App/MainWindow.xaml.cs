@@ -107,7 +107,6 @@ public partial class MainWindow : Window
         picker.FileTypeFilter.Add(".s19");
         picker.FileTypeFilter.Add(".s37");
         picker.FileTypeFilter.Add(".srec");
-        picker.FileTypeFilter.Add(".*");
         picker.SuggestedStartLocation = PickerLocationId.ComputerFolder;
 
         InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));

@@ -15,6 +15,7 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+        RequestedTheme = ApplicationTheme.Dark;
         UnhandledException += (_, eventArgs) =>
         {
             AppLogger.Error(eventArgs.Exception, "Unhandled UI exception");
