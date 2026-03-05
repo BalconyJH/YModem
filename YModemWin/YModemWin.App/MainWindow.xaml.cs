@@ -71,6 +71,7 @@ public partial class MainWindow
         ReceiveTimeoutComboBox.SelectedIndex = 2;
 
         ApplyLocalizedTexts();
+        UpdateTransferModePanelVisibility();
         RefreshPorts();
         UpdateActionButtons();
         ConfigureRuntimeLogUi();
@@ -246,8 +247,8 @@ public partial class MainWindow
         SaveFolderTextBox.PlaceholderText = T("Placeholder.SaveFolder");
 
         SerialSectionTextBlock.Text = T("Section.SerialConfig");
-        SendSectionTextBlock.Text = T("Section.SendFiles");
-        ReceiveSectionTextBlock.Text = T("Section.ReceiveFiles");
+        SendSelectorBarItem.Text = T("Section.SendFiles");
+        ReceiveSelectorBarItem.Text = T("Section.ReceiveFiles");
 
         SendStatusTextBlock.Text = T("Status.SendIdle");
         ReceiveStatusTextBlock.Text = T("Status.ReceiveIdle");
@@ -257,6 +258,19 @@ public partial class MainWindow
         ReceivePacketsTextBlock.Text = T("Status.PacketsZero");
         ReceiveFileNameTextBlock.Text = T("Status.FileEmpty");
         ReceiveFileDateTextBlock.Text = T("Status.DateEmpty");
+    }
+
+
+    private void OnModeSelectorBarSelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
+    {
+        UpdateTransferModePanelVisibility();
+    }
+
+    private void UpdateTransferModePanelVisibility()
+    {
+        var showSendPanel = SendSelectorBarItem.IsSelected;
+        SendPanel.Visibility = showSendPanel ? Visibility.Visible : Visibility.Collapsed;
+        ReceivePanel.Visibility = showSendPanel ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void OnWindowClosed(object sender, WindowEventArgs args)

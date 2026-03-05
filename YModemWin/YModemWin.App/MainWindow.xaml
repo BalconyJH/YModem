@@ -70,15 +70,21 @@
             </Grid>
         </Border>
 
-        <muxc:TabView Grid.Row="1"
-                      IsAddTabButtonVisible="False"
-                      TabWidthMode="Equal"
-                      Background="Transparent">
-            <muxc:TabViewItem x:Name="SendTabItem" IsClosable="False">
-                <muxc:TabViewItem.Header>
-                    <TextBlock x:Name="SendSectionTextBlock" />
-                </muxc:TabViewItem.Header>
-                <Border Padding="12"
+        <Grid Grid.Row="1" RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <muxc:SelectorBar x:Name="ModeSelectorBar"
+                              SelectionChanged="OnModeSelectorBarSelectionChanged">
+                <muxc:SelectorBarItem x:Name="SendSelectorBarItem" IsSelected="True" />
+                <muxc:SelectorBarItem x:Name="ReceiveSelectorBarItem" />
+            </muxc:SelectorBar>
+
+            <Grid Grid.Row="1">
+                <Border x:Name="SendPanel"
+                        Padding="12"
                         CornerRadius="8"
                         Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
                     <Grid RowSpacing="8">
@@ -106,15 +112,12 @@
                         </StackPanel>
                     </Grid>
                 </Border>
-            </muxc:TabViewItem>
 
-            <muxc:TabViewItem x:Name="ReceiveTabItem" IsClosable="False">
-                <muxc:TabViewItem.Header>
-                    <TextBlock x:Name="ReceiveSectionTextBlock" />
-                </muxc:TabViewItem.Header>
-                <Border Padding="12"
+                <Border x:Name="ReceivePanel"
+                        Padding="12"
                         CornerRadius="8"
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                        Visibility="Collapsed">
                     <Grid RowSpacing="8">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -145,8 +148,8 @@
                         </StackPanel>
                     </Grid>
                 </Border>
-            </muxc:TabViewItem>
-        </muxc:TabView>
+            </Grid>
+        </Grid>
 
         <Border Grid.Row="2"
                 Padding="12"
