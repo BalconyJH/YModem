@@ -2,21 +2,23 @@ using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.IO.Ports;
+using System.Runtime.InteropServices;
 using System.Text;
-using System.Windows;
-using System.Windows.Media.Animation;
-using System.Windows.Threading;
-using System.Windows.Input;
 using DeviceProgramming.FileFormat;
 using DeviceProgramming.Memory;
-using Microsoft.Win32;
-using Sentry;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Xaml.Media;
+using Windows.Storage.Pickers;
+using Windows.System;
+using WinRT.Interop;
 using YModemWin.Core;
-using Wpf.Ui.Controls;
 
 namespace YModemWin;
 
-public partial class MainWindow : FluentWindow
+public partial class MainWindow : Window
 {
     private const int UiUpdateIntervalMs = 120;
     private const int StatusLogIntervalMs = 1500;
@@ -40,51 +42,160 @@ public partial class MainWindow : FluentWindow
     private bool isSendCancelling;
     private bool isReceiveCancelling;
 
-    // Batch updates to avoid per-item UI notifications
     private readonly RangeObservableCollection<string> sendFilesList = new();
     private readonly HashSet<string> sendFilesSet = new(StringComparer.OrdinalIgnoreCase);
+    private bool runtimeLogUiEnabled = true;
+    private bool runtimeLogSubscriptionEnabled;
 
     public MainWindow()
     {
         InitializeComponent();
+        TryApplySystemBackdrop();
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-        
-        // Bind queue to list view
+
         SendFilesListView.ItemsSource = sendFilesList;
-        
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
         BaudRateComboBox.SelectedIndex = 4;
         SendTimeoutComboBox.SelectedIndex = 2;
         ReceiveTimeoutComboBox.SelectedIndex = 2;
+
+        ApplyLocalizedTexts();
         RefreshPorts();
         UpdateActionButtons();
+        ConfigureRuntimeLogUi();
+        Closed += OnWindowClosed;
+    }
+
+
+
+    private void TryApplySystemBackdrop()
+    {
+        var enableBackdrop = string.Equals(
+            Environment.GetEnvironmentVariable("YMODEM_ENABLE_SYSTEM_BACKDROP"),
+            "1",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!enableBackdrop)
+        {
+            AppLogger.Info("System backdrop is disabled. Set YMODEM_ENABLE_SYSTEM_BACKDROP=1 to enable.");
+            return;
+        }
+
+        ApplySystemBackdrop();
+    }
+
+    private void ConfigureRuntimeLogUi()
+    {
+        runtimeLogUiEnabled = string.Equals(
+            Environment.GetEnvironmentVariable("YMODEM_ENABLE_RUNTIME_LOG_UI"),
+            "1",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!runtimeLogUiEnabled)
+        {
+            RuntimeLogTextBox.Text = "Runtime log UI is disabled by default. Set YMODEM_ENABLE_RUNTIME_LOG_UI=1 to enable.";
+            ClearLogButton.IsEnabled = false;
+            AppLogger.Info("Runtime log UI is disabled. Set YMODEM_ENABLE_RUNTIME_LOG_UI=1 to enable.");
+            return;
+        }
+
+        runtimeLogSubscriptionEnabled = true;
         AppLogger.RuntimeLogLineReceived += OnRuntimeLogLineReceived;
+    }
+
+    private void ApplySystemBackdrop()
+    {
+        try
+        {
+            if (MicaController.IsSupported())
+            {
+                SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
+                return;
+            }
+
+            if (DesktopAcrylicController.IsSupported())
+            {
+                SystemBackdrop = new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop();
+            }
+        }
+        catch (COMException ex)
+        {
+            AppLogger.Warn("System backdrop initialization failed. Falling back to default backdrop. Exception: {Exception}", ex);
+            SystemBackdrop = null;
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Warn("Unexpected backdrop initialization error. Falling back to default backdrop. Exception: {Exception}", ex);
+            SystemBackdrop = null;
+        }
+    }
+
+
+    private void ApplyLocalizedTexts()
+    {
+        Title = T("App.Title");
+        PortLabelTextBlock.Text = T("Label.Port");
+        BaudRateLabelTextBlock.Text = T("Label.BaudRate");
+        SendTimeoutCheckBox.Content = T("Checkbox.SendTimeout");
+        ReceiveTimeoutCheckBox.Content = T("Checkbox.ReceiveTimeout");
+        SendParsedSegmentsCheckBox.Content = T("Checkbox.SendParsedSegments");
+        RefreshPortsButton.Content = T("Button.Refresh");
+        AddSendFileButton.Content = T("Button.Add");
+        DeleteSendFilesButton.Content = T("Button.Delete");
+        BrowseSaveFolderButton.Content = T("Button.Browse");
+        ClearLogButton.Content = T("Button.Clear");
+        SaveFolderTextBox.PlaceholderText = T("Placeholder.SaveFolder");
+
+        SerialSectionTextBlock.Text = T("Section.SerialConfig");
+        SendSectionTextBlock.Text = T("Section.SendFiles");
+        ReceiveSectionTextBlock.Text = T("Section.ReceiveFiles");
+
+        SendStatusTextBlock.Text = T("Status.SendIdle");
+        ReceiveStatusTextBlock.Text = T("Status.ReceiveIdle");
+        SendBytesTextBlock.Text = T("Status.BytesZero");
+        ReceiveBytesTextBlock.Text = T("Status.BytesZero");
+        SendPacketsTextBlock.Text = T("Status.PacketsZero");
+        ReceivePacketsTextBlock.Text = T("Status.PacketsZero");
+        ReceiveFileNameTextBlock.Text = T("Status.FileEmpty");
+        ReceiveFileDateTextBlock.Text = T("Status.DateEmpty");
+    }
+
+    private void OnWindowClosed(object sender, WindowEventArgs args)
+    {
+        if (runtimeLogSubscriptionEnabled)
+        {
+            AppLogger.RuntimeLogLineReceived -= OnRuntimeLogLineReceived;
+            runtimeLogSubscriptionEnabled = false;
+        }
     }
 
     private void OnRefreshPortsClick(object sender, RoutedEventArgs e) => RefreshPorts();
 
-    private void OnBrowseSendFileClick(object sender, RoutedEventArgs e)
+    private async void OnBrowseSendFileClick(object sender, RoutedEventArgs e)
     {
-        var picker = new OpenFileDialog
-        {
-            CheckFileExists = true,
-            Multiselect = true,
-            Filter = T("Dialog.FirmwareFilesFilter")
-        };
-
         var totalStopwatch = Stopwatch.StartNew();
         var dialogStopwatch = Stopwatch.StartNew();
-        var dialogResult = picker.ShowDialog(this);
+
+        var picker = new FileOpenPicker();
+        picker.FileTypeFilter.Add(".bin");
+        picker.FileTypeFilter.Add(".hex");
+        picker.FileTypeFilter.Add(".s19");
+        picker.FileTypeFilter.Add(".s37");
+        picker.FileTypeFilter.Add(".srec");
+        picker.SuggestedStartLocation = PickerLocationId.ComputerFolder;
+
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+        var files = await picker.PickMultipleFilesAsync();
         dialogStopwatch.Stop();
 
-        if (dialogResult != true || picker.FileNames.Length == 0)
+        if (files is null || files.Count == 0)
         {
             totalStopwatch.Stop();
             AppendLog(TF("Log.BrowseNoSelection", dialogStopwatch.ElapsedMilliseconds, totalStopwatch.ElapsedMilliseconds));
             return;
         }
 
-        var selectedFiles = picker.FileNames;
+        var selectedFiles = files.Select(static f => f.Path).ToArray();
         var newFiles = new List<string>(selectedFiles.Length);
 
         var dedupStopwatch = Stopwatch.StartNew();
@@ -119,14 +230,11 @@ public partial class MainWindow : FluentWindow
         UpdateActionButtons();
     }
 
-    private void OnDeleteSendFilesClick(object sender, RoutedEventArgs e)
-    {
-        DeleteSelectedOrAllSendFiles();
-    }
+    private void OnDeleteSendFilesClick(object sender, RoutedEventArgs e) => DeleteSelectedOrAllSendFiles();
 
-    private void OnSendFilesListKeyDown(object sender, KeyEventArgs e)
+    private void OnSendFilesListKeyDown(object sender, KeyRoutedEventArgs e)
     {
-        if (e.Key != Key.Delete)
+        if (e.Key != VirtualKey.Delete)
         {
             return;
         }
@@ -163,12 +271,15 @@ public partial class MainWindow : FluentWindow
         UpdateActionButtons();
     }
 
-    private void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
+    private async void OnBrowseSaveFolderClick(object sender, RoutedEventArgs e)
     {
-        var picker = new OpenFolderDialog();
-        if (picker.ShowDialog(this) == true)
+        var picker = new FolderPicker();
+        picker.FileTypeFilter.Add("*");
+        InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(this));
+        var folder = await picker.PickSingleFolderAsync();
+        if (folder is not null)
         {
-            SaveFolderTextBox.Text = picker.FolderName;
+            SaveFolderTextBox.Text = folder.Path;
         }
     }
 
@@ -206,7 +317,6 @@ public partial class MainWindow : FluentWindow
             isSendCancelling = true;
             SendStatusTextBlock.Text = T("Status.SendCancelRequested");
             UpdateActionButtons();
-
             _ = Task.Run(() =>
             {
                 lock (serialLock)
@@ -214,7 +324,6 @@ public partial class MainWindow : FluentWindow
                     transmitter?.StopTransmitting();
                 }
             });
-
             AppendLog(T("Log.CancelSend"));
             return;
         }
@@ -306,14 +415,14 @@ public partial class MainWindow : FluentWindow
                 {
                     var file = preparedFiles[i];
                     var isLastFile = i == preparedFiles.Count - 1;
-
                     if (file.ParsedPayload is null)
                     {
                         transmitter!.YmodemSendFile(file.SourcePath, isLastFile);
-                        continue;
                     }
-
-                    transmitter!.YmodemSendParsedData(file.DisplayFileName, file.LastWriteTime, file.ParsedPayload, isLastFile);
+                    else
+                    {
+                        transmitter!.YmodemSendParsedData(file.DisplayFileName, file.LastWriteTime, file.ParsedPayload, isLastFile);
+                    }
                 }
             }
             finally
@@ -456,25 +565,20 @@ public partial class MainWindow : FluentWindow
     {
         return BaudRateComboBox.SelectedItem switch
         {
-            System.Windows.Controls.ComboBoxItem item => item.Content?.ToString() ?? string.Empty,
+            ComboBoxItem item => item.Content?.ToString() ?? string.Empty,
             string value => value,
             _ => BaudRateComboBox.Text
         };
     }
 
-    private static int GetTimeoutSeconds(System.Windows.Controls.ComboBox comboBox)
+    private static int GetTimeoutSeconds(ComboBox comboBox)
     {
         var rawValue = comboBox.SelectedItem switch
         {
-            System.Windows.Controls.ComboBoxItem item => item.Content?.ToString() ?? string.Empty,
+            ComboBoxItem item => item.Content?.ToString() ?? string.Empty,
             string value => value,
             _ => comboBox.Text
         };
-
-        if (string.IsNullOrWhiteSpace(rawValue))
-        {
-            return 0;
-        }
 
         var digitsBuilder = new StringBuilder();
         foreach (var c in rawValue)
@@ -485,27 +589,20 @@ public partial class MainWindow : FluentWindow
             }
         }
 
-        if (!int.TryParse(digitsBuilder.ToString(), out var seconds))
-        {
-            return 0;
-        }
-
-        return Math.Max(0, seconds);
+        return int.TryParse(digitsBuilder.ToString(), out var seconds) ? Math.Max(0, seconds) : 0;
     }
 
-    private void OnClearLogClick(object sender, RoutedEventArgs e)
-    {
-        RuntimeLogTextBox.Clear();
-    }
+    private void OnClearLogClick(object sender, RoutedEventArgs e) => RuntimeLogTextBox.Text = string.Empty;
 
-    private void OnSerialComboBoxDropDownOpened(object sender, EventArgs e)
+    private void OnSerialComboBoxDropDownOpened(object sender, object e)
     {
-        if (sender is not System.Windows.Controls.ComboBox comboBox)
+        if (sender is ComboBox comboBox)
         {
-            return;
+            _ = DispatcherQueue.TryEnqueue(() =>
+            {
+                _ = comboBox.Focus(FocusState.Programmatic);
+            });
         }
-
-        comboBox.Dispatcher.BeginInvoke(() => comboBox.Focus(), DispatcherPriority.Background);
     }
 
     private void OnSendStatus(long sent, long total, long packetNo, long totalPacket, long status, string message)
@@ -518,61 +615,78 @@ public partial class MainWindow : FluentWindow
         var progress = total <= 0 ? 0 : sent * 100.0 / total;
         TaskBarProgress.SetValue(this, progress);
 
-        Dispatcher.BeginInvoke(() =>
+        _ = DispatcherQueue.TryEnqueue(() =>
         {
             UpdateTransferProgressBar(SendProgressBar, total, Math.Clamp(progress, 0, 100));
             SendStatusTextBlock.Text = TF("Status.SendStatusFormat", message);
             SendBytesTextBlock.Text = TF("Status.SendBytesFormat", sent, total);
             SendPacketsTextBlock.Text = TF("Status.SendPacketsFormat", packetNo, totalPacket);
-        }, DispatcherPriority.Background);
 
-        if (ShouldAppendStatusLog(status, message, ref lastSendStatusMessage, ref lastSendStatusLogUtc))
-        {
-            AppendLog(TF("Status.SendStatusFormat", message));
-        }
+            if (ShouldAppendStatusLog(status, message, ref lastSendStatusMessage, ref lastSendStatusLogUtc))
+            {
+                AppendLog(SendStatusTextBlock.Text);
+            }
+
+            if (status is 1 or -1 or -2)
+            {
+                if (status == 1)
+                {
+                    SendStatusTextBlock.Text = T("Status.SendIdle");
+                }
+
+                isSending = false;
+                isSendCancelling = false;
+                UpdateActionButtons();
+            }
+        });
     }
 
-    private void OnReceiveStatus(long received, long total, long packetNo, long totalPacket, long status, string message, string fileName, string fileDate)
+    private void OnReceiveStatus(long sent, long total, long packetNo, long totalPacket, long status, string message, string fileName, string fileDateText)
     {
         if (!ShouldUpdateUi(ref lastReceiveUiUpdateUtc, status))
         {
             return;
         }
 
-        var progress = total <= 0 ? 0 : received * 100.0 / total;
+        var progress = total <= 0 ? 0 : sent * 100.0 / total;
         TaskBarProgress.SetValue(this, progress);
 
-        Dispatcher.BeginInvoke(() =>
+        _ = DispatcherQueue.TryEnqueue(() =>
         {
             UpdateTransferProgressBar(ReceiveProgressBar, total, Math.Clamp(progress, 0, 100));
             ReceiveStatusTextBlock.Text = TF("Status.ReceiveStatusFormat", message);
-            ReceiveBytesTextBlock.Text = TF("Status.ReceiveBytesFormat", received, total);
+            ReceiveBytesTextBlock.Text = TF("Status.ReceiveBytesFormat", sent, total);
             ReceivePacketsTextBlock.Text = TF("Status.ReceivePacketsFormat", packetNo, totalPacket);
             ReceiveFileNameTextBlock.Text = TF("Status.FileFormat", string.IsNullOrWhiteSpace(fileName) ? "-" : fileName);
-            ReceiveFileDateTextBlock.Text = TF("Status.DateFormat", string.IsNullOrWhiteSpace(fileDate) ? "-" : fileDate);
-        }, DispatcherPriority.Background);
+            var shownDate = string.IsNullOrWhiteSpace(fileDateText) ? "-" : fileDateText;
+            ReceiveFileDateTextBlock.Text = TF("Status.DateFormat", shownDate);
 
-        if (ShouldAppendStatusLog(status, message, ref lastReceiveStatusMessage, ref lastReceiveStatusLogUtc))
-        {
-            AppendLog(TF("Status.ReceiveStatusFormat", message));
-        }
+            if (ShouldAppendStatusLog(status, message, ref lastReceiveStatusMessage, ref lastReceiveStatusLogUtc))
+            {
+                AppendLog(ReceiveStatusTextBlock.Text);
+            }
+
+            if (status is 1 or -1 or -2)
+            {
+                if (status == 1)
+                {
+                    ReceiveStatusTextBlock.Text = T("Status.ReceiveIdle");
+                }
+
+                isReceiving = false;
+                isReceiveCancelling = false;
+                UpdateActionButtons();
+            }
+        });
     }
 
-
-
-    private static void SetProgressBarWaiting(System.Windows.Controls.ProgressBar progressBar)
+    private static void SetProgressBarWaiting(ProgressBar progressBar)
     {
-        if (progressBar.IsIndeterminate)
-        {
-            return;
-        }
-
-        progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
         progressBar.IsIndeterminate = true;
-        progressBar.BeginAnimation(UIElement.OpacityProperty, CreateOpacityAnimation(0.92, 1.0, 160));
+        progressBar.Value = 0;
     }
 
-    private static void UpdateTransferProgressBar(System.Windows.Controls.ProgressBar progressBar, long total, double targetValue)
+    private static void UpdateTransferProgressBar(ProgressBar progressBar, long total, double targetValue)
     {
         if (total <= 0)
         {
@@ -580,48 +694,14 @@ public partial class MainWindow : FluentWindow
             return;
         }
 
-        if (progressBar.IsIndeterminate)
-        {
-            progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
-            progressBar.IsIndeterminate = false;
-            progressBar.Value = targetValue;
-            progressBar.BeginAnimation(UIElement.OpacityProperty, CreateOpacityAnimation(0.92, 1.0, 160));
-            return;
-        }
-
-        AnimateProgressBar(progressBar, targetValue);
-    }
-
-    private static void ResetProgressBar(System.Windows.Controls.ProgressBar progressBar)
-    {
-        progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, null);
         progressBar.IsIndeterminate = false;
-        progressBar.BeginAnimation(UIElement.OpacityProperty, null);
-        progressBar.Opacity = 1;
+        progressBar.Value = targetValue;
+    }
+
+    private static void ResetProgressBar(ProgressBar progressBar)
+    {
+        progressBar.IsIndeterminate = false;
         progressBar.Value = 0;
-    }
-
-    private static DoubleAnimation CreateOpacityAnimation(double from, double to, int durationMs)
-    {
-        return new DoubleAnimation
-        {
-            From = from,
-            To = to,
-            Duration = TimeSpan.FromMilliseconds(durationMs),
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-        };
-    }
-
-    private static void AnimateProgressBar(System.Windows.Controls.ProgressBar progressBar, double targetValue)
-    {
-        var animation = new DoubleAnimation
-        {
-            To = targetValue,
-            Duration = TimeSpan.FromMilliseconds(220),
-            EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
-        };
-
-        progressBar.BeginAnimation(System.Windows.Controls.ProgressBar.ValueProperty, animation, HandoffBehavior.SnapshotAndReplace);
     }
 
     private static bool ShouldUpdateUi(ref DateTime lastUpdateUtc, long status)
@@ -675,19 +755,17 @@ public partial class MainWindow : FluentWindow
 
     private static string T(string key)
     {
-        return Application.Current.TryFindResource(key) as string ?? key;
+        if (Application.Current.Resources.TryGetValue(key, out var value) && value is string text)
+        {
+            return text;
+        }
+
+        return key;
     }
 
-    private static string TF(string key, params object[] args)
-    {
-        return string.Format(CultureInfo.CurrentUICulture, T(key), args);
-    }
+    private static string TF(string key, params object[] args) => string.Format(CultureInfo.CurrentUICulture, T(key), args);
 
-
-    private static void AppendLog(string message)
-    {
-        AppLogger.Info("{Message}", message);
-    }
+    private static void AppendLog(string message) => AppLogger.Info("{Message}", message);
 
     private IReadOnlyList<PreparedSendFile> PrepareSendFiles(IReadOnlyList<string> sourceFiles, bool sendParsedSegmentsOnly)
     {
@@ -718,7 +796,6 @@ public partial class MainWindow : FluentWindow
 
             using var stream = new MemoryStream();
             long writtenBytes = 0;
-
             foreach (var segment in segments)
             {
                 if (segment.Data is not { Length: > 0 })
@@ -735,8 +812,7 @@ public partial class MainWindow : FluentWindow
                 throw new InvalidDataException($"No payload bytes found in '{Path.GetFileName(sourceFile)}'.");
             }
 
-            var payload = stream.ToArray();
-            preparedFiles.Add(PreparedSendFile.FromParsedData(sourceFile, payload));
+            preparedFiles.Add(PreparedSendFile.FromParsedData(sourceFile, stream.ToArray()));
             AppendLog(TF("Log.SendPreparedParsedPayload", Path.GetFileName(sourceFile), parser, segments.Count, writtenBytes));
         }
 
@@ -745,48 +821,25 @@ public partial class MainWindow : FluentWindow
 
     private sealed record PreparedSendFile(string SourcePath, string DisplayFileName, DateTime LastWriteTime, byte[]? ParsedPayload)
     {
-        public static PreparedSendFile FromRawFile(string path)
-        {
-            return new PreparedSendFile(path, Path.GetFileName(path), File.GetLastWriteTime(path), null);
-        }
+        public static PreparedSendFile FromRawFile(string path) => new(path, Path.GetFileName(path), File.GetLastWriteTime(path), null);
 
-        public static PreparedSendFile FromParsedData(string sourcePath, byte[] payload)
-        {
-            return new PreparedSendFile(sourcePath, Path.GetFileName(sourcePath), File.GetLastWriteTime(sourcePath), payload);
-        }
+        public static PreparedSendFile FromParsedData(string sourcePath, byte[] payload) => new(sourcePath, Path.GetFileName(sourcePath), File.GetLastWriteTime(sourcePath), payload);
     }
 
     private static void WarnIfFirmwareHasGaps(string filePath)
     {
         var extension = Path.GetExtension(filePath);
         var parser = GetFirmwareParserName(extension);
-
         if (parser is null)
         {
             AppLogger.Info("Firmware parse skipped for '{FilePath}': parser not available for extension '{Extension}'.", filePath, extension);
             return;
         }
 
-        SentrySdk.AddBreadcrumb($"Firmware parse started: {Path.GetFileName(filePath)} ({extension})", category: "firmware.parse", level: BreadcrumbLevel.Info);
-
         try
         {
             var memory = ParseFirmwareMemory(filePath, extension);
             var segments = memory.Segments.OrderBy(static segment => segment.StartAddress).ToList();
-            var totalBytes = segments.Sum(static segment => (long)segment.Length);
-            var firstAddress = segments.Count > 0 ? segments[0].StartAddress : 0;
-            var lastAddress = segments.Count > 0 ? segments[^1].EndAddress : 0;
-
-            var fileName = Path.GetFileName(filePath);
-            AppLogger.Info(
-                "Firmware parsed: file='{FileName}', parser='{Parser}', segments={SegmentCount}, bytes={TotalBytes}, range=0x{StartAddress:X8}..0x{EndAddress:X8}.",
-                fileName,
-                parser,
-                segments.Count,
-                totalBytes,
-                firstAddress,
-                lastAddress);
-
             var gapCount = 0;
             for (var i = 1; i < segments.Count; i++)
             {
@@ -799,20 +852,15 @@ public partial class MainWindow : FluentWindow
                 }
             }
 
-            SentrySdk.AddBreadcrumb(
-                $"Firmware parse completed: {Path.GetFileName(filePath)}, parser={parser}, segments={segments.Count}, bytes={totalBytes}, gaps={gapCount}",
-                category: "firmware.parse",
-                level: gapCount > 0 ? BreadcrumbLevel.Warning : BreadcrumbLevel.Info);
-
             if (gapCount > 0)
             {
-                SentrySdk.CaptureMessage($"Firmware image has gaps: {Path.GetFileName(filePath)} (gaps={gapCount})", SentryLevel.Warning);
+                Sentry.SentrySdk.CaptureMessage($"Firmware image has gaps: {Path.GetFileName(filePath)} (gaps={gapCount})", Sentry.SentryLevel.Warning);
             }
         }
         catch (Exception ex)
         {
             AppLogger.Warn("Firmware parse skipped for '{FilePath}': {Reason}", filePath, ex.Message);
-            SentrySdk.CaptureException(ex);
+            Sentry.SentrySdk.CaptureException(ex);
         }
     }
 
@@ -843,27 +891,45 @@ public partial class MainWindow : FluentWindow
         return null;
     }
 
-    protected override void OnClosed(EventArgs e)
-    {
-        AppLogger.RuntimeLogLineReceived -= OnRuntimeLogLineReceived;
-        base.OnClosed(e);
-    }
-
     private void OnRuntimeLogLineReceived(string line)
     {
-        Dispatcher.BeginInvoke(() =>
+        if (!runtimeLogUiEnabled)
         {
-            RuntimeLogTextBox.AppendText(line);
-            RuntimeLogTextBox.ScrollToEnd();
-        }, DispatcherPriority.Background);
+            return;
+        }
+
+        _ = DispatcherQueue.TryEnqueue(() =>
+        {
+            if (!runtimeLogUiEnabled)
+            {
+                return;
+            }
+
+            try
+            {
+                RuntimeLogTextBox.Text += line;
+                RuntimeLogTextBox.SelectionStart = RuntimeLogTextBox.Text.Length;
+            }
+            catch (Exception ex)
+            {
+                runtimeLogUiEnabled = false;
+                if (runtimeLogSubscriptionEnabled)
+                {
+                    AppLogger.RuntimeLogLineReceived -= OnRuntimeLogLineReceived;
+                    runtimeLogSubscriptionEnabled = false;
+                }
+
+                AppLogger.Warn("Runtime log UI append failed. Disabling runtime log textbox updates. Exception: {Exception}", ex);
+            }
+        });
     }
 
     private void CloseActivePort()
     {
         lock (serialLock)
         {
-            transmitter = null!;
-            receiver = null!;
+            transmitter = null;
+            receiver = null;
             isSending = false;
             isReceiving = false;
             isSendCancelling = false;
@@ -877,17 +943,17 @@ public partial class MainWindow : FluentWindow
                 }
 
                 activePort.Dispose();
-                activePort = null!;
+                activePort = null;
             }
         }
 
         TaskBarProgress.SetValue(this, 0);
-        Dispatcher.BeginInvoke(() =>
+        _ = DispatcherQueue.TryEnqueue(() =>
         {
             ResetProgressBar(SendProgressBar);
             ResetProgressBar(ReceiveProgressBar);
             UpdateActionButtons();
-        }, DispatcherPriority.Background);
+        });
     }
 
     private void UpdateActionButtons()
@@ -896,18 +962,16 @@ public partial class MainWindow : FluentWindow
         SetActionButtonState(ReceiveActionButton, isReceiving, isReceiveCancelling, "Button.StartReceive", isReceivePortOpening, true);
     }
 
-    private static void SetActionButtonState(Wpf.Ui.Controls.Button button, bool isRunning, bool isCancelling, string startTextKey, bool isBusy, bool canStart)
+    private static void SetActionButtonState(Button button, bool isRunning, bool isCancelling, string startTextKey, bool isBusy, bool canStart)
     {
         if (isRunning)
         {
             button.Content = isCancelling ? T("Button.Cancelling") : T("Button.Cancel");
-            button.Appearance = ControlAppearance.Danger;
             button.IsEnabled = !isCancelling;
             return;
         }
 
         button.Content = T(startTextKey);
-        button.Appearance = ControlAppearance.Primary;
         button.IsEnabled = canStart && !isBusy;
     }
 }

@@ -1,21 +1,40 @@
 using System.Globalization;
 using System.Runtime.Versioning;
-using System.Windows;
+using System.Xml.Linq;
+using Microsoft.UI.Xaml;
 
-[assembly: SupportedOSPlatform("windows7.0")]
+[assembly: SupportedOSPlatform("windows10.0.17763.0")]
 
 namespace YModemWin;
 
 public partial class App : Application
 {
     private IDisposable? sentrySdk;
+    private Window? mainWindow;
 
-    protected override void OnStartup(StartupEventArgs e)
+    public App()
+    {
+        InitializeComponent();
+        RequestedTheme = ApplicationTheme.Dark;
+        UnhandledException += (_, eventArgs) =>
+        {
+            AppLogger.Error(eventArgs.Exception, "Unhandled UI exception\n{StackTrace}", eventArgs.Exception.StackTrace ?? "(no stack trace)");
+            Sentry.SentrySdk.CaptureException(eventArgs.Exception);
+            eventArgs.Handled = true;
+        };
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            sentrySdk?.Dispose();
+            AppLogger.Shutdown();
+        };
+    }
+
+    protected override void OnLaunched(LaunchActivatedEventArgs args)
     {
         LoadLocalizationResources();
         var dotenvPath = DotEnvLoader.Load();
-
         AppLogger.Initialize();
+
         if (!string.IsNullOrWhiteSpace(dotenvPath))
         {
             AppLogger.Info("Loaded .env from {DotEnvPath}", dotenvPath);
@@ -24,7 +43,7 @@ public partial class App : Application
         var sentryDsn = Environment.GetEnvironmentVariable("SENTRY_DSN");
         if (!string.IsNullOrWhiteSpace(sentryDsn))
         {
-            sentrySdk = SentrySdk.Init(options =>
+            sentrySdk = Sentry.SentrySdk.Init(options =>
             {
                 options.Dsn = sentryDsn;
                 options.Debug = false;
@@ -36,74 +55,62 @@ public partial class App : Application
             });
 
             AppLogger.Info("Sentry initialized.");
-            SentrySdk.CaptureMessage("Hello Sentry");
         }
         else
         {
             AppLogger.Warn("Sentry DSN is empty; Sentry is disabled.");
         }
 
-        DispatcherUnhandledException += (_, args) =>
+        AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
         {
-            AppLogger.Error(args.Exception, "Unhandled UI exception");
-            SentrySdk.CaptureException(args.Exception);
-        };
-
-        AppDomain.CurrentDomain.UnhandledException += (_, args) =>
-        {
-            if (args.ExceptionObject is Exception exception)
+            if (eventArgs.ExceptionObject is Exception exception)
             {
-                AppLogger.Error(exception, "Unhandled domain exception. IsTerminating={IsTerminating}", args.IsTerminating);
-                SentrySdk.CaptureException(exception);
+                AppLogger.Error(exception, "Unhandled domain exception. IsTerminating={IsTerminating}", eventArgs.IsTerminating);
+                Sentry.SentrySdk.CaptureException(exception);
             }
         };
 
-        TaskScheduler.UnobservedTaskException += (_, args) =>
+        TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
         {
-            AppLogger.Error(args.Exception, "Unobserved task exception");
-            SentrySdk.CaptureException(args.Exception);
-            args.SetObserved();
+            AppLogger.Error(eventArgs.Exception, "Unobserved task exception");
+            Sentry.SentrySdk.CaptureException(eventArgs.Exception);
+            eventArgs.SetObserved();
         };
 
-        AppLogger.Info("Application startup complete.");
-        base.OnStartup(e);
+        mainWindow = new MainWindow();
+        mainWindow.Activate();
     }
-
 
     private void LoadLocalizationResources()
     {
+        var basePath = AppContext.BaseDirectory;
+        AddLocalizationDictionary(Path.Combine(basePath, "Localization", "Strings.en-us.xaml"));
+
         var isChinese = CultureInfo.CurrentUICulture.Name.StartsWith("zh", StringComparison.OrdinalIgnoreCase);
-        var cultureResource = isChinese ? "Localization/Strings.zh-CN.xaml" : "Localization/Strings.en-US.xaml";
-
-        var dictionaries = Resources.MergedDictionaries;
-        for (var i = dictionaries.Count - 1; i >= 0; i--)
-        {
-            var source = dictionaries[i].Source?.OriginalString ?? string.Empty;
-            if (source.Contains("Localization/Strings.", StringComparison.OrdinalIgnoreCase))
-            {
-                dictionaries.RemoveAt(i);
-            }
-        }
-
-        dictionaries.Add(new ResourceDictionary
-        {
-            Source = new Uri("Localization/Strings.en-US.xaml", UriKind.Relative)
-        });
-
         if (isChinese)
         {
-            dictionaries.Add(new ResourceDictionary
-            {
-                Source = new Uri(cultureResource, UriKind.Relative)
-            });
+            AddLocalizationDictionary(Path.Combine(basePath, "Localization", "Strings.zh-cn.xaml"));
         }
     }
 
-    protected override void OnExit(ExitEventArgs e)
+    private void AddLocalizationDictionary(string path)
     {
-        AppLogger.Info("Application exit with code {ExitCode}", e.ApplicationExitCode);
-        sentrySdk?.Dispose();
-        AppLogger.Shutdown();
-        base.OnExit(e);
+        if (!File.Exists(path))
+        {
+            return;
+        }
+
+        var doc = XDocument.Load(path);
+        XNamespace xNamespace = "http://schemas.microsoft.com/winfx/2006/xaml";
+        var keyedElements = doc.Descendants().Where(element => element.Attribute(xNamespace + "Key") is not null);
+
+        foreach (var element in keyedElements)
+        {
+            var key = element.Attribute(xNamespace + "Key")?.Value;
+            if (!string.IsNullOrWhiteSpace(key))
+            {
+                Resources[key] = element.Value;
+            }
+        }
     }
 }
