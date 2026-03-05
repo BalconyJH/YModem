@@ -373,7 +373,6 @@ public partial class MainWindow
         incomingPanel.RenderTransform = incomingTransform;
         outgoingPanel.RenderTransform = outgoingTransform;
 
-        incomingPanel.Opacity = 0;
         incomingTransform.X = slideFromRight ? offset : -offset;
         outgoingPanel.Opacity = 1;
         outgoingTransform.X = 0;
@@ -396,14 +395,6 @@ public partial class MainWindow
         Storyboard.SetTarget(outgoingTranslateAnimation, outgoingTransform);
         Storyboard.SetTargetProperty(outgoingTranslateAnimation, nameof(TranslateTransform.X));
 
-        var incomingOpacityAnimation = CreateCurveAnimation(
-            0,
-            1,
-            animationDurationMs,
-            new KeySpline { ControlPoint1 = new Windows.Foundation.Point(0.05, 0.7), ControlPoint2 = new Windows.Foundation.Point(0.1, 1.0) });
-        Storyboard.SetTarget(incomingOpacityAnimation, incomingPanel);
-        Storyboard.SetTargetProperty(incomingOpacityAnimation, nameof(UIElement.Opacity));
-
         var outgoingOpacityAnimation = CreateCurveAnimation(
             1,
             0,
@@ -414,7 +405,6 @@ public partial class MainWindow
 
         storyboard.Children.Add(incomingTranslateAnimation);
         storyboard.Children.Add(outgoingTranslateAnimation);
-        storyboard.Children.Add(incomingOpacityAnimation);
         storyboard.Children.Add(outgoingOpacityAnimation);
 
         storyboard.Completed += (_, _) =>
