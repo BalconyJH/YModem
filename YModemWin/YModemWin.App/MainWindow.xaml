@@ -9,14 +9,21 @@
 
     <Grid RowSpacing="0" UseLayoutRounding="True" Background="#FF1A1C20">
         <Grid.RowDefinitions>
-            <RowDefinition Height="40" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="220" />
         </Grid.RowDefinitions>
 
-        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="#FF23272E" HorizontalAlignment="Stretch">
-            <TextBlock x:Name="TitleBarTextBlock" Text="YModem"
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="#FF23272E" HorizontalAlignment="Stretch" MinHeight="32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="TitleBarLeftInsetColumn" Width="0" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="TitleBarRightInsetColumn" Width="0" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="1"
+                       x:Name="TitleBarTextBlock" Text="YModem"
                        Margin="12,0,0,0"
                        VerticalAlignment="Center"
                        Foreground="#FFE6E6E6"

@@ -59,6 +59,7 @@ public partial class MainWindow
     private bool preferredMinimumApiUnavailableLogged;
     private bool defaultWindowSizeApplied;
     private bool titleBarConfigured;
+    private AppWindow? currentAppWindow;
     private IntPtr hwnd = IntPtr.Zero;
     private IntPtr previousWndProc = IntPtr.Zero;
     private WndProcDelegate? wndProcDelegate;
@@ -154,8 +155,19 @@ public partial class MainWindow
             return;
         }
 
+        if (!ReferenceEquals(currentAppWindow, appWindow))
+        {
+            if (currentAppWindow is not null)
+            {
+                currentAppWindow.Changed -= OnAppWindowChanged;
+            }
+
+            currentAppWindow = appWindow;
+            currentAppWindow.Changed += OnAppWindowChanged;
+        }
+
         var titleBar = appWindow.TitleBar;
-        titleBar.PreferredHeightOption = TitleBarHeightOption.Tall;
+        titleBar.PreferredHeightOption = TitleBarHeightOption.Standard;
 
         var foreground = Windows.UI.Color.FromArgb(255, 230, 230, 230);
         var transparent = Windows.UI.Color.FromArgb(0, 0, 0, 0);
@@ -176,7 +188,40 @@ public partial class MainWindow
         titleBar.ButtonPressedForegroundColor = foreground;
         titleBar.ButtonPressedBackgroundColor = pressedBackground;
 
+        UpdateTitleBarLayoutMetrics(appWindow, windowHandle);
+
         titleBarConfigured = true;
+    }
+
+    private void OnAppWindowChanged(AppWindow sender, AppWindowChangedEventArgs args)
+    {
+        _ = DispatcherQueue.TryEnqueue(() =>
+        {
+            if (hwnd == IntPtr.Zero)
+            {
+                return;
+            }
+
+            UpdateTitleBarLayoutMetrics(sender, hwnd);
+        });
+    }
+
+    private void UpdateTitleBarLayoutMetrics(AppWindow appWindow, IntPtr windowHandle)
+    {
+        var scale = GetWindowScale(windowHandle);
+        var titleBar = appWindow.TitleBar;
+
+        var leftInsetDip = Math.Max(0, titleBar.LeftInset / scale);
+        var rightInsetDip = Math.Max(0, titleBar.RightInset / scale);
+        var titleBarHeightDip = Math.Max(0, titleBar.Height / scale);
+
+        TitleBarLeftInsetColumn.Width = new GridLength(leftInsetDip);
+        TitleBarRightInsetColumn.Width = new GridLength(rightInsetDip);
+
+        if (titleBarHeightDip > 0)
+        {
+            AppTitleBar.Height = titleBarHeightDip;
+        }
     }
 
     private bool TryApplyPresenterPreferredMinimum(IntPtr windowHandle)
@@ -434,6 +479,12 @@ public partial class MainWindow
 
     private void OnWindowClosed(object sender, WindowEventArgs args)
     {
+        if (currentAppWindow is not null)
+        {
+            currentAppWindow.Changed -= OnAppWindowChanged;
+            currentAppWindow = null;
+        }
+
         if (hwnd != IntPtr.Zero && previousWndProc != IntPtr.Zero)
         {
             _ = SetWindowLongPtr(hwnd, GwlWndProc, previousWndProc);
