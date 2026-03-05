@@ -107,7 +107,8 @@
                                       Width="170"
                                       Height="34"
                                       VerticalContentAlignment="Center"
-                                      Margin="0,0,10,0" />
+                                      Margin="0,0,10,0"
+                                      DropDownOpened="OnSerialComboBoxDropDownOpened" />
                             <ui:Button Content="{DynamicResource Button.Refresh}"
                                        Style="{StaticResource ReadableSecondaryButtonStyle}"
                                        Appearance="Secondary"
@@ -125,7 +126,8 @@
                             <ComboBox x:Name="BaudRateComboBox"
                                       Width="140"
                                       Height="34"
-                                      VerticalContentAlignment="Center">
+                                      VerticalContentAlignment="Center"
+                                      DropDownOpened="OnSerialComboBoxDropDownOpened">
                                 <ComboBoxItem Content="9600" />
                                 <ComboBoxItem Content="19200" />
                                 <ComboBoxItem Content="38400" />
@@ -152,7 +154,8 @@
                                           Width="88"
                                           Height="34"
                                           IsEditable="False"
-                                          VerticalContentAlignment="Center">
+                                          VerticalContentAlignment="Center"
+                                          DropDownOpened="OnSerialComboBoxDropDownOpened">
                                     <ComboBoxItem Content="0s" />
                                     <ComboBoxItem Content="1s" />
                                     <ComboBoxItem Content="2s" />
@@ -172,7 +175,8 @@
                                           Width="88"
                                           Height="34"
                                           IsEditable="False"
-                                          VerticalContentAlignment="Center">
+                                          VerticalContentAlignment="Center"
+                                          DropDownOpened="OnSerialComboBoxDropDownOpened">
                                     <ComboBoxItem Content="0s" />
                                     <ComboBoxItem Content="1s" />
                                     <ComboBoxItem Content="2s" />

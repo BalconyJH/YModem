@@ -498,6 +498,16 @@ public partial class MainWindow : FluentWindow
         RuntimeLogTextBox.Clear();
     }
 
+    private void OnSerialComboBoxDropDownOpened(object sender, EventArgs e)
+    {
+        if (sender is not System.Windows.Controls.ComboBox comboBox)
+        {
+            return;
+        }
+
+        comboBox.Dispatcher.BeginInvoke(() => comboBox.Focus(), DispatcherPriority.Background);
+    }
+
     private void OnSendStatus(long sent, long total, long packetNo, long totalPacket, long status, string message)
     {
         if (!ShouldUpdateUi(ref lastSendUiUpdateUtc, status))
