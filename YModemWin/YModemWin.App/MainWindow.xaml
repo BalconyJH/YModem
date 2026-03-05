@@ -230,7 +230,7 @@
                                 BorderThickness="1"
                                 BorderBrush="{DynamicResource ControlStrokeColorDefaultBrush}"
                                 CornerRadius="{DynamicResource ControlCornerRadius}">
-                            <ListView x:Name="SendFilesListView"
+                            <ui:ListView x:Name="SendFilesListView"
                                       BorderThickness="0"
                                       Background="Transparent"
                                       SelectionMode="Extended"
