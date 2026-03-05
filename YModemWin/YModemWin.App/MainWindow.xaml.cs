@@ -9,6 +9,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Composition.SystemBackdrops;
+using Microsoft.UI.Xaml.Media;
 using Windows.Storage.Pickers;
 using Windows.System;
 using WinRT.Interop;
@@ -67,13 +68,13 @@ public partial class MainWindow : Window
     {
         if (MicaController.IsSupported())
         {
-            SystemBackdrop = new MicaBackdrop();
+            SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop();
             return;
         }
 
         if (DesktopAcrylicController.IsSupported())
         {
-            SystemBackdrop = new DesktopAcrylicBackdrop();
+            SystemBackdrop = new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop();
         }
     }
 
