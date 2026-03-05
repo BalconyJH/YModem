@@ -12,6 +12,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Composition.SystemBackdrops;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Media.Animation;
 using Windows.Storage.Pickers;
 using Windows.System;
 using WinRT.Interop;
@@ -60,6 +61,7 @@ public partial class MainWindow
     private IntPtr hwnd = IntPtr.Zero;
     private IntPtr previousWndProc = IntPtr.Zero;
     private WndProcDelegate? wndProcDelegate;
+    private int previousModeIndex;
 
     public MainWindow()
     {
@@ -74,6 +76,7 @@ public partial class MainWindow
         ReceiveTimeoutComboBox.SelectedIndex = 2;
 
         ApplyLocalizedTexts();
+        previousModeIndex = 0;
         UpdateTransferModePanelVisibility();
         RefreshPorts();
         UpdateActionButtons();
@@ -289,14 +292,109 @@ public partial class MainWindow
 
     private void OnModeSelectorBarSelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        UpdateTransferModePanelVisibility();
+        UpdateTransferModePanelVisibility(animate: true);
     }
 
-    private void UpdateTransferModePanelVisibility()
+    private void UpdateTransferModePanelVisibility(bool animate = false)
     {
         var showSendPanel = SendSelectorBarItem.IsSelected;
-        SendPanel.Visibility = showSendPanel ? Visibility.Visible : Visibility.Collapsed;
-        ReceivePanel.Visibility = showSendPanel ? Visibility.Collapsed : Visibility.Visible;
+        var currentModeIndex = showSendPanel ? 0 : 1;
+
+        if (!animate)
+        {
+            SendPanel.Visibility = showSendPanel ? Visibility.Visible : Visibility.Collapsed;
+            ReceivePanel.Visibility = showSendPanel ? Visibility.Collapsed : Visibility.Visible;
+            previousModeIndex = currentModeIndex;
+            return;
+        }
+
+        if (currentModeIndex == previousModeIndex)
+        {
+            return;
+        }
+
+        var incomingPanel = showSendPanel ? SendPanel : ReceivePanel;
+        var outgoingPanel = showSendPanel ? ReceivePanel : SendPanel;
+        var slideFromRight = currentModeIndex > previousModeIndex;
+        AnimatePanelSwitch(incomingPanel, outgoingPanel, slideFromRight);
+        previousModeIndex = currentModeIndex;
+    }
+
+    private static void AnimatePanelSwitch(Border incomingPanel, Border outgoingPanel, bool slideFromRight)
+    {
+        const double offset = 56;
+        const int animationDurationMs = 220;
+
+        incomingPanel.Visibility = Visibility.Visible;
+
+        var incomingTransform = incomingPanel.RenderTransform as TranslateTransform ?? new TranslateTransform();
+        var outgoingTransform = outgoingPanel.RenderTransform as TranslateTransform ?? new TranslateTransform();
+        incomingPanel.RenderTransform = incomingTransform;
+        outgoingPanel.RenderTransform = outgoingTransform;
+
+        incomingPanel.Opacity = 0;
+        incomingTransform.X = slideFromRight ? offset : -offset;
+        outgoingPanel.Opacity = 1;
+        outgoingTransform.X = 0;
+
+        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
+        var storyboard = new Storyboard();
+
+        var incomingTranslateAnimation = new DoubleAnimation
+        {
+            To = 0,
+            Duration = TimeSpan.FromMilliseconds(animationDurationMs),
+            EasingFunction = easing,
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(incomingTranslateAnimation, incomingTransform);
+        Storyboard.SetTargetProperty(incomingTranslateAnimation, nameof(TranslateTransform.X));
+
+        var outgoingTranslateAnimation = new DoubleAnimation
+        {
+            To = slideFromRight ? -offset : offset,
+            Duration = TimeSpan.FromMilliseconds(animationDurationMs),
+            EasingFunction = easing,
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(outgoingTranslateAnimation, outgoingTransform);
+        Storyboard.SetTargetProperty(outgoingTranslateAnimation, nameof(TranslateTransform.X));
+
+        var incomingOpacityAnimation = new DoubleAnimation
+        {
+            To = 1,
+            Duration = TimeSpan.FromMilliseconds(animationDurationMs),
+            EasingFunction = easing,
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(incomingOpacityAnimation, incomingPanel);
+        Storyboard.SetTargetProperty(incomingOpacityAnimation, nameof(UIElement.Opacity));
+
+        var outgoingOpacityAnimation = new DoubleAnimation
+        {
+            To = 0,
+            Duration = TimeSpan.FromMilliseconds(animationDurationMs),
+            EasingFunction = easing,
+            EnableDependentAnimation = true,
+        };
+        Storyboard.SetTarget(outgoingOpacityAnimation, outgoingPanel);
+        Storyboard.SetTargetProperty(outgoingOpacityAnimation, nameof(UIElement.Opacity));
+
+        storyboard.Children.Add(incomingTranslateAnimation);
+        storyboard.Children.Add(outgoingTranslateAnimation);
+        storyboard.Children.Add(incomingOpacityAnimation);
+        storyboard.Children.Add(outgoingOpacityAnimation);
+
+        storyboard.Completed += (_, _) =>
+        {
+            outgoingPanel.Visibility = Visibility.Collapsed;
+            outgoingPanel.Opacity = 1;
+            outgoingTransform.X = 0;
+            incomingPanel.Opacity = 1;
+            incomingTransform.X = 0;
+        };
+
+        storyboard.Begin();
     }
 
     private void OnWindowClosed(object sender, WindowEventArgs args)
