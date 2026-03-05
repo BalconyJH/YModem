@@ -1,41 +1,38 @@
 <Project Sdk="Microsoft.NET.Sdk">
-    <PropertyGroup>
-        <OutputType>WinExe</OutputType>
-        <TargetFramework>net8.0-windows</TargetFramework>
-        <UseWPF>true</UseWPF>
-        <RootNamespace>YModemWin</RootNamespace>
-        <AssemblyName>YModem</AssemblyName>
-        <Nullable>enable</Nullable>
-        <ImplicitUsings>enable</ImplicitUsings>
-        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
-        <SupportedOSPlatformVersion>7.0</SupportedOSPlatformVersion>
-    </PropertyGroup>
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows10.0.19041.0</TargetFramework>
+    <TargetPlatformMinVersion>10.0.17763.0</TargetPlatformMinVersion>
+    <RootNamespace>YModemWin</RootNamespace>
+    <AssemblyName>YModem</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <UseWinUI>true</UseWinUI>
+    <EnableMsixTooling>true</EnableMsixTooling>
+    <WindowsPackageType>MSIX</WindowsPackageType>
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
+  </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Sentry" Version="6.1.0"/>
-        <PackageReference Include="Sentry.Profiling" Version="6.1.0"/>
-        <PackageReference Include="Serilog" Version="4.2.0"/>
-        <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0"/>
-        <PackageReference Include="Serilog.Sinks.File" Version="6.0.0"/>
-        <PackageReference Include="DeviceProgramming" Version="1.0.8"/>
-        <PackageReference Include="WPF-UI" Version="4.2.0"/>
-        <PackageReference Include="System.IO.Ports" Version="10.0.3"/>
-    </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="1.6.250108002" />
+    <PackageReference Include="Sentry" Version="6.1.0" />
+    <PackageReference Include="Sentry.Profiling" Version="6.1.0" />
+    <PackageReference Include="Serilog" Version="4.2.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
+    <PackageReference Include="DeviceProgramming" Version="1.0.8" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.3" />
+  </ItemGroup>
 
-    <ItemGroup>
-        <ProjectReference Include="..\YModemWin.Core\YModemWin.Core.csproj" />
-    </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\YModemWin.Core\YModemWin.Core.csproj" />
+  </ItemGroup>
 
-
-    <ItemGroup>
-        <Content Include="$(NuGetPackageRoot)wpf-ui/4.2.0/**/en-US/Wpf.Ui.resources.dll"
-                 Link="en-US/Wpf.Ui.resources.dll"
-                 CopyToOutputDirectory="PreserveNewest"
-                 Visible="false" />
-        <Content Include="$(NuGetPackageRoot)wpf-ui/4.2.0/**/zh-CN/Wpf.Ui.resources.dll"
-                 Link="zh-CN/Wpf.Ui.resources.dll"
-                 CopyToOutputDirectory="PreserveNewest"
-                 Visible="false" />
-    </ItemGroup>
-
+  <ItemGroup>
+    <Manifest Include="Package.appxmanifest" />
+    <Content Include="..\..\YModem.png" Link="Assets\YModem.png" CopyToOutputDirectory="PreserveNewest" />
+    <Page Remove="Localization\*.xaml" />
+    <Content Include="Localization\*.xaml" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

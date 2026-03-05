@@ -1,6 +1,6 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-  <sys:String x:Key="App.Title" xmlns:sys="clr-namespace:System;assembly=mscorlib">YModem WPF</sys:String>
+  <sys:String x:Key="App.Title" xmlns:sys="clr-namespace:System;assembly=mscorlib">YModem WinUI 3</sys:String>
   <sys:String x:Key="Section.SerialConfig" xmlns:sys="clr-namespace:System;assembly=mscorlib">Serial Configuration</sys:String>
   <sys:String x:Key="Label.Port" xmlns:sys="clr-namespace:System;assembly=mscorlib">Port:</sys:String>
   <sys:String x:Key="Label.BaudRate" xmlns:sys="clr-namespace:System;assembly=mscorlib">Baud Rate:</sys:String>
