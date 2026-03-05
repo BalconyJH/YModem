@@ -361,7 +361,7 @@ public partial class MainWindow
     private static void AnimatePanelSwitch(Border incomingPanel, Border outgoingPanel, bool slideFromRight)
     {
         const double offset = 56;
-        const int animationDurationMs = 220;
+        const int animationDurationMs = 280;
 
         incomingPanel.Visibility = Visibility.Visible;
 
@@ -375,46 +375,37 @@ public partial class MainWindow
         outgoingPanel.Opacity = 1;
         outgoingTransform.X = 0;
 
-        var easing = new CubicEase { EasingMode = EasingMode.EaseOut };
         var storyboard = new Storyboard();
 
-        var incomingTranslateAnimation = new DoubleAnimation
-        {
-            To = 0,
-            Duration = TimeSpan.FromMilliseconds(animationDurationMs),
-            EasingFunction = easing,
-            EnableDependentAnimation = true,
-        };
+        var incomingTranslateAnimation = CreateCurveAnimation(
+            slideFromRight ? offset : -offset,
+            0,
+            animationDurationMs,
+            new KeySpline { ControlPoint1 = new Windows.Foundation.Point(0.12, 0.0), ControlPoint2 = new Windows.Foundation.Point(0.18, 1.0) });
         Storyboard.SetTarget(incomingTranslateAnimation, incomingTransform);
         Storyboard.SetTargetProperty(incomingTranslateAnimation, nameof(TranslateTransform.X));
 
-        var outgoingTranslateAnimation = new DoubleAnimation
-        {
-            To = slideFromRight ? -offset : offset,
-            Duration = TimeSpan.FromMilliseconds(animationDurationMs),
-            EasingFunction = easing,
-            EnableDependentAnimation = true,
-        };
+        var outgoingTranslateAnimation = CreateCurveAnimation(
+            0,
+            slideFromRight ? -offset : offset,
+            animationDurationMs,
+            new KeySpline { ControlPoint1 = new Windows.Foundation.Point(0.2, 0.0), ControlPoint2 = new Windows.Foundation.Point(0.0, 1.0) });
         Storyboard.SetTarget(outgoingTranslateAnimation, outgoingTransform);
         Storyboard.SetTargetProperty(outgoingTranslateAnimation, nameof(TranslateTransform.X));
 
-        var incomingOpacityAnimation = new DoubleAnimation
-        {
-            To = 1,
-            Duration = TimeSpan.FromMilliseconds(animationDurationMs),
-            EasingFunction = easing,
-            EnableDependentAnimation = true,
-        };
+        var incomingOpacityAnimation = CreateCurveAnimation(
+            0,
+            1,
+            animationDurationMs,
+            new KeySpline { ControlPoint1 = new Windows.Foundation.Point(0.05, 0.7), ControlPoint2 = new Windows.Foundation.Point(0.1, 1.0) });
         Storyboard.SetTarget(incomingOpacityAnimation, incomingPanel);
         Storyboard.SetTargetProperty(incomingOpacityAnimation, nameof(UIElement.Opacity));
 
-        var outgoingOpacityAnimation = new DoubleAnimation
-        {
-            To = 0,
-            Duration = TimeSpan.FromMilliseconds(animationDurationMs),
-            EasingFunction = easing,
-            EnableDependentAnimation = true,
-        };
+        var outgoingOpacityAnimation = CreateCurveAnimation(
+            1,
+            0,
+            animationDurationMs - 40,
+            new KeySpline { ControlPoint1 = new Windows.Foundation.Point(0.4, 0.0), ControlPoint2 = new Windows.Foundation.Point(1.0, 1.0) });
         Storyboard.SetTarget(outgoingOpacityAnimation, outgoingPanel);
         Storyboard.SetTargetProperty(outgoingOpacityAnimation, nameof(UIElement.Opacity));
 
@@ -433,6 +424,29 @@ public partial class MainWindow
         };
 
         storyboard.Begin();
+    }
+
+    private static DoubleAnimationUsingKeyFrames CreateCurveAnimation(double from, double to, int durationMs, KeySpline keySpline)
+    {
+        var animation = new DoubleAnimationUsingKeyFrames
+        {
+            EnableDependentAnimation = true,
+        };
+
+        animation.KeyFrames.Add(new DiscreteDoubleKeyFrame
+        {
+            KeyTime = TimeSpan.Zero,
+            Value = from,
+        });
+
+        animation.KeyFrames.Add(new SplineDoubleKeyFrame
+        {
+            KeyTime = TimeSpan.FromMilliseconds(durationMs),
+            Value = to,
+            KeySpline = keySpline,
+        });
+
+        return animation;
     }
 
     private void OnWindowClosed(object sender, WindowEventArgs args)
