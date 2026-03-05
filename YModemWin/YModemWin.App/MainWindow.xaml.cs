@@ -303,7 +303,7 @@ public partial class MainWindow
     private void ApplyLocalizedTexts()
     {
         Title = T("App.Title");
-        TitleBarTextBlock.Text = Title;
+        TitleBarTextBlock.Text = "YModem";
         PortLabelTextBlock.Text = T("Label.Port");
         BaudRateLabelTextBlock.Text = T("Label.BaudRate");
         SendTimeoutCheckBox.Content = T("Checkbox.SendTimeout");
@@ -374,7 +374,6 @@ public partial class MainWindow
         outgoingPanel.RenderTransform = outgoingTransform;
 
         incomingTransform.X = slideFromRight ? offset : -offset;
-        outgoingPanel.Opacity = 1;
         outgoingTransform.X = 0;
 
         var storyboard = new Storyboard();
@@ -395,24 +394,13 @@ public partial class MainWindow
         Storyboard.SetTarget(outgoingTranslateAnimation, outgoingTransform);
         Storyboard.SetTargetProperty(outgoingTranslateAnimation, nameof(TranslateTransform.X));
 
-        var outgoingOpacityAnimation = CreateCurveAnimation(
-            1,
-            0,
-            animationDurationMs - 40,
-            new KeySpline { ControlPoint1 = new Windows.Foundation.Point(0.4, 0.0), ControlPoint2 = new Windows.Foundation.Point(1.0, 1.0) });
-        Storyboard.SetTarget(outgoingOpacityAnimation, outgoingPanel);
-        Storyboard.SetTargetProperty(outgoingOpacityAnimation, nameof(UIElement.Opacity));
-
         storyboard.Children.Add(incomingTranslateAnimation);
         storyboard.Children.Add(outgoingTranslateAnimation);
-        storyboard.Children.Add(outgoingOpacityAnimation);
 
         storyboard.Completed += (_, _) =>
         {
             outgoingPanel.Visibility = Visibility.Collapsed;
-            outgoingPanel.Opacity = 1;
             outgoingTransform.X = 0;
-            incomingPanel.Opacity = 1;
             incomingTransform.X = 0;
         };
 
