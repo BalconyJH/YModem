@@ -1,0 +1,42 @@
+﻿# Build results
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# Visual Studio cache/options
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.DotSettings.user
+
+# JetBrains Rider
+.idea/
+
+# MSIX/Certificates (sensitive - DO NOT commit)
+*.pfx
+*.cer
+
+# Windows Store upload packages
+*.appxupload
+*.msixupload
+
+# Binlog files
+*.binlog
+
+# NuGet packages
+packages/
+*.nupkg
+
+# Publish output
+**/publish/
+
+# Crash dumps
+*.dmp
+
+# Local environment files
+.env
+.env.local
+
