@@ -1,0 +1,85 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="YModemWin.MainWindow"
+        Title="YModem"
+        Width="1200"
+        Height="760"
+        MinWidth="1000"
+        MinHeight="700">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+    <Border Grid.Row="0" Padding="12" CornerRadius="8" Background="#2C313A">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
+        <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
+        <ComboBox x:Name="PortComboBox" Width="160" Margin="0,0,10,0" />
+
+        <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0" Text="Baud" />
+        <ComboBox x:Name="BaudRateComboBox" Grid.Column="3" Width="120" Margin="0,0,10,0">
+          <ComboBoxItem Content="9600" />
+          <ComboBoxItem Content="19200" />
+          <ComboBoxItem Content="38400" />
+          <ComboBoxItem Content="57600" />
+          <ComboBoxItem Content="115200" />
+          <ComboBoxItem Content="230400" />
+          <ComboBoxItem Content="460800" />
+          <ComboBoxItem Content="921600" />
+        </ComboBox>
+
+        <Button Grid.Column="4" Content="Refresh Ports" Click="OnRefreshPortsClick" />
+      </Grid>
+    </Border>
+
+    <TabControl Grid.Row="1" Margin="0,12,0,12">
+      <TabItem Header="Send">
+        <Grid RowDefinitions="Auto,*,Auto,Auto" RowSpacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Add Files" Click="OnBrowseSendFileClick" />
+            <Button Content="Remove Selected" Click="OnDeleteSendFilesClick" />
+            <Button x:Name="SendActionButton" Content="Start Send" Click="OnStartSendClick" />
+            <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
+            <ComboBox x:Name="SendTimeoutComboBox" Width="100">
+              <ComboBoxItem Content="2" />
+              <ComboBoxItem Content="5" />
+              <ComboBoxItem Content="10" />
+              <ComboBoxItem Content="20" />
+              <ComboBoxItem Content="30" />
+            </ComboBox>
+          </StackPanel>
+
+          <ListBox x:Name="SendFilesListBox" Grid.Row="1" />
+          <ProgressBar x:Name="SendProgressBar" Grid.Row="2" Minimum="0" Maximum="100" Height="12" />
+          <TextBlock x:Name="SendStatusTextBlock" Grid.Row="3" Text="Idle" />
+        </Grid>
+      </TabItem>
+
+      <TabItem Header="Receive">
+        <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto" RowSpacing="8">
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <TextBlock VerticalAlignment="Center" Text="Save Folder" />
+            <TextBox x:Name="SaveFolderTextBox" Width="560" />
+            <Button Content="Browse" Click="OnBrowseSaveFolderClick" />
+          </StackPanel>
+
+          <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8">
+            <Button x:Name="ReceiveActionButton" Content="Start Receive" Click="OnStartReceiveClick" />
+            <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
+            <ComboBox x:Name="ReceiveTimeoutComboBox" Width="100">
+              <ComboBoxItem Content="2" />
+              <ComboBoxItem Content="5" />
+              <ComboBoxItem Content="10" />
+              <ComboBoxItem Content="20" />
+              <ComboBoxItem Content="30" />
+            </ComboBox>
+          </StackPanel>
+
+          <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="2" Minimum="0" Maximum="100" Height="12" />
+          <TextBlock x:Name="ReceiveStatusTextBlock" Grid.Row="3" Text="Idle" />
+          <TextBlock x:Name="ReceiveFileTextBlock" Grid.Row="4" Text="" />
+        </Grid>
+      </TabItem>
+    </TabControl>
+
+    <Border Grid.Row="2" Padding="8" CornerRadius="6" Background="#252A32">
+      <TextBox x:Name="RuntimeLogTextBox" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" Height="140" />
+    </Border>
+  </Grid>
+</Window>
