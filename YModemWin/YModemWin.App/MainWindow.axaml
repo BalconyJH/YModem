@@ -3,12 +3,24 @@
         xmlns:faControls="using:FluentAvalonia.UI.Controls"
         x:Class="YModemWin.MainWindow"
         Title="YModem"
-        Width="1240"
-        Height="780"
-        MinWidth="1080"
-        MinHeight="720">
-  <Grid RowDefinitions="Auto,*,Auto" Margin="16">
-    <Border Grid.Row="0" Padding="12" CornerRadius="10" Background="#2A2F37">
+        Width="1280"
+        Height="820"
+        MinWidth="1120"
+        MinHeight="760">
+  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="16">
+    <faControls:CommandBar Grid.Row="0"
+                           Background="#2A2F37"
+                           DefaultLabelPosition="Collapsed"
+                           IsDynamicOverflowEnabled="False">
+      <faControls:CommandBar.Content>
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+          <TextBlock FontSize="16" FontWeight="SemiBold" Text="YModem" />
+          <TextBlock Opacity="0.75" Text="Cross-platform transfer console" />
+        </StackPanel>
+      </faControls:CommandBar.Content>
+    </faControls:CommandBar>
+
+    <Border Grid.Row="1" Margin="0,10,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
       <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
         <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
         <ComboBox x:Name="PortComboBox" Width="160" Margin="0,0,10,0" />
@@ -29,68 +41,85 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="1" Margin="0,12,0,12" Padding="12" CornerRadius="10" Background="#2A2F37">
-      <TabControl>
+    <Border Grid.Row="2" Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
+      <TabControl x:Name="ModeTabControl" SelectionChanged="OnModeTabSelectionChanged">
         <TabItem Header="Send">
-          <Grid RowDefinitions="Auto,*,Auto,Auto,Auto">
+          <Grid x:Name="SendTabContentGrid" RowDefinitions="Auto,*">
+            <Grid.Transitions>
+              <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.20" />
+              </Transitions>
+            </Grid.Transitions>
+
             <StackPanel Orientation="Horizontal" Spacing="8">
               <Button Content="Add Files" Click="OnBrowseSendFileClick" />
-              <Button Content="Add Parsed Files" Click="OnBrowseParsedSendFileClick" />
+              <CheckBox x:Name="SendParsedFilesCheckBox" Content="Parsed Files" VerticalAlignment="Center" />
               <Button Content="Remove Selected" Click="OnDeleteSendFilesClick" />
               <Button x:Name="SendActionButton" Content="Start Send" Click="OnStartSendClick" />
               <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
               <ComboBox x:Name="SendTimeoutComboBox" Width="100">
+                <ComboBoxItem Content="0" />
                 <ComboBoxItem Content="2" />
                 <ComboBoxItem Content="5" />
                 <ComboBoxItem Content="10" />
-                <ComboBoxItem Content="20" />
-                <ComboBoxItem Content="30" />
               </ComboBox>
             </StackPanel>
 
-            <ListBox x:Name="SendFilesListBox" Grid.Row="1" Margin="0,8,0,0" SelectionMode="Multiple" />
-
-            <faControls:InfoBar Grid.Row="2"
-                                Margin="0,8,0,0"
-                                x:Name="SendInfoBar"
-                                IsOpen="False"
-                                Severity="Informational"
-                                Message="Ready." />
-
-            <ProgressBar x:Name="SendProgressBar" Grid.Row="3" Margin="0,8,0,0" Minimum="0" Maximum="100" Height="12" />
-            <TextBlock x:Name="SendStatusTextBlock" Grid.Row="4" Margin="0,8,0,0" Text="Idle" />
+            <Grid Grid.Row="1" Margin="0,8,0,0" RowDefinitions="*,Auto,Auto">
+              <ListBox x:Name="SendFilesListBox" SelectionMode="Multiple" />
+              <faControls:InfoBar Grid.Row="1"
+                                  Margin="0,8,0,0"
+                                  x:Name="SendInfoBar"
+                                  IsOpen="False"
+                                  Severity="Informational"
+                                  Message="Ready." />
+              <TextBlock Grid.Row="2" x:Name="SendStatusTextBlock" Margin="0,8,0,0" Text="Idle" />
+            </Grid>
           </Grid>
         </TabItem>
 
         <TabItem Header="Receive">
-          <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+          <Grid x:Name="ReceiveTabContentGrid" RowDefinitions="Auto,*">
+            <Grid.Transitions>
+              <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.20" />
+              </Transitions>
+            </Grid.Transitions>
+
             <StackPanel Orientation="Horizontal" Spacing="8">
               <TextBlock VerticalAlignment="Center" Text="Save Folder" />
               <TextBox x:Name="SaveFolderTextBox" Width="560" />
               <Button Content="Browse" Click="OnBrowseSaveFolderClick" />
-            </StackPanel>
-
-            <StackPanel Grid.Row="1" Margin="0,8,0,0" Orientation="Horizontal" Spacing="8">
               <Button x:Name="ReceiveActionButton" Content="Start Receive" Click="OnStartReceiveClick" />
               <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
               <ComboBox x:Name="ReceiveTimeoutComboBox" Width="100">
+                <ComboBoxItem Content="0" />
                 <ComboBoxItem Content="2" />
                 <ComboBoxItem Content="5" />
                 <ComboBoxItem Content="10" />
-                <ComboBoxItem Content="20" />
-                <ComboBoxItem Content="30" />
               </ComboBox>
             </StackPanel>
 
-            <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="2" Margin="0,8,0,0" Minimum="0" Maximum="100" Height="12" />
-            <TextBlock x:Name="ReceiveStatusTextBlock" Grid.Row="3" Margin="0,8,0,0" Text="Idle" />
-            <TextBlock x:Name="ReceiveFileTextBlock" Grid.Row="4" Margin="0,8,0,0" Text="" />
+            <TextBlock Grid.Row="1" x:Name="ReceiveStatusTextBlock" Margin="0,8,0,0" Text="Idle" />
           </Grid>
         </TabItem>
       </TabControl>
     </Border>
 
-    <Border Grid.Row="2" Padding="10" CornerRadius="10" Background="#2A2F37">
+    <Border Grid.Row="3" Margin="0,0,0,10" Padding="10" CornerRadius="10" Background="#2A2F37">
+      <Grid RowDefinitions="Auto,Auto,Auto">
+        <ProgressBar x:Name="SendProgressBar" Minimum="0" Maximum="100" Height="12" />
+        <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="1" Margin="0,8,0,0" Minimum="0" Maximum="100" Height="12" />
+        <Grid Grid.Row="2" Margin="0,8,0,0" ColumnDefinitions="*,*,*,*">
+          <TextBlock x:Name="SendBytesTextBlock" Text="Send Bytes: 0/0" />
+          <TextBlock Grid.Column="1" x:Name="SendPacketsTextBlock" Text="Send Packets: 0/0" />
+          <TextBlock Grid.Column="2" x:Name="ReceiveBytesTextBlock" Text="Receive Bytes: 0/0" />
+          <TextBlock Grid.Column="3" x:Name="ReceivePacketsTextBlock" Text="Receive Packets: 0/0" />
+        </Grid>
+      </Grid>
+    </Border>
+
+    <Border Grid.Row="4" Padding="10" CornerRadius="10" Background="#2A2F37">
       <Grid RowDefinitions="Auto,*">
         <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
           <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Runtime Logs" />
@@ -98,7 +127,7 @@
           <Button Grid.Column="2" Content="Clear Logs" Click="OnClearLogClick" />
         </Grid>
 
-        <TextBox Grid.Row="1" x:Name="RuntimeLogTextBox" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" Height="160" />
+        <TextBox Grid.Row="1" x:Name="RuntimeLogTextBox" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" Height="170" />
       </Grid>
     </Border>
   </Grid>

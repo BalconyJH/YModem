@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO.Ports;
 using System.Text;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -44,6 +45,18 @@ public partial class MainWindow : Window
         RefreshPorts();
     }
 
+    private void OnModeTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ModeTabControl.SelectedItem is not TabItem tab)
+        {
+            return;
+        }
+
+        var target = Equals(tab.Header, "Receive") ? ReceiveTabContentGrid : SendTabContentGrid;
+        target.Opacity = 0;
+        Dispatcher.UIThread.Post(() => target.Opacity = 1, DispatcherPriority.Background);
+    }
+
     private void OnRuntimeLogLineReceived(string line)
     {
         Dispatcher.UIThread.Post(() =>
@@ -76,24 +89,15 @@ public partial class MainWindow : Window
         var files = await PickFilesAsync();
         foreach (var path in files)
         {
-            AddSendFile(PreparedSendFile.FromRawFile(path));
-        }
-    }
-
-    private async void OnBrowseParsedSendFileClick(object? sender, RoutedEventArgs e)
-    {
-        var files = await PickFilesAsync();
-        foreach (var path in files)
-        {
             try
             {
-                AddSendFile(PrepareParsedFile(path));
+                AddSendFile(PrepareSendFile(path, SendParsedFilesCheckBox.IsChecked == true));
             }
             catch (Exception ex)
             {
-                AppLogger.Error(ex, "Failed to parse firmware file {File}", path);
+                AppLogger.Error(ex, "Failed to prepare file {File}", path);
                 SendInfoBar.Severity = FluentAvalonia.UI.Controls.InfoBarSeverity.Warning;
-                SendInfoBar.Message = $"Failed to parse {Path.GetFileName(path)}: {ex.Message}";
+                SendInfoBar.Message = $"Failed to prepare {Path.GetFileName(path)}: {ex.Message}";
                 SendInfoBar.IsOpen = true;
             }
         }
@@ -113,22 +117,19 @@ public partial class MainWindow : Window
             .ToArray();
     }
 
-    private void AddSendFile(PreparedSendFile file)
+    private PreparedSendFile PrepareSendFile(string sourcePath, bool parsePreferred)
     {
-        if (sendFiles.Any(existing => string.Equals(existing.SourcePath, file.SourcePath, StringComparison.OrdinalIgnoreCase) &&
-                                      existing.IsParsedPayload == file.IsParsedPayload))
+        if (!parsePreferred)
         {
-            return;
+            return PreparedSendFile.FromRawFile(sourcePath);
         }
 
-        sendFiles.Add(file);
-    }
-
-    private static PreparedSendFile PrepareParsedFile(string sourcePath)
-    {
         var extension = Path.GetExtension(sourcePath);
-        var parserName = GetFirmwareParserName(extension)
-                         ?? throw new InvalidDataException($"Unsupported parsed format: {extension}");
+        var parserName = GetFirmwareParserName(extension);
+        if (parserName is null)
+        {
+            return PreparedSendFile.FromRawFile(sourcePath);
+        }
 
         var memory = ParseFirmwareMemory(sourcePath, extension);
         var segments = memory.Segments.OrderBy(segment => segment.StartAddress).ToList();
@@ -156,6 +157,17 @@ public partial class MainWindow : Window
             Path.GetFileName(sourcePath), parserName, segments.Count, payload.Length);
 
         return PreparedSendFile.FromParsedData(sourcePath, payload);
+    }
+
+    private void AddSendFile(PreparedSendFile file)
+    {
+        if (sendFiles.Any(existing => string.Equals(existing.SourcePath, file.SourcePath, StringComparison.OrdinalIgnoreCase) &&
+                                      existing.IsParsedPayload == file.IsParsedPayload))
+        {
+            return;
+        }
+
+        sendFiles.Add(file);
     }
 
     private static RawMemory ParseFirmwareMemory(string filePath, string extension)
@@ -306,7 +318,9 @@ public partial class MainWindow : Window
         {
             var progress = totalBytes <= 0 ? 0 : (double)sentBytes / totalBytes * 100;
             SendProgressBar.Value = Math.Clamp(progress, 0, 100);
-            SendStatusTextBlock.Text = $"{message} ({sentBytes}/{totalBytes} bytes, {sentPackets}/{totalPackets} packets, status={status})";
+            SendStatusTextBlock.Text = $"{message} (status={status})";
+            SendBytesTextBlock.Text = $"Send Bytes: {sentBytes}/{totalBytes}";
+            SendPacketsTextBlock.Text = $"Send Packets: {sentPackets}/{totalPackets}";
 
             if (status < 0)
             {
@@ -329,8 +343,11 @@ public partial class MainWindow : Window
         {
             var progress = totalBytes <= 0 ? 0 : (double)receivedBytes / totalBytes * 100;
             ReceiveProgressBar.Value = Math.Clamp(progress, 0, 100);
-            ReceiveStatusTextBlock.Text = $"{message} ({receivedBytes}/{totalBytes} bytes, {packetNo}/{totalPacket} packets, status={status})";
-            ReceiveFileTextBlock.Text = string.IsNullOrWhiteSpace(fileName) ? string.Empty : $"File: {fileName} | Date: {fileDate}";
+            ReceiveStatusTextBlock.Text = string.IsNullOrWhiteSpace(fileName)
+                ? $"{message} (status={status})"
+                : $"{message} | File: {fileName} | Date: {fileDate} (status={status})";
+            ReceiveBytesTextBlock.Text = $"Receive Bytes: {receivedBytes}/{totalBytes}";
+            ReceivePacketsTextBlock.Text = $"Receive Packets: {packetNo}/{totalPacket}";
         });
     }
 
