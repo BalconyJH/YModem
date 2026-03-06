@@ -35,7 +35,8 @@
 				<uap:DefaultTile
 					Square71x71Logo="Assets\SmallTile.png"
 					Wide310x150Logo="Assets\WideTile.png"
-					Square310x310Logo="Assets\LargeTile.png" />
+					Square310x310Logo="Assets\LargeTile.png" >
+				</uap:DefaultTile>
 
 				<uap:SplashScreen Image="Assets\SplashScreen.png" />
 			</uap:VisualElements>
