@@ -24,6 +24,7 @@
     <AppxBundle>Never</AppxBundle>
     <UapAppxPackageBuildMode>None</UapAppxPackageBuildMode>
     <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <DeployOnBuild>false</DeployOnBuild>
     <GenerateProjectPriFile>false</GenerateProjectPriFile>
     <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
     <GenerateTestArtifacts>false</GenerateTestArtifacts>
