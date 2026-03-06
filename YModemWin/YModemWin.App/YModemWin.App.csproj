@@ -20,6 +20,11 @@
 
     <ApplicationIcon>Assets\Square256x256Logo.ico</ApplicationIcon>
     <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
+    <GenerateAppxPackageOnBuild>false</GenerateAppxPackageOnBuild>
+    <AppxPackage>false</AppxPackage>
+    <AppxBundle>Never</AppxBundle>
+    <UapAppxPackageBuildMode>None</UapAppxPackageBuildMode>
+    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
     <GenerateProjectPriFile>false</GenerateProjectPriFile>
     <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
     <GenerateTestArtifacts>false</GenerateTestArtifacts>

@@ -32,10 +32,12 @@ Publish output is produced under `YModemWin/YModemWin.App/bin/Release/net8.0-win
 
 
 ### Troubleshooting
-If you hit `MrtCore.PriGen.targets` / `ExpandPriContent` errors in Rider or `dotnet build` (missing `Microsoft.Build.Packaging.Pri.Tasks.dll`), this project disables PRI generation for unpackaged builds (`GenerateProjectPriFile=false`, `AppxGeneratePriEnabled=false`).
+If you hit `MrtCore.PriGen.targets` errors in Rider or `dotnet build` (for example missing `Microsoft.Build.Packaging.Pri.Tasks.dll` or `Microsoft.Build.AppxPackage.dll`), this project disables both PRI and Appx/MSIX packaging targets for unpackaged builds (`GenerateProjectPriFile=false`, `AppxGeneratePriEnabled=false`, `GenerateAppxPackageOnBuild=false`, `AppxPackage=false`).
 
 If your local `obj` cache was created before this change, clean and rebuild:
 ```bash
 dotnet clean YModemWin/YModemWin.App/YModemWin.App.csproj -c Debug
 dotnet build YModemWin/YModemWin.App/YModemWin.App.csproj -c Debug
 ```
+
+If Rider still triggers deploy packaging steps, disable "Deploy" in the run configuration for local debug.
