@@ -133,7 +133,7 @@ public partial class MainWindow : Window
             return;
         }
 
-        transmitter?.StopTransmission();
+        transmitter?.StopTransmitting();
         isSending = false;
         SendActionButton.Content = "Start Send";
         SendStatusTextBlock.Text = "Send canceled by user.";
