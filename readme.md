@@ -12,3 +12,20 @@
 
 Attachments: YMODEM协议参考中文译制版
 XMODEM-YMODEM-Protocol-Reference_881014
+
+
+## Windows build and debug (non-MSIX)
+
+The WinUI project now uses an unpackaged deployment model (`WindowsPackageType=None`) to make local debugging easier in JetBrains Rider and avoid MSIX certificate/signing requirements.
+
+### Run from Rider
+1. Open `YModemWin/YModemWin.sln` in Rider.
+2. Set `YModemWin.App` as startup project with `Debug | x64`.
+3. Run/Debug directly; the app starts as a normal desktop process instead of an MSIX-installed app.
+
+### Publish an unpackaged build
+```bash
+dotnet publish YModemWin/YModemWin.App/YModemWin.App.csproj -c Release -r win-x64 --self-contained false
+```
+
+Publish output is produced under `YModemWin/YModemWin.App/bin/Release/net8.0-windows10.0.19041.0/win-x64/publish/`.

@@ -9,25 +9,18 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <UseWinUI>true</UseWinUI>
-    <EnableMsixTooling>true</EnableMsixTooling>
-    <WindowsPackageType>MSIX</WindowsPackageType>
+    <EnableMsixTooling>false</EnableMsixTooling>
+    <WindowsPackageType>None</WindowsPackageType>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <PlatformTarget>x64</PlatformTarget>
-    <WindowsAppSdkBootstrapInitialize>false</WindowsAppSdkBootstrapInitialize>
+    <WindowsAppSdkBootstrapInitialize>true</WindowsAppSdkBootstrapInitialize>
 <!--    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>-->
     <WindowsAppSdkDeploymentManagerInitialize>false</WindowsAppSdkDeploymentManagerInitialize>
 
-    <PackageCertificateThumbprint>33DB6222982CF0DF47798E6338A23AA78C548519</PackageCertificateThumbprint>
-<!--    <PackageCertificateKeyFile>YModemWin-MsixTest.pfx</PackageCertificateKeyFile>-->
-<!--    <PackageCertificatePassword>pfx-pass</PackageCertificatePassword>-->
     <ApplicationIcon>Assets\Square256x256Logo.ico</ApplicationIcon>
-    <GenerateAppInstallerFile>False</GenerateAppInstallerFile>
-    <AppxPackageSigningEnabled>True</AppxPackageSigningEnabled>
-    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
-    <AppxAutoIncrementPackageRevision>True</AppxAutoIncrementPackageRevision>
-    <AppxSymbolPackageEnabled>True</AppxSymbolPackageEnabled>
-    <GenerateTestArtifacts>True</GenerateTestArtifacts>
+    <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
+    <GenerateTestArtifacts>false</GenerateTestArtifacts>
   </PropertyGroup>
 
   <ItemGroup>
@@ -47,7 +40,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Manifest Include="Package.appxmanifest" />
     <Page Remove="Localization\*.xaml" />
     <Content Include="Localization\*.xaml" CopyToOutputDirectory="PreserveNewest" />
     <PRIResource Remove="Localization\*.xaml" />
