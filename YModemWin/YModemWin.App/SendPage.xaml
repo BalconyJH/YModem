@@ -1,0 +1,46 @@
+﻿<Page
+    x:Class="YModemWin.SendPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    mc:Ignorable="d"
+    NavigationCacheMode="Required">
+
+    <Border
+        Padding="12"
+        CornerRadius="8"
+        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+        <Grid RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
+                <Button x:Name="AddSendFileButton" x:FieldModifier="internal" Click="OnBrowseSendFileClick" />
+                <Button x:Name="DeleteSendFilesButton" x:FieldModifier="internal" Click="OnDeleteSendFilesClick" />
+                <ToggleButton x:Name="SendActionButton" x:FieldModifier="internal" Click="OnStartSendClick" />
+            </StackPanel>
+
+            <ListView Grid.Row="1"
+                      x:Name="SendFilesListView" x:FieldModifier="internal"
+                      SelectionMode="Extended"
+                      KeyDown="OnSendFilesListKeyDown" />
+
+            <muxc:InfoBar Grid.Row="2" x:Name="SendInfoBar" x:FieldModifier="internal" IsOpen="False" Severity="Warning" />
+            <ProgressBar Grid.Row="3" x:Name="SendProgressBar" x:FieldModifier="internal" Height="6" Minimum="0" Maximum="100" />
+            <TextBlock Grid.Row="4" x:Name="SendStatusTextBlock" x:FieldModifier="internal" />
+
+            <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="16">
+                <TextBlock x:Name="SendBytesTextBlock" x:FieldModifier="internal" />
+                <TextBlock x:Name="SendPacketsTextBlock" x:FieldModifier="internal" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Page>

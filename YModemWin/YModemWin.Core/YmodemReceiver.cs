@@ -20,8 +20,11 @@ namespace YModemWin.Core
         private const byte CAN = 0x18; // 取消传输标识
         private const byte C = 0x43; // 'C' 字符，表示准备接收数据
         private const byte CTRLZ = 0x1A; // 填充字符
+        
+        private const int CancelCheckIntervalMs = 200; // 取消检查间隔
 
         private SerialPort serialPort; // 串口对象
+        private int originalReadTimeout;
         public string? saveFileName; // 文件保存路径
         public DateTime saveFileDate; //文件修改日期
         public string? saveFilePath; // 文件保存路径
@@ -40,13 +43,43 @@ namespace YModemWin.Core
         public YModemReceiver(SerialPort sp, int timeoutSeconds, string path, Action<long,long, long, long, long, string,string, string> action)
         {
             serialPort = sp;
-
-            serialPort.ReadTimeout = timeoutSeconds <= 0 ? 1000000 : timeoutSeconds * 1000;
+            originalReadTimeout = timeoutSeconds <= 0 ? 1000000 : timeoutSeconds * 1000;
+            serialPort.ReadTimeout = originalReadTimeout;
             saveDirectory = path;
             isTransmissionComplete = false;
             status = 0;
             expectedPackageNo = 0;
             RefreshReceiveUI = action;
+        }
+        
+        /// <summary>
+        /// 可取消的读取单个字节
+        /// </summary>
+        private int ReadByteWithCancel()
+        {
+            var elapsed = 0;
+            serialPort.ReadTimeout = CancelCheckIntervalMs;
+            
+            try
+            {
+                while (!isTransmissionComplete && elapsed < originalReadTimeout)
+                {
+                    try
+                    {
+                        return serialPort.ReadByte();
+                    }
+                    catch (TimeoutException)
+                    {
+                        elapsed += CancelCheckIntervalMs;
+                    }
+                }
+                
+                return isTransmissionComplete ? -2 : -1; // -2 = 用户取消, -1 = 超时
+            }
+            finally
+            {
+                serialPort.ReadTimeout = originalReadTimeout;
+            }
         }
 
         public void StartReceiving()
@@ -141,6 +174,15 @@ namespace YModemWin.Core
                             RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive task was canceled by sender", saveFileName ?? "", saveFileDate.ToShortDateString());
                         }
                     }
+                    else if (packetLength == -2)
+                    {
+                        // 用户取消
+                        transaction.Finish(SpanStatus.Cancelled);
+                        transactionFinished = true;
+                        status = -2;
+                        isTransmissionComplete = true;
+                        RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive canceled by user", saveFileName ?? "", saveFileDate.ToShortDateString());
+                    }
                     else if (expectedPackageNo != 0)
                     {
                         transaction.Finish(SpanStatus.InternalError);
@@ -178,9 +220,19 @@ namespace YModemWin.Core
         public void StopReceiving()
         {
             isTransmissionComplete = true;
-            SendChar(CAN);
-            SendChar(CAN);
-            SendChar(CAN);
+            
+
+            try
+            {
+                SendChar(CAN);
+                SendChar(CAN);
+                SendChar(CAN);
+            }
+            catch
+            {
+                // 忽略异常
+            }
+            
             status = -2;
             RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive canceled by user", saveFileName ?? "", saveFileDate.ToShortDateString());
 
@@ -194,14 +246,20 @@ namespace YModemWin.Core
 
             while (true)
             {
-                //System.Threading.Thread.Sleep(200);
-                var readByte = -1;
-                try
+                if (isTransmissionComplete)
                 {
-                    readByte = serialPort.ReadByte();
+                    status = -2;
+                    return -2; // 用户取消
                 }
-                catch
-                { }
+                
+                var readByte = ReadByteWithCancel();
+                
+                if (readByte == -2)
+                {
+                    status = -2;
+                    return -2; // 用户取消
+                }
+                
                 if (readByte == -1)
                 {
                     status = -1;
@@ -245,16 +303,38 @@ namespace YModemWin.Core
             var bytesRead = 1;
             while (bytesRead < packetBuffer.Length)
             {
-                var read = serialPort.Read(packetBuffer, bytesRead, packetBuffer.Length - bytesRead);
-                bytesRead += read;
-
-                if (bytesRead == 0)
+                if (isTransmissionComplete)
+                {
+                    status = -2;
+                    return -2; // 用户取消
+                }
+                
+                // 使用短超时进行轮询读取
+                serialPort.ReadTimeout = CancelCheckIntervalMs;
+                try
+                {
+                    var read = serialPort.Read(packetBuffer, bytesRead, packetBuffer.Length - bytesRead);
+                    if (read > 0)
+                    {
+                        bytesRead += read;
+                    }
+                }
+                catch (TimeoutException)
+                {
+                    // 超时继续等待，检查取消标志
+                    continue;
+                }
+                catch
                 {
                     status = -1;
                     RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Data receive timeout", saveFileName ?? "", saveFileDate.ToShortDateString());
                     return -1; // 超时或错误
                 }
+                finally
+                {
+                    serialPort.ReadTimeout = originalReadTimeout;
                 }
+            }
             status = 2;
             return bytesRead;
         }

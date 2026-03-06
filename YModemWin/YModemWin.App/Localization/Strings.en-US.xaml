@@ -16,6 +16,7 @@
   <sys:String x:Key="Checkbox.SendTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send Timeout</sys:String>
   <sys:String x:Key="Checkbox.ReceiveTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive Timeout</sys:String>
   <sys:String x:Key="Checkbox.SendParsedSegments" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send Parsed Segments Only</sys:String>
+  <sys:String x:Key="Checkbox.AutoScroll" xmlns:sys="clr-namespace:System;assembly=mscorlib">Auto Scroll</sys:String>
   <sys:String x:Key="Section.SendFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">Send Files</sys:String>
   <sys:String x:Key="Section.ReceiveFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">Receive Files</sys:String>
   <sys:String x:Key="Section.RuntimeLog" xmlns:sys="clr-namespace:System;assembly=mscorlib">Runtime Log</sys:String>
@@ -71,4 +72,10 @@
   <sys:String x:Key="Hint.WarningTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">Notice</sys:String>
   <sys:String x:Key="Dialog.AllFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">All files (*.*)|*.*</sys:String>
   <sys:String x:Key="Dialog.FirmwareFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">Firmware files (*.bin;*.hex;*.s19;*.s37;*.srec)|*.bin;*.hex;*.s19;*.s37;*.srec</sys:String>
+  <sys:String x:Key="Dialog.FirmwareFilesName" xmlns:sys="clr-namespace:System;assembly=mscorlib">Firmware files</sys:String>
+  <sys:String x:Key="Dialog.AllFilesName" xmlns:sys="clr-namespace:System;assembly=mscorlib">All files</sys:String>
+  <sys:String x:Key="Status.FolderPickerFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Failed to open folder picker. Please try again.</sys:String>
+  <sys:String x:Key="Log.FolderPickerFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">Folder picker failed. Try reopening the app or selecting a folder again.</sys:String>
+  <sys:String x:Key="Error.NoDataSegmentsFound" xmlns:sys="clr-namespace:System;assembly=mscorlib">No data segments found in '{0}'.</sys:String>
+  <sys:String x:Key="Error.NoPayloadBytesFound" xmlns:sys="clr-namespace:System;assembly=mscorlib">No payload bytes found in '{0}'.</sys:String>
 </ResourceDictionary>

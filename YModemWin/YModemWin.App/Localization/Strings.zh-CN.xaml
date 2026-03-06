@@ -16,6 +16,7 @@
   <sys:String x:Key="Checkbox.SendTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送超时</sys:String>
   <sys:String x:Key="Checkbox.ReceiveTimeout" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收超时</sys:String>
   <sys:String x:Key="Checkbox.SendParsedSegments" xmlns:sys="clr-namespace:System;assembly=mscorlib">仅发送解析后的数据段</sys:String>
+  <sys:String x:Key="Checkbox.AutoScroll" xmlns:sys="clr-namespace:System;assembly=mscorlib">自动滚动</sys:String>
   <sys:String x:Key="Section.SendFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">发送文件</sys:String>
   <sys:String x:Key="Section.ReceiveFiles" xmlns:sys="clr-namespace:System;assembly=mscorlib">接收文件</sys:String>
   <sys:String x:Key="Section.RuntimeLog" xmlns:sys="clr-namespace:System;assembly=mscorlib">运行日志</sys:String>
@@ -71,4 +72,10 @@
   <sys:String x:Key="Hint.WarningTitle" xmlns:sys="clr-namespace:System;assembly=mscorlib">提示</sys:String>
   <sys:String x:Key="Dialog.AllFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">所有文件 (*.*)|*.*</sys:String>
   <sys:String x:Key="Dialog.FirmwareFilesFilter" xmlns:sys="clr-namespace:System;assembly=mscorlib">固件文件 (*.bin;*.hex;*.s19;*.s37;*.srec)|*.bin;*.hex;*.s19;*.s37;*.srec</sys:String>
+  <sys:String x:Key="Dialog.FirmwareFilesName" xmlns:sys="clr-namespace:System;assembly=mscorlib">固件文件</sys:String>
+  <sys:String x:Key="Dialog.AllFilesName" xmlns:sys="clr-namespace:System;assembly=mscorlib">所有文件</sys:String>
+  <sys:String x:Key="Status.FolderPickerFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">打开文件夹选择器失败，请重试。</sys:String>
+  <sys:String x:Key="Log.FolderPickerFailed" xmlns:sys="clr-namespace:System;assembly=mscorlib">文件夹选择器失败，请尝试重新打开应用或再次选择文件夹。</sys:String>
+  <sys:String x:Key="Error.NoDataSegmentsFound" xmlns:sys="clr-namespace:System;assembly=mscorlib">在 '{0}' 中未找到数据段。</sys:String>
+  <sys:String x:Key="Error.NoPayloadBytesFound" xmlns:sys="clr-namespace:System;assembly=mscorlib">在 '{0}' 中未找到有效数据字节。</sys:String>
 </ResourceDictionary>

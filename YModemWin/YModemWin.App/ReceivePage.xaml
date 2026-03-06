@@ -1,0 +1,53 @@
+﻿<Page
+    x:Class="YModemWin.ReceivePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
+    mc:Ignorable="d"
+    NavigationCacheMode="Required">
+
+    <Border
+        Padding="12"
+        CornerRadius="8"
+        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+        <Grid RowSpacing="8">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0" ColumnSpacing="8">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <ToggleButton Grid.Column="0"
+                        x:Name="ReceiveActionButton" x:FieldModifier="internal"
+                        Click="OnStartReceiveClick" />
+                <TextBox Grid.Column="1"
+                         x:Name="SaveFolderTextBox" x:FieldModifier="internal" />
+                <Button Grid.Column="2"
+                        x:Name="BrowseSaveFolderButton" x:FieldModifier="internal"
+                        Click="OnBrowseSaveFolderClick" />
+            </Grid>
+
+            <TextBlock Grid.Row="1" x:Name="ReceiveFileNameTextBlock" x:FieldModifier="internal" />
+            <TextBlock Grid.Row="2" x:Name="ReceiveFileDateTextBlock" x:FieldModifier="internal" />
+            <ProgressBar Grid.Row="3" x:Name="ReceiveProgressBar" x:FieldModifier="internal" Height="6" Minimum="0" Maximum="100" />
+            <TextBlock Grid.Row="4" x:Name="ReceiveStatusTextBlock" x:FieldModifier="internal" />
+
+            <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="16">
+                <TextBlock x:Name="ReceiveBytesTextBlock" x:FieldModifier="internal" />
+                <TextBlock x:Name="ReceivePacketsTextBlock" x:FieldModifier="internal" />
+            </StackPanel>
+        </Grid>
+    </Border>
+</Page>
