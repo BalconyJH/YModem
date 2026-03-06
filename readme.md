@@ -29,3 +29,13 @@ dotnet publish YModemWin/YModemWin.App/YModemWin.App.csproj -c Release -r win-x6
 ```
 
 Publish output is produced under `YModemWin/YModemWin.App/bin/Release/net8.0-windows10.0.19041.0/win-x64/publish/`.
+
+
+### Troubleshooting
+If you hit `MrtCore.PriGen.targets` / `ExpandPriContent` errors in Rider or `dotnet build` (missing `Microsoft.Build.Packaging.Pri.Tasks.dll`), this project disables PRI generation for unpackaged builds (`GenerateProjectPriFile=false`, `AppxGeneratePriEnabled=false`).
+
+If your local `obj` cache was created before this change, clean and rebuild:
+```bash
+dotnet clean YModemWin/YModemWin.App/YModemWin.App.csproj -c Debug
+dotnet build YModemWin/YModemWin.App/YModemWin.App.csproj -c Debug
+```

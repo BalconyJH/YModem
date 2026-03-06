@@ -20,6 +20,8 @@
 
     <ApplicationIcon>Assets\Square256x256Logo.ico</ApplicationIcon>
     <GenerateAppInstallerFile>false</GenerateAppInstallerFile>
+    <GenerateProjectPriFile>false</GenerateProjectPriFile>
+    <AppxGeneratePriEnabled>false</AppxGeneratePriEnabled>
     <GenerateTestArtifacts>false</GenerateTestArtifacts>
   </PropertyGroup>
 
