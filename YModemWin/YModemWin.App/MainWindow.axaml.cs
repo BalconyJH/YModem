@@ -1,16 +1,20 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.IO.Ports;
+using System.Text;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using DeviceProgramming.FileFormat;
+using DeviceProgramming.Memory;
 using YModemWin.Core;
 
 namespace YModemWin;
 
 public partial class MainWindow : Window
 {
-    private readonly ObservableCollection<string> sendFiles = new();
+    private readonly ObservableCollection<PreparedSendFile> sendFiles = new();
     private readonly object serialLock = new();
 
     private SerialPort? activePort;
@@ -28,6 +32,8 @@ public partial class MainWindow : Window
         SendTimeoutComboBox.SelectedIndex = 2;
         ReceiveTimeoutComboBox.SelectedIndex = 2;
 
+        Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
         AppLogger.RuntimeLogLineReceived += OnRuntimeLogLineReceived;
         Closed += (_, _) =>
         {
@@ -40,7 +46,19 @@ public partial class MainWindow : Window
 
     private void OnRuntimeLogLineReceived(string line)
     {
-        Dispatcher.UIThread.Post(() => RuntimeLogTextBox.Text += line);
+        Dispatcher.UIThread.Post(() =>
+        {
+            RuntimeLogTextBox.Text += line;
+            if (AutoScrollLogCheckBox.IsChecked == true)
+            {
+                RuntimeLogTextBox.CaretIndex = RuntimeLogTextBox.Text?.Length ?? 0;
+            }
+        });
+    }
+
+    private void OnClearLogClick(object? sender, RoutedEventArgs e)
+    {
+        RuntimeLogTextBox.Text = string.Empty;
     }
 
     private void RefreshPorts()
@@ -55,27 +73,129 @@ public partial class MainWindow : Window
 
     private async void OnBrowseSendFileClick(object? sender, RoutedEventArgs e)
     {
-        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        var files = await PickFilesAsync();
+        foreach (var path in files)
         {
-            AllowMultiple = true,
-            Title = "Select files to send"
-        });
+            AddSendFile(PreparedSendFile.FromRawFile(path));
+        }
+    }
 
-        foreach (var file in files)
+    private async void OnBrowseParsedSendFileClick(object? sender, RoutedEventArgs e)
+    {
+        var files = await PickFilesAsync();
+        foreach (var path in files)
         {
-            var path = file.Path.LocalPath;
-            if (!string.IsNullOrWhiteSpace(path) && !sendFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+            try
             {
-                sendFiles.Add(path);
+                AddSendFile(PrepareParsedFile(path));
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error(ex, "Failed to parse firmware file {File}", path);
+                SendInfoBar.Severity = FluentAvalonia.UI.Controls.InfoBarSeverity.Warning;
+                SendInfoBar.Message = $"Failed to parse {Path.GetFileName(path)}: {ex.Message}";
+                SendInfoBar.IsOpen = true;
             }
         }
     }
 
+    private async Task<IReadOnlyList<string>> PickFilesAsync()
+    {
+        var files = await StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            AllowMultiple = true,
+            Title = "Select files"
+        });
+
+        return files
+            .Select(file => file.Path.LocalPath)
+            .Where(path => !string.IsNullOrWhiteSpace(path))
+            .ToArray();
+    }
+
+    private void AddSendFile(PreparedSendFile file)
+    {
+        if (sendFiles.Any(existing => string.Equals(existing.SourcePath, file.SourcePath, StringComparison.OrdinalIgnoreCase) &&
+                                      existing.IsParsedPayload == file.IsParsedPayload))
+        {
+            return;
+        }
+
+        sendFiles.Add(file);
+    }
+
+    private static PreparedSendFile PrepareParsedFile(string sourcePath)
+    {
+        var extension = Path.GetExtension(sourcePath);
+        var parserName = GetFirmwareParserName(extension)
+                         ?? throw new InvalidDataException($"Unsupported parsed format: {extension}");
+
+        var memory = ParseFirmwareMemory(sourcePath, extension);
+        var segments = memory.Segments.OrderBy(segment => segment.StartAddress).ToList();
+        if (segments.Count == 0)
+        {
+            throw new InvalidDataException($"No segments found in {Path.GetFileName(sourcePath)}");
+        }
+
+        using var stream = new MemoryStream();
+        foreach (var segment in segments)
+        {
+            if (segment.Data is { Length: > 0 })
+            {
+                stream.Write(segment.Data, 0, segment.Data.Length);
+            }
+        }
+
+        var payload = stream.ToArray();
+        if (payload.Length == 0)
+        {
+            throw new InvalidDataException($"No payload bytes found in {Path.GetFileName(sourcePath)}");
+        }
+
+        AppLogger.Info("Prepared parsed payload for {FileName} via {Parser}. SegmentCount={SegmentCount}, PayloadSize={PayloadSize}",
+            Path.GetFileName(sourcePath), parserName, segments.Count, payload.Length);
+
+        return PreparedSendFile.FromParsedData(sourcePath, payload);
+    }
+
+    private static RawMemory ParseFirmwareMemory(string filePath, string extension)
+    {
+        if (string.Equals(extension, ".hex", StringComparison.OrdinalIgnoreCase))
+        {
+            return IntelHex.ParseFile(filePath);
+        }
+
+        return SRecord.ParseFile(filePath);
+    }
+
+    private static string? GetFirmwareParserName(string extension)
+    {
+        if (string.Equals(extension, ".hex", StringComparison.OrdinalIgnoreCase))
+        {
+            return nameof(IntelHex);
+        }
+
+        if (string.Equals(extension, ".s19", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".s37", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(extension, ".srec", StringComparison.OrdinalIgnoreCase))
+        {
+            return nameof(SRecord);
+        }
+
+        return null;
+    }
+
     private void OnDeleteSendFilesClick(object? sender, RoutedEventArgs e)
     {
-        if (SendFilesListBox.SelectedItem is string selected)
+        if (SendFilesListBox.SelectedItems is null || SendFilesListBox.SelectedItems.Count == 0)
         {
-            sendFiles.Remove(selected);
+            return;
+        }
+
+        var removing = SendFilesListBox.SelectedItems.OfType<PreparedSendFile>().ToList();
+        foreach (var item in removing)
+        {
+            sendFiles.Remove(item);
         }
     }
 
@@ -112,14 +232,19 @@ public partial class MainWindow : Window
             isSending = true;
             SendActionButton.Content = "Cancel Send";
             SendStatusTextBlock.Text = "Sending...";
+            SendInfoBar.IsOpen = false;
             transmitter = new YModemTransmitter(serialPort, GetSendTimeout(), OnSendProgress);
 
             await Task.Run(() =>
             {
                 for (var i = 0; i < sendFiles.Count; i++)
                 {
+                    var item = sendFiles[i];
                     var isLastFile = i == sendFiles.Count - 1;
-                    var sent = transmitter.YmodemSendFile(sendFiles[i], isLastFile);
+                    var sent = item.ParsedPayload is null
+                        ? transmitter.YmodemSendFile(item.SourcePath, isLastFile)
+                        : transmitter.YmodemSendParsedData(item.DisplayFileName, item.LastWriteTime, item.ParsedPayload, isLastFile);
+
                     if (!sent)
                     {
                         break;
@@ -182,6 +307,19 @@ public partial class MainWindow : Window
             var progress = totalBytes <= 0 ? 0 : (double)sentBytes / totalBytes * 100;
             SendProgressBar.Value = Math.Clamp(progress, 0, 100);
             SendStatusTextBlock.Text = $"{message} ({sentBytes}/{totalBytes} bytes, {sentPackets}/{totalPackets} packets, status={status})";
+
+            if (status < 0)
+            {
+                SendInfoBar.Severity = FluentAvalonia.UI.Controls.InfoBarSeverity.Warning;
+                SendInfoBar.Message = message;
+                SendInfoBar.IsOpen = true;
+            }
+            else if (status == 1)
+            {
+                SendInfoBar.Severity = FluentAvalonia.UI.Controls.InfoBarSeverity.Success;
+                SendInfoBar.Message = message;
+                SendInfoBar.IsOpen = true;
+            }
         });
     }
 
@@ -265,9 +403,29 @@ public partial class MainWindow : Window
         }
     }
 
-    private int GetBaudRate() => int.Parse((BaudRateComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "115200");
+    private int GetBaudRate() => int.Parse((BaudRateComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "115200", CultureInfo.InvariantCulture);
 
-    private int GetSendTimeout() => int.Parse((SendTimeoutComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "10");
+    private int GetSendTimeout() => int.Parse((SendTimeoutComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "10", CultureInfo.InvariantCulture);
 
-    private int GetReceiveTimeout() => int.Parse((ReceiveTimeoutComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "10");
+    private int GetReceiveTimeout() => int.Parse((ReceiveTimeoutComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "10", CultureInfo.InvariantCulture);
+
+    private sealed record PreparedSendFile(
+        string SourcePath,
+        string DisplayFileName,
+        DateTime LastWriteTime,
+        byte[]? ParsedPayload,
+        bool IsParsedPayload)
+    {
+        public static PreparedSendFile FromRawFile(string path) =>
+            new(path, Path.GetFileName(path), File.GetLastWriteTime(path), null, false);
+
+        public static PreparedSendFile FromParsedData(string sourcePath, byte[] payload) =>
+            new(sourcePath, Path.GetFileName(sourcePath), File.GetLastWriteTime(sourcePath), payload, true);
+
+        public override string ToString()
+        {
+            var kind = IsParsedPayload ? "PARSED" : "RAW";
+            return $"[{kind}] {DisplayFileName}";
+        }
+    }
 }

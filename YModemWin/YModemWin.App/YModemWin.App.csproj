@@ -18,6 +18,7 @@
     <PackageReference Include="Avalonia.Desktop" Version="11.2.5" />
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.5" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.2.5" />
+    <PackageReference Include="FluentAvaloniaUI" Version="2.4.1" />
     <PackageReference Include="Sentry" Version="6.1.0" />
     <PackageReference Include="Sentry.Profiling" Version="6.1.0" />
     <PackageReference Include="Serilog" Version="4.2.0" />
