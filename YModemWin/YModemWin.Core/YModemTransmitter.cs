@@ -22,7 +22,11 @@ namespace YModemWin.Core
         /* 尺寸 */
         public const int DataSize = 1024;
         public const int CrcSize = 2; // CRC校验的大小
+        
+        private const int CancelCheckIntervalMs = 200; // 取消检查间隔
+        
         SerialPort serialPort;
+        private int originalReadTimeout;
         string? Path;
         int packagesent;
         int totalpackage;
@@ -40,7 +44,39 @@ namespace YModemWin.Core
             serialPort = sp;
             RefreshSendUI = action;
             dt = new DateTime(0);
-            serialPort.ReadTimeout = timeoutSeconds <= 0 ? 1000000 : timeoutSeconds * 1000;
+            originalReadTimeout = timeoutSeconds <= 0 ? 1000000 : timeoutSeconds * 1000;
+            serialPort.ReadTimeout = originalReadTimeout;
+        }
+        
+        /// <summary>
+        /// 可取消的读取单个字节，定期检查取消标志
+        /// </summary>
+        /// <returns>读取的字节，如果取消则返回 -1</returns>
+        private int ReadByteWithCancel()
+        {
+            var elapsed = 0;
+            serialPort.ReadTimeout = CancelCheckIntervalMs;
+            
+            try
+            {
+                while (!userCancel && elapsed < originalReadTimeout)
+                {
+                    try
+                    {
+                        return serialPort.ReadByte();
+                    }
+                    catch (TimeoutException)
+                    {
+                        elapsed += CancelCheckIntervalMs;
+                    }
+                }
+                
+                return userCancel ? -1 : -2; // -1 = 用户取消, -2 = 超时
+            }
+            finally
+            {
+                serialPort.ReadTimeout = originalReadTimeout;
+            }
         }
 
         //支持多文件传输，如果是仅发送一个文件，或者是多个文件的最后一个文件，输入参数isLastFile默认为真
@@ -60,7 +96,14 @@ namespace YModemWin.Core
 
         private bool YmodemSendStream(Stream fileStream, string fileName, DateTime lastWriteTime, bool isLastFile)
         {
-            userCancel = false;
+            // 如果已经取消，直接返回
+            if (userCancel)
+            {
+                status = -2;
+                RefreshSendUI?.Invoke(0, fileStream.Length, 0, 0, status, "Send canceled by user.");
+                return false;
+            }
+            
             isTramsitting = true;
             Path = fileName;
             var transaction = SentrySdk.StartTransaction("ymodem.send", "serial.transfer");
@@ -82,30 +125,60 @@ namespace YModemWin.Core
             try
             {
                 var waitReceiverReadySpan = transaction.StartChild("serial.handshake", "wait_receiver_ready");
-                while (isTramsitting)
+                while (isTramsitting && !userCancel)
                 {
                     var ret = -1;
                     try
                     {
+                        serialPort.ReadTimeout = CancelCheckIntervalMs;
                         ret = serialPort.ReadByte();
+                    }
+                    catch (TimeoutException)
+                    {
+                        // 超时继续等待
                     }
                     catch
                     {
+                        // 其他异常退出
+                        break;
+                    }
+                    finally
+                    {
+                        serialPort.ReadTimeout = originalReadTimeout;
                     }
 
                     if (ret == C) break;
-                    Thread.Sleep(30);
+                    if (userCancel) break;
                 }
 
                 waitReceiverReadySpan.Finish();
+                
+                if (userCancel)
+                {
+                    transaction.Finish(SpanStatus.Cancelled);
+                    transactionFinished = true;
+                    status = -2;
+                    RefreshSendUI?.Invoke(0, fileStream.Length, 0, totalpackage, status, "Send canceled by user.");
+                    return false;
+                }
 
                 serialPort.DiscardInBuffer();
                 if (dt.Ticks == 0) dt = DateTime.Now;
 
                 var metadataPacketSpan = transaction.StartChild("serial.packet.send", "initial_metadata_packet");
                 sendYmodemInitialPacket(STX, packetNumber, invertedPacketNumber, data, DataSize, fileName, fileStream.Length, lastWriteTime, CRC, CrcSize);
-                var read = (byte)serialPort.ReadByte();
+                var read = ReadByteWithCancel();
                 metadataPacketSpan.Finish();
+                
+                if (userCancel || read < 0)
+                {
+                    transaction.Finish(SpanStatus.Cancelled);
+                    transactionFinished = true;
+                    status = -2;
+                    RefreshSendUI?.Invoke(0, fileStream.Length, 0, totalpackage, status, "Send canceled by user.");
+                    return false;
+                }
+                
                 if (read != ACK)
                 {
                     transaction.Finish(SpanStatus.InternalError);
@@ -116,8 +189,17 @@ namespace YModemWin.Core
                     return false;
                 }
 
-                if (serialPort.ReadByte() != C)
+                var cRead = ReadByteWithCancel();
+                if (userCancel || cRead < 0 || cRead != C)
                 {
+                    if (userCancel)
+                    {
+                        transaction.Finish(SpanStatus.Cancelled);
+                        transactionFinished = true;
+                        status = -2;
+                        RefreshSendUI?.Invoke(0, fileStream.Length, 0, totalpackage, status, "Send canceled by user.");
+                        return false;
+                    }
                     transaction.Finish(SpanStatus.InternalError);
                     transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status,
@@ -129,6 +211,15 @@ namespace YModemWin.Core
                 int packageReadCount;
                 do
                 {
+                    if (userCancel)
+                    {
+                        transaction.Finish(SpanStatus.Cancelled);
+                        transactionFinished = true;
+                        status = -2;
+                        RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status, "Send canceled by user.");
+                        return false;
+                    }
+                    
                     packageReadCount = fileStream.Read(data, 0, DataSize);
                     if (packageReadCount == 0) break;
                     if (packageReadCount != DataSize)
@@ -154,9 +245,35 @@ namespace YModemWin.Core
                     dataPacketSpan.SetData("packet.number", packetNumber);
                     sendYmodemPacket(STX, packetNumber, invertedPacketNumber, data, DataSize, CRC, CrcSize);
 
-                    var signal = serialPort.ReadByte();
+                    var signal = ReadByteWithCancel();
                     dataPacketSpan.SetData("packet.signal", signal);
                     dataPacketSpan.Finish();
+                    
+                    if (userCancel || signal == -1)
+                    {
+                        try
+                        {
+                            serialPort.Write(new byte[] { CAN, CAN, CAN, CAN, CAN, CAN, CAN, CAN }, 0, 8);
+                        }
+                        catch { }
+                        transaction.Finish(SpanStatus.Cancelled);
+                        transactionFinished = true;
+                        status = -2;
+                        RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
+                            status, "Send canceled by user.");
+                        return false;
+                    }
+                    
+                    if (signal == -2)
+                    {
+                        transaction.Finish(SpanStatus.InternalError);
+                        transactionFinished = true;
+                        status = -1;
+                        RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
+                            status, "Receiver timeout");
+                        return false;
+                    }
+                    
                     if (signal == ACK)
                     {
                         status = 2;
@@ -194,30 +311,36 @@ namespace YModemWin.Core
                         Logger.Warning("Packet send failed or was canceled by receiver");
                         return false;
                     }
-
-                    if (userCancel)
+                } while (DataSize == packageReadCount && isTramsitting && !userCancel);
+                
+                if (userCancel)
+                {
+                    try
                     {
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        serialPort.Write(new byte[] { CAN }, 0, 1);
-                        transaction.Finish(SpanStatus.Cancelled);
-                        transactionFinished = true;
-                        status = -2;
-                        RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
-                            status, "Send canceled by user.");
-
-                        return false;
+                        serialPort.Write(new byte[] { CAN, CAN, CAN, CAN, CAN, CAN, CAN, CAN }, 0, 8);
                     }
-                } while (DataSize == packageReadCount && isTramsitting);
+                    catch { }
+                    transaction.Finish(SpanStatus.Cancelled);
+                    transactionFinished = true;
+                    status = -2;
+                    RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
+                        status, "Send canceled by user.");
+                    return false;
+                }
 
                 serialPort.Write(new byte[] { EOT }, 0, 1);
 
-                var act = serialPort.ReadByte();
+                var act = ReadByteWithCancel();
+                if (userCancel || act < 0)
+                {
+                    transaction.Finish(SpanStatus.Cancelled);
+                    transactionFinished = true;
+                    status = -2;
+                    RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
+                        status, "Send canceled by user.");
+                    return false;
+                }
+                
                 if ((act != ACK) && (act != NAK))
                 {
                     transaction.Finish(SpanStatus.InternalError);
@@ -234,8 +357,18 @@ namespace YModemWin.Core
                     serialPort.Write(new byte[] { EOT }, 0, 1);
                 }
 
-                if (serialPort.ReadByte() != ACK)
+                var ackRead = ReadByteWithCancel();
+                if (userCancel || ackRead < 0 || ackRead != ACK)
                 {
+                    if (userCancel)
+                    {
+                        transaction.Finish(SpanStatus.Cancelled);
+                        transactionFinished = true;
+                        status = -2;
+                        RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
+                            status, "Send canceled by user.");
+                        return false;
+                    }
                     transaction.Finish(SpanStatus.InternalError);
                     transactionFinished = true;
                     RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage, status,
@@ -247,8 +380,18 @@ namespace YModemWin.Core
 
                 if (isLastFile)
                 {
-                    if (serialPort.ReadByte() != C)
+                    var cReadFinal = ReadByteWithCancel();
+                    if (userCancel || cReadFinal < 0 || cReadFinal != C)
                     {
+                        if (userCancel)
+                        {
+                            transaction.Finish(SpanStatus.Cancelled);
+                            transactionFinished = true;
+                            status = -2;
+                            RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
+                                status, "Send canceled by user.");
+                            return false;
+                        }
                         transaction.Finish(SpanStatus.InternalError);
                         transactionFinished = true;
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
@@ -269,8 +412,18 @@ namespace YModemWin.Core
 
                     sendYmodemClosingPacket(SOH, packetNumber, invertedPacketNumber, data, 128, CRC, CrcSize);
 
-                    if (serialPort.ReadByte() != ACK)
+                    var finalAck = ReadByteWithCancel();
+                    if (userCancel || finalAck < 0 || finalAck != ACK)
                     {
+                        if (userCancel)
+                        {
+                            transaction.Finish(SpanStatus.Cancelled);
+                            transactionFinished = true;
+                            status = -2;
+                            RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
+                                status, "Send canceled by user.");
+                            return false;
+                        }
                         transaction.Finish(SpanStatus.InternalError);
                         transactionFinished = true;
                         Logger.Warning("Unable to complete transfer during EOT handshake");
@@ -316,6 +469,14 @@ namespace YModemWin.Core
             userCancel = true;
             isTramsitting = false;
         }
+        
+        /// <summary>
+        /// 重置取消状态，在新传输任务开始前调用
+        /// </summary>
+        public void ResetCancel()
+        {
+            userCancel = false;
+        }
 
         /// <summary>
         /// 发送多个文件
@@ -323,19 +484,22 @@ namespace YModemWin.Core
         /// <param name="files"></param>
         public void YmodemSendFiles(List<string> files)
         {
-            userCancel = false;
             for (var i = 0; i < files.Count; i++)
             {
+                if (userCancel) break;
+                
+                bool success;
                 if (i != files.Count - 1)
                 {
-                    YmodemSendFile(files[i], false);
+                    success = YmodemSendFile(files[i], false);
                 }
                 else
                 {
-                    YmodemSendFile(files[i]);
+                    success = YmodemSendFile(files[i]);
                 }
 
-                if (userCancel) break;
+                // 如果发送失败或取消，退出循环
+                if (!success || userCancel) break;
             }
         }
 

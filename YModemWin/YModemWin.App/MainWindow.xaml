@@ -7,14 +7,32 @@
     xmlns:muxc="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d">
 
-    <Grid Padding="16" RowSpacing="12">
+    <Grid RowSpacing="0" UseLayoutRounding="True" Background="#FF1A1C20">
         <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
             <RowDefinition Height="220" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0"
+        <Grid x:Name="AppTitleBar" Grid.Row="0" Background="#FF23272E" HorizontalAlignment="Stretch" MinHeight="32">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="TitleBarLeftInsetColumn" Width="0" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition x:Name="TitleBarRightInsetColumn" Width="0" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="1"
+                       x:Name="TitleBarTextBlock" Text="YModem"
+                       Margin="12,0,0,0"
+                       VerticalAlignment="Center"
+                       Foreground="#FFE6E6E6"
+                       Opacity="0.92"
+                       IsHitTestVisible="False" />
+        </Grid>
+
+        <Border Grid.Row="1"
+                Margin="16,12,16,0"
                 Padding="12"
                 CornerRadius="8"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
@@ -32,11 +50,14 @@
                             <StackPanel Orientation="Horizontal" Spacing="6" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
+
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <TextBlock x:Name="PortLabelTextBlock" VerticalAlignment="Center" />
                         <ComboBox x:Name="PortComboBox" Width="112" DropDownOpened="OnSerialComboBoxDropDownOpened" />
                     </StackPanel>
+
                     <Button x:Name="RefreshPortsButton" Click="OnRefreshPortsClick" />
+
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <TextBlock x:Name="BaudRateLabelTextBlock" VerticalAlignment="Center" />
                         <ComboBox x:Name="BaudRateComboBox" Width="110" DropDownOpened="OnSerialComboBoxDropDownOpened">
@@ -47,6 +68,7 @@
                             <ComboBoxItem Content="115200" />
                         </ComboBox>
                     </StackPanel>
+
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <CheckBox x:Name="SendTimeoutCheckBox" IsChecked="True" />
                         <ComboBox x:Name="SendTimeoutComboBox" Width="80" DropDownOpened="OnSerialComboBoxDropDownOpened">
@@ -56,6 +78,7 @@
                             <ComboBoxItem Content="4s" />
                         </ComboBox>
                     </StackPanel>
+
                     <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                         <CheckBox x:Name="ReceiveTimeoutCheckBox" IsChecked="True" />
                         <ComboBox x:Name="ReceiveTimeoutComboBox" Width="80" DropDownOpened="OnSerialComboBoxDropDownOpened">
@@ -65,90 +88,33 @@
                             <ComboBoxItem Content="4s" />
                         </ComboBox>
                     </StackPanel>
+
                     <CheckBox x:Name="SendParsedSegmentsCheckBox" VerticalAlignment="Center" />
                 </ItemsControl>
             </Grid>
         </Border>
 
-        <muxc:TabView Grid.Row="1"
-                      IsAddTabButtonVisible="False"
-                      TabWidthMode="Equal"
-                      Background="Transparent">
-            <muxc:TabViewItem x:Name="SendTabItem" IsClosable="False">
-                <muxc:TabViewItem.Header>
-                    <TextBlock x:Name="SendSectionTextBlock" />
-                </muxc:TabViewItem.Header>
-                <Border Padding="12"
-                        CornerRadius="8"
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                    <Grid RowSpacing="8">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="*" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+        <Grid Grid.Row="2" RowSpacing="8" Margin="16,12,16,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
 
-                        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="AddSendFileButton" Click="OnBrowseSendFileClick" />
-                            <Button x:Name="DeleteSendFilesButton" Click="OnDeleteSendFilesClick" />
-                            <Button x:Name="SendActionButton" Click="OnStartSendClick" />
-                        </StackPanel>
-                        <ListView Grid.Row="1" x:Name="SendFilesListView" SelectionMode="Extended" KeyDown="OnSendFilesListKeyDown" />
-                        <muxc:InfoBar Grid.Row="2" x:Name="SendInfoBar" IsOpen="False" Severity="Warning" />
-                        <ProgressBar Grid.Row="3" x:Name="SendProgressBar" Height="6" Minimum="0" Maximum="100" />
-                        <TextBlock Grid.Row="4" x:Name="SendStatusTextBlock" />
-                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="16">
-                            <TextBlock x:Name="SendBytesTextBlock" />
-                            <TextBlock x:Name="SendPacketsTextBlock" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </muxc:TabViewItem>
+            <muxc:SelectorBar x:Name="ModeSelectorBar"
+                              SelectionChanged="OnModeSelectorBarSelectionChanged">
+                <muxc:SelectorBarItem x:Name="SendSelectorBarItem" IsSelected="True" />
+                <muxc:SelectorBarItem x:Name="ReceiveSelectorBarItem" />
+            </muxc:SelectorBar>
 
-            <muxc:TabViewItem x:Name="ReceiveTabItem" IsClosable="False">
-                <muxc:TabViewItem.Header>
-                    <TextBlock x:Name="ReceiveSectionTextBlock" />
-                </muxc:TabViewItem.Header>
-                <Border Padding="12"
-                        CornerRadius="8"
-                        Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                    <Grid RowSpacing="8">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+            <!-- 用 Frame 承载 Send/Receive 两个 Page，并通过 Navigate + SlideNavigationTransitionInfo 切换 -->
+            <Frame x:Name="ModeFrame"
+                   Grid.Row="1"
+                   IsNavigationStackEnabled="False"
+                   CacheSize="2" />
+        </Grid>
 
-                        <Grid Grid.Row="0" ColumnSpacing="8">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="Auto" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="Auto" />
-                            </Grid.ColumnDefinitions>
-                            <Button Grid.Column="0" x:Name="ReceiveActionButton" Click="OnStartReceiveClick" />
-                            <TextBox Grid.Column="1" x:Name="SaveFolderTextBox" />
-                            <Button Grid.Column="2" x:Name="BrowseSaveFolderButton" Click="OnBrowseSaveFolderClick" />
-                        </Grid>
-                        <TextBlock Grid.Row="1" x:Name="ReceiveFileNameTextBlock" />
-                        <TextBlock Grid.Row="2" x:Name="ReceiveFileDateTextBlock" />
-                        <ProgressBar Grid.Row="3" x:Name="ReceiveProgressBar" Height="6" Minimum="0" Maximum="100" />
-                        <TextBlock Grid.Row="4" x:Name="ReceiveStatusTextBlock" />
-                        <StackPanel Grid.Row="5" Orientation="Horizontal" Spacing="16">
-                            <TextBlock x:Name="ReceiveBytesTextBlock" />
-                            <TextBlock x:Name="ReceivePacketsTextBlock" />
-                        </StackPanel>
-                    </Grid>
-                </Border>
-            </muxc:TabViewItem>
-        </muxc:TabView>
-
-        <Border Grid.Row="2"
+        <Border Grid.Row="3"
+                Margin="16,12,16,16"
                 Padding="12"
                 CornerRadius="8"
                 Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
@@ -157,10 +123,29 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                    <Button x:Name="ClearLogButton" Click="OnClearLogClick" />
-                </StackPanel>
-                <TextBox Grid.Row="1" x:Name="RuntimeLogTextBox" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" />
+
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock x:Name="RuntimeLogSectionTextBlock"
+                               VerticalAlignment="Center"
+                               FontWeight="SemiBold" />
+                    <CheckBox Grid.Column="1" 
+                              x:Name="AutoScrollLogCheckBox" 
+                              IsChecked="True"
+                              VerticalAlignment="Center"
+                              Margin="0,0,8,0" />
+                    <Button Grid.Column="2" x:Name="ClearLogButton" Click="OnClearLogClick" />
+                </Grid>
+
+                <TextBox Grid.Row="1"
+                         x:Name="RuntimeLogTextBox"
+                         AcceptsReturn="True"
+                         IsReadOnly="True"
+                         TextWrapping="Wrap" />
             </Grid>
         </Border>
     </Grid>
