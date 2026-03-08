@@ -45,14 +45,16 @@
                  Source="/Assets/YModem.png"
                  VerticalAlignment="Center" />
 
-          <TextBlock VerticalAlignment="Center">
-            <Run Text="YModem"
-                 FontSize="14"
-                 FontWeight="SemiBold" />
-            <Run Text="  Insider"
-                 FontSize="10"
-                 Opacity="0.65" />
-          </TextBlock>
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center" Spacing="4">
+            <TextBlock Text="YModem"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       VerticalAlignment="Center" />
+            <TextBlock Text="Insider"
+                       FontSize="10"
+                       Opacity="0.65"
+                       VerticalAlignment="Center" />
+          </StackPanel>
         </StackPanel>
 
         <Border Grid.Column="2"
