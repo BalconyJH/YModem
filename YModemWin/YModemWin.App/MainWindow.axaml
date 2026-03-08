@@ -9,7 +9,7 @@
         Height="820"
         MinWidth="1120"
         MinHeight="760"
-        Icon="/Assets/Square256x256Logo.ico">
+        Icon="/Assets/YModem.png">
   <faWindowing:AppWindow.Styles>
     <Style Selector="ToggleButton.NavTab">
       <Setter Property="Background" Value="Transparent" />
