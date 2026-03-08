@@ -1,0 +1,21 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="YModemWin.ReceivePage">
+  <Grid RowDefinitions="Auto,*">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <TextBlock VerticalAlignment="Center" Text="Save Folder" />
+      <TextBox x:Name="SaveFolderTextBox" Width="560" />
+      <Button Content="Browse" Click="OnBrowseSaveFolderClick" />
+      <Button x:Name="ReceiveActionButton" Content="Start Receive" Click="OnStartReceiveClick" />
+      <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
+      <ComboBox x:Name="ReceiveTimeoutComboBox" Width="100">
+        <ComboBoxItem Content="0" />
+        <ComboBoxItem Content="2" />
+        <ComboBoxItem Content="5" />
+        <ComboBoxItem Content="10" />
+      </ComboBox>
+    </StackPanel>
+
+    <TextBlock Grid.Row="1" x:Name="ReceiveStatusTextBlock" Margin="0,8,0,0" Text="Idle" />
+  </Grid>
+</UserControl>

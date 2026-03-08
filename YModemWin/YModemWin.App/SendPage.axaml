@@ -1,0 +1,31 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:faControls="using:FluentAvalonia.UI.Controls"
+             x:Class="YModemWin.SendPage">
+  <Grid RowDefinitions="Auto,*">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button Content="Add Files" Click="OnBrowseSendFileClick" />
+      <CheckBox x:Name="SendParsedFilesCheckBox" Content="Parsed Files" VerticalAlignment="Center" />
+      <Button Content="Remove Selected" Click="OnDeleteSendFilesClick" />
+      <Button x:Name="SendActionButton" Content="Start Send" Click="OnStartSendClick" />
+      <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
+      <ComboBox x:Name="SendTimeoutComboBox" Width="100">
+        <ComboBoxItem Content="0" />
+        <ComboBoxItem Content="2" />
+        <ComboBoxItem Content="5" />
+        <ComboBoxItem Content="10" />
+      </ComboBox>
+    </StackPanel>
+
+    <Grid Grid.Row="1" Margin="0,8,0,0" RowDefinitions="*,Auto,Auto">
+      <ListBox x:Name="SendFilesListBox" SelectionMode="Multiple" />
+      <faControls:InfoBar Grid.Row="1"
+                          Margin="0,8,0,0"
+                          x:Name="SendInfoBar"
+                          IsOpen="False"
+                          Severity="Informational"
+                          Message="Ready." />
+      <TextBlock Grid.Row="2" x:Name="SendStatusTextBlock" Margin="0,8,0,0" Text="Idle" />
+    </Grid>
+  </Grid>
+</UserControl>
