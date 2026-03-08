@@ -4,6 +4,7 @@ using System.IO.Ports;
 using System.Text;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using Avalonia;
 using FluentAvalonia.UI.Windowing;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
@@ -36,10 +37,10 @@ public partial class MainWindow : AppWindow
 
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
-        if (TitleBar is not null)
-        {
-            TitleBar.ExtendsContentIntoTitleBar = true;
-        }
+        UpdateTitleBar();
+        Opened += (_, _) => UpdateTitleBar();
+
+        ResetTransferProgress("Idle");
 
         AppLogger.RuntimeLogLineReceived += OnRuntimeLogLineReceived;
         Closed += (_, _) =>
@@ -251,7 +252,7 @@ public partial class MainWindow : AppWindow
         {
             if (sendFiles.Count == 0)
             {
-                SendStatusTextBlock.Text = "No files selected.";
+                ShowMainInfo("No files selected.", FluentAvalonia.UI.Controls.InfoBarSeverity.Warning);
                 return;
             }
 
@@ -262,8 +263,8 @@ public partial class MainWindow : AppWindow
 
             isSending = true;
             SendActionButton.Content = "Cancel Send";
-            SendStatusTextBlock.Text = "Sending...";
-            TransferProgressTextBlock.Text = "Sending...";
+            SendStatusTextBlock.Text = "Waiting for sender handshake...";
+            SetTransferWaiting("Sending");
             SendInfoBar.IsOpen = false;
             transmitter = new YModemTransmitter(serialPort, GetSendTimeout(), OnSendProgress);
 
@@ -294,7 +295,7 @@ public partial class MainWindow : AppWindow
         isSending = false;
         SendActionButton.Content = "Start Send";
         SendStatusTextBlock.Text = "Send canceled by user.";
-        TransferProgressTextBlock.Text = "Send canceled by user.";
+        ResetTransferProgress("Send canceled by user.");
         ClosePort();
     }
 
@@ -304,7 +305,7 @@ public partial class MainWindow : AppWindow
         {
             if (!Directory.Exists(SaveFolderTextBox.Text))
             {
-                ReceiveStatusTextBlock.Text = "Save folder does not exist.";
+                ShowMainInfo("Save folder does not exist.", FluentAvalonia.UI.Controls.InfoBarSeverity.Warning);
                 return;
             }
 
@@ -315,8 +316,8 @@ public partial class MainWindow : AppWindow
 
             isReceiving = true;
             ReceiveActionButton.Content = "Cancel Receive";
-            ReceiveStatusTextBlock.Text = "Receiving...";
-            TransferProgressTextBlock.Text = "Receiving...";
+            ReceiveStatusTextBlock.Text = "Waiting for receiver handshake...";
+            SetTransferWaiting("Receiving");
             receiver = new YModemReceiver(serialPort, GetReceiveTimeout(), SaveFolderTextBox.Text!, OnReceiveProgress);
 
             await Task.Run(() => receiver.StartReceiving());
@@ -331,7 +332,7 @@ public partial class MainWindow : AppWindow
         isReceiving = false;
         ReceiveActionButton.Content = "Start Receive";
         ReceiveStatusTextBlock.Text = "Receive canceled by user.";
-        TransferProgressTextBlock.Text = "Receive canceled by user.";
+        ResetTransferProgress("Receive canceled by user.");
         ClosePort();
     }
 
@@ -339,10 +340,22 @@ public partial class MainWindow : AppWindow
     {
         Dispatcher.UIThread.Post(() =>
         {
-            var progress = totalBytes <= 0 ? 0 : (double)sentBytes / totalBytes * 100;
-            TransferProgressBar.Value = Math.Clamp(progress, 0, 100);
+            if (totalBytes > 0)
+            {
+                var progress = (double)sentBytes / totalBytes * 100;
+                TransferProgressBar.IsIndeterminate = false;
+                TransferProgressBar.Value = Math.Clamp(progress, 0, 100);
+            }
+            else
+            {
+                TransferProgressBar.IsIndeterminate = true;
+                TransferProgressBar.Value = 0;
+            }
+
             SendStatusTextBlock.Text = $"{message} (status={status})";
-            TransferProgressTextBlock.Text = $"Send: {sentBytes}/{totalBytes} bytes";
+            TransferProgressTextBlock.Text = totalBytes > 0
+                ? $"Send: {sentBytes}/{totalBytes} bytes"
+                : "Sending: waiting for data size...";
             SendBytesTextBlock.Text = $"Send Bytes: {sentBytes}/{totalBytes}";
             SendPacketsTextBlock.Text = $"Send Packets: {sentPackets}/{totalPackets}";
 
@@ -365,15 +378,59 @@ public partial class MainWindow : AppWindow
     {
         Dispatcher.UIThread.Post(() =>
         {
-            var progress = totalBytes <= 0 ? 0 : (double)receivedBytes / totalBytes * 100;
-            TransferProgressBar.Value = Math.Clamp(progress, 0, 100);
+            if (totalBytes > 0)
+            {
+                var progress = (double)receivedBytes / totalBytes * 100;
+                TransferProgressBar.IsIndeterminate = false;
+                TransferProgressBar.Value = Math.Clamp(progress, 0, 100);
+            }
+            else
+            {
+                TransferProgressBar.IsIndeterminate = true;
+                TransferProgressBar.Value = 0;
+            }
+
             ReceiveStatusTextBlock.Text = string.IsNullOrWhiteSpace(fileName)
                 ? $"{message} (status={status})"
                 : $"{message} | File: {fileName} | Date: {fileDate} (status={status})";
-            TransferProgressTextBlock.Text = $"Receive: {receivedBytes}/{totalBytes} bytes";
+            TransferProgressTextBlock.Text = totalBytes > 0
+                ? $"Receive: {receivedBytes}/{totalBytes} bytes"
+                : "Receiving: waiting for data size...";
             ReceiveBytesTextBlock.Text = $"Receive Bytes: {receivedBytes}/{totalBytes}";
             ReceivePacketsTextBlock.Text = $"Receive Packets: {packetNo}/{totalPacket}";
         });
+    }
+
+    private void ShowMainInfo(string message, FluentAvalonia.UI.Controls.InfoBarSeverity severity)
+    {
+        MainInfoBar.Severity = severity;
+        MainInfoBar.Message = message;
+        MainInfoBar.IsOpen = true;
+    }
+
+    private void SetTransferWaiting(string action)
+    {
+        TransferProgressBar.IsIndeterminate = true;
+        TransferProgressBar.Value = 0;
+        TransferProgressTextBlock.Text = $"{action}: waiting for handshake...";
+    }
+
+    private void ResetTransferProgress(string statusText)
+    {
+        TransferProgressBar.IsIndeterminate = false;
+        TransferProgressBar.Value = 0;
+        TransferProgressTextBlock.Text = statusText;
+    }
+
+    private void UpdateTitleBar()
+    {
+        if (TitleBar is null)
+        {
+            return;
+        }
+
+        TitleBar.ExtendsContentIntoTitleBar = true;
+        TitleBarRightInsetSpacer.Width = Math.Max(TitleBar.RightInset, 0);
     }
 
     private void OnRefreshPortsClick(object? sender, RoutedEventArgs e)
@@ -388,6 +445,7 @@ public partial class MainWindow : AppWindow
         var selectedPort = PortComboBox.SelectedItem?.ToString();
         if (string.IsNullOrWhiteSpace(selectedPort))
         {
+            ShowMainInfo("Please select a serial port.", FluentAvalonia.UI.Controls.InfoBarSeverity.Warning);
             SendStatusTextBlock.Text = "Please select a serial port.";
             ReceiveStatusTextBlock.Text = "Please select a serial port.";
             return false;

@@ -3,20 +3,30 @@
         xmlns:faControls="using:FluentAvalonia.UI.Controls"
         xmlns:faWindowing="using:FluentAvalonia.UI.Windowing"
         x:Class="YModemWin.MainWindow"
-        Title=""
+        Title="YModem"
         Width="1280"
         Height="820"
         MinWidth="1120"
         MinHeight="760">
-  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16">
-    <Border Grid.Row="0" Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
-        <TextBlock VerticalAlignment="Center" Margin="0,0,12,0" FontWeight="SemiBold" Text="YModem" />
-        <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
-        <ComboBox x:Name="PortComboBox" Grid.Column="2" Width="160" Margin="0,0,10,0" />
+  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="16">
+    <Border Grid.Row="0" Margin="0,0,0,10" Padding="12,8" CornerRadius="10" Background="#2A2F37">
+      <Grid x:Name="TitleBarHost" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsHitTestVisible="False">
+          <Image Width="16" Height="16" Source="/Assets/YModem.png" />
+          <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="YModem" />
+        </StackPanel>
 
-        <TextBlock Grid.Column="3" VerticalAlignment="Center" Margin="0,0,8,0" Text="Baud" />
-        <ComboBox x:Name="BaudRateComboBox" Grid.Column="4" Width="120" Margin="0,0,10,0">
+        <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="16,0,8,0" Text="Port" />
+        <ComboBox x:Name="PortComboBox"
+                  Grid.Column="2"
+                  Width="170"
+                  faWindowing:AppWindow.AllowInteractionInTitleBar="True" />
+
+        <TextBlock Grid.Column="3" VerticalAlignment="Center" Margin="16,0,8,0" Text="Baud" />
+        <ComboBox x:Name="BaudRateComboBox"
+                  Grid.Column="4"
+                  Width="140"
+                  faWindowing:AppWindow.AllowInteractionInTitleBar="True">
           <ComboBoxItem Content="9600" />
           <ComboBoxItem Content="19200" />
           <ComboBoxItem Content="38400" />
@@ -27,11 +37,26 @@
           <ComboBoxItem Content="921600" />
         </ComboBox>
 
-        <Button Grid.Column="5" Content="Refresh Ports" Click="OnRefreshPortsClick" />
+        <Button Grid.Column="5"
+                HorizontalAlignment="Left"
+                Margin="16,0,0,0"
+                Content="Refresh Ports"
+                Click="OnRefreshPortsClick"
+                faWindowing:AppWindow.AllowInteractionInTitleBar="True" />
+
+        <Border Grid.Column="6" x:Name="TitleBarRightInsetSpacer" Width="0" />
       </Grid>
     </Border>
 
-    <Border Grid.Row="1" Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
+    <faControls:InfoBar Grid.Row="1"
+                        x:Name="MainInfoBar"
+                        IsOpen="False"
+                        IsClosable="True"
+                        Margin="0,0,0,10"
+                        Severity="Informational"
+                        Message="Ready." />
+
+    <Border Grid.Row="2" Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
       <TabControl x:Name="ModeTabControl" SelectionChanged="OnModeTabSelectionChanged">
         <TabItem Header="Send">
           <Grid x:Name="SendTabContentGrid" RowDefinitions="Auto,*">
@@ -96,7 +121,7 @@
       </TabControl>
     </Border>
 
-    <Border Grid.Row="2" Margin="0,0,0,10" Padding="10" CornerRadius="10" Background="#2A2F37">
+    <Border Grid.Row="3" Margin="0,0,0,10" Padding="10" CornerRadius="10" Background="#2A2F37">
       <Grid RowDefinitions="Auto,Auto,Auto">
         <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
           <TextBlock Text="Transfer Progress" Opacity="0.8" Margin="0,0,10,0" />
@@ -112,7 +137,7 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="3" Padding="10" CornerRadius="10" Background="#2A2F37">
+    <Border Grid.Row="4" Padding="10" CornerRadius="10" Background="#2A2F37">
       <Grid RowDefinitions="Auto,*">
         <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
           <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Runtime Logs" />
