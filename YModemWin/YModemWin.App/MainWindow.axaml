@@ -9,14 +9,33 @@
         MinWidth="1120"
         MinHeight="760">
   <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="0">
-    <Border Grid.Row="0" Padding="12,8" Background="#2A2F37">
+    <Border Grid.Row="0"
+            Height="40"
+            Padding="12,0"
+            Background="#2A2F37">
       <Grid x:Name="TitleBarHost" ColumnDefinitions="Auto,*,Auto">
-        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" IsHitTestVisible="False">
-          <Image Width="16" Height="16" Source="/Assets/YModem.png" />
-          <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="YModem" />
+        <StackPanel Orientation="Horizontal"
+                    Spacing="8"
+                    VerticalAlignment="Center"
+                    IsHitTestVisible="False">
+          <Image Width="16"
+                 Height="16"
+                 Source="/Assets/YModem.png"
+                 VerticalAlignment="Center" />
+
+          <TextBlock VerticalAlignment="Center">
+            <Run Text="YModem"
+                 FontSize="14"
+                 FontWeight="SemiBold" />
+            <Run Text="  Insider"
+                 FontSize="10"
+                 Foreground="#8CFFFFFF" />
+          </TextBlock>
         </StackPanel>
 
-        <Border Grid.Column="2" x:Name="TitleBarRightInsetSpacer" Width="0" />
+        <Border Grid.Column="2"
+                x:Name="TitleBarRightInsetSpacer"
+                Width="0" />
       </Grid>
     </Border>
 
