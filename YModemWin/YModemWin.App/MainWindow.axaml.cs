@@ -445,8 +445,12 @@ public partial class MainWindow : AppWindow
             return;
         }
 
+        const double titleBarHeight = 40;
+
         TitleBar.ExtendsContentIntoTitleBar = true;
-        TitleBar.Height = 40;
+        TitleBar.Height = titleBarHeight;
+
+        TitleBarHost.Height = titleBarHeight;
         TitleBarRightInsetSpacer.Width = Math.Max(TitleBar.RightInset, 0);
     }
 
