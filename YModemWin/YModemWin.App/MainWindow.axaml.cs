@@ -25,6 +25,8 @@ public partial class MainWindow : AppWindow
     private YModemReceiver? receiver;
     private bool isSending;
     private bool isReceiving;
+    private bool sendCancellationRequested;
+    private bool receiveCancellationRequested;
 
     public MainWindow()
     {
@@ -261,6 +263,7 @@ public partial class MainWindow : AppWindow
                 return;
             }
 
+            sendCancellationRequested = false;
             isSending = true;
             SendActionButton.Content = "Cancel Send";
             SendStatusTextBlock.Text = "Waiting for sender handshake...";
@@ -291,6 +294,7 @@ public partial class MainWindow : AppWindow
             return;
         }
 
+        sendCancellationRequested = true;
         transmitter?.StopTransmitting();
         isSending = false;
         SendActionButton.Content = "Start Send";
@@ -314,6 +318,7 @@ public partial class MainWindow : AppWindow
                 return;
             }
 
+            receiveCancellationRequested = false;
             isReceiving = true;
             ReceiveActionButton.Content = "Cancel Receive";
             ReceiveStatusTextBlock.Text = "Waiting for receiver handshake...";
@@ -328,6 +333,7 @@ public partial class MainWindow : AppWindow
             return;
         }
 
+        receiveCancellationRequested = true;
         receiver?.StopReceiving();
         isReceiving = false;
         ReceiveActionButton.Content = "Start Receive";
@@ -340,6 +346,11 @@ public partial class MainWindow : AppWindow
     {
         Dispatcher.UIThread.Post(() =>
         {
+            if (sendCancellationRequested)
+            {
+                return;
+            }
+
             if (totalBytes > 0)
             {
                 var progress = (double)sentBytes / totalBytes * 100;
@@ -378,6 +389,11 @@ public partial class MainWindow : AppWindow
     {
         Dispatcher.UIThread.Post(() =>
         {
+            if (receiveCancellationRequested)
+            {
+                return;
+            }
+
             if (totalBytes > 0)
             {
                 var progress = (double)receivedBytes / totalBytes * 100;
@@ -430,6 +446,7 @@ public partial class MainWindow : AppWindow
         }
 
         TitleBar.ExtendsContentIntoTitleBar = true;
+        TitleBar.Height = 40;
         TitleBarRightInsetSpacer.Width = Math.Max(TitleBar.RightInset, 0);
     }
 
