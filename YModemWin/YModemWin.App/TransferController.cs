@@ -161,12 +161,30 @@ public sealed class TransferController : IDisposable
     {
         sendCancellationRequested = true;
         transmitter?.StopTransmitting();
+
+        SendProgressChanged?.Invoke(new SendProgressSnapshot(
+            SentBytes: 0,
+            TotalBytes: 0,
+            SentPackets: 0,
+            TotalPackets: 0,
+            Status: -1,
+            Message: "Send canceled by user."));
     }
 
     public void CancelReceive()
     {
         receiveCancellationRequested = true;
         receiver?.StopReceiving();
+
+        ReceiveProgressChanged?.Invoke(new ReceiveProgressSnapshot(
+            ReceivedBytes: 0,
+            TotalBytes: 0,
+            PacketNo: 0,
+            TotalPacket: 0,
+            Status: -1,
+            Message: "Receive canceled by user.",
+            FileName: string.Empty,
+            FileDate: string.Empty));
     }
 
     private static RawMemory ParseFirmwareMemory(string filePath, string extension)

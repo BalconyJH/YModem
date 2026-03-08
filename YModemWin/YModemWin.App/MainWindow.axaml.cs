@@ -105,7 +105,13 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (progress.TotalBytes > 0)
+            if (progress.Status < 0)
+            {
+                TransferProgressBar.IsIndeterminate = false;
+                TransferProgressBar.Value = 0;
+                TransferProgressTextBlock.Text = progress.Message;
+            }
+            else if (progress.TotalBytes > 0)
             {
                 var percentage = (double)progress.SentBytes / progress.TotalBytes * 100;
                 TransferProgressBar.IsIndeterminate = false;
@@ -126,7 +132,13 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (progress.TotalBytes > 0)
+            if (progress.Status < 0)
+            {
+                TransferProgressBar.IsIndeterminate = false;
+                TransferProgressBar.Value = 0;
+                TransferProgressTextBlock.Text = progress.Message;
+            }
+            else if (progress.TotalBytes > 0)
             {
                 var percentage = (double)progress.ReceivedBytes / progress.TotalBytes * 100;
                 TransferProgressBar.IsIndeterminate = false;
