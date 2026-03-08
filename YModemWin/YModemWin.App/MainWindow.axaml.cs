@@ -143,30 +143,30 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         NavigateToPage(typeof(ReceivePage));
     }
 
-    private void OnGoBackClick(object? sender, RoutedEventArgs e)
-    {
-        if (TestFrame.CanGoBack)
-        {
-            TestFrame.GoBack(new SlideNavigationTransitionInfo());
-        }
-    }
-
-    private void OnGoForwardClick(object? sender, RoutedEventArgs e)
-    {
-        if (TestFrame.CanGoForward)
-        {
-            TestFrame.GoForward();
-        }
-    }
-
     private void NavigateToPage(Type pageType)
     {
-        if (TestFrame.CurrentSourcePageType == pageType)
+        var currentPageType = TestFrame.CurrentSourcePageType;
+        if (currentPageType == pageType)
         {
             return;
         }
 
-        TestFrame.Navigate(pageType, null, new SlideNavigationTransitionInfo());
+        TestFrame.Navigate(pageType, null, CreateSlideTransition(currentPageType, pageType));
+    }
+
+    private static SlideNavigationTransitionInfo CreateSlideTransition(Type? fromPageType, Type toPageType)
+    {
+        var effect = SlideNavigationTransitionEffect.FromRight;
+
+        if (fromPageType == typeof(ReceivePage) && toPageType == typeof(SendPage))
+        {
+            effect = SlideNavigationTransitionEffect.FromLeft;
+        }
+
+        return new SlideNavigationTransitionInfo
+        {
+            Effect = effect
+        };
     }
 
     private void OnFrameNavigated(object? sender, NavigationEventArgs e)

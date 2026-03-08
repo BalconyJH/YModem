@@ -93,11 +93,9 @@
 
     <Border Grid.Row="3" Margin="16,0,16,10" Padding="12" CornerRadius="10" Background="#2A2F37">
       <DockPanel>
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
           <ToggleButton x:Name="SendPageButton" Classes="NavTab" Content="Send" Click="OnNavigateSendPageClick" />
           <ToggleButton x:Name="ReceivePageButton" Grid.Column="1" Classes="NavTab" Content="Receive" Click="OnNavigateReceivePageClick" />
-          <Button Grid.Column="3" Content="Go Back" Click="OnGoBackClick" IsEnabled="{Binding #TestFrame.CanGoBack}" />
-          <Button Grid.Column="4" Content="Go Forward" Click="OnGoForwardClick" IsEnabled="{Binding #TestFrame.CanGoForward}" />
         </Grid>
 
         <ui:Frame Name="TestFrame" Margin="0,8,0,0" />
