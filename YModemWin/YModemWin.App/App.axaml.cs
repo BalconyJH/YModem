@@ -20,7 +20,10 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownRequested += (_, _) => sentrySdk?.Dispose();
-            desktop.MainWindow = new MainWindow();
+            desktop.MainWindow = new MainWindow
+            {
+                SplashScreen = new AppSplashScreen()
+            };
         }
 
         AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>

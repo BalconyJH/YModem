@@ -11,6 +11,8 @@
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\YModem.png" />
+    <AvaloniaResource Include="Assets\SplashScreen.png" />
+    <AvaloniaResource Include="Assets\Square256x256Logo.ico" />
   </ItemGroup>
 
   <ItemGroup>
