@@ -4,6 +4,8 @@ using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using FluentAvalonia.UI.Media.Animation;
+using FluentAvalonia.UI.Navigation;
 using FluentAvalonia.UI.Windowing;
 
 namespace YModemWin;
@@ -19,10 +21,12 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
         UpdateTitleBar();
+        TestFrame.Navigated += OnFrameNavigated;
+
         Opened += (_, _) =>
         {
             UpdateTitleBar();
-            TestFrame.Navigate(typeof(SendPage));
+            NavigateToPage(typeof(SendPage));
         };
 
         ResetTransferProgress("Idle");
@@ -34,6 +38,7 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         Closed += (_, _) =>
         {
             AppLogger.RuntimeLogLineReceived -= OnRuntimeLogLineReceived;
+            TestFrame.Navigated -= OnFrameNavigated;
             AppServices.TransferController.SendProgressChanged -= OnSendProgressChanged;
             AppServices.TransferController.ReceiveProgressChanged -= OnReceiveProgressChanged;
             AppServices.TransferController.Dispose();
@@ -130,12 +135,45 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
 
     private void OnNavigateSendPageClick(object? sender, RoutedEventArgs e)
     {
-        TestFrame.Navigate(typeof(SendPage));
+        NavigateToPage(typeof(SendPage));
     }
 
     private void OnNavigateReceivePageClick(object? sender, RoutedEventArgs e)
     {
-        TestFrame.Navigate(typeof(ReceivePage));
+        NavigateToPage(typeof(ReceivePage));
+    }
+
+    private void OnGoBackClick(object? sender, RoutedEventArgs e)
+    {
+        if (TestFrame.CanGoBack)
+        {
+            TestFrame.GoBack(new SlideNavigationTransitionInfo());
+        }
+    }
+
+    private void OnGoForwardClick(object? sender, RoutedEventArgs e)
+    {
+        if (TestFrame.CanGoForward)
+        {
+            TestFrame.GoForward(new SlideNavigationTransitionInfo());
+        }
+    }
+
+    private void NavigateToPage(Type pageType)
+    {
+        if (TestFrame.CurrentSourcePageType == pageType)
+        {
+            return;
+        }
+
+        TestFrame.Navigate(pageType, null, new SlideNavigationTransitionInfo());
+    }
+
+    private void OnFrameNavigated(object? sender, NavigationEventArgs e)
+    {
+        var current = e.SourcePageType;
+        SendPageButton.IsChecked = current == typeof(SendPage);
+        ReceivePageButton.IsChecked = current == typeof(ReceivePage);
     }
 
     private void OnClearLogClick(object? sender, RoutedEventArgs e)

@@ -9,6 +9,28 @@
         Height="820"
         MinWidth="1120"
         MinHeight="760">
+  <faWindowing:AppWindow.Styles>
+    <Style Selector="ToggleButton.NavTab">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="Foreground" Value="#CCFFFFFF" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <Style Selector="ToggleButton.NavTab:pointerover">
+      <Setter Property="Background" Value="#1FFFFFFF" />
+    </Style>
+
+    <Style Selector="ToggleButton.NavTab:checked">
+      <Setter Property="Background" Value="#2B4DA8FF" />
+      <Setter Property="Foreground" Value="#FFFFFFFF" />
+      <Setter Property="BorderBrush" Value="#4DA8FF" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+  </faWindowing:AppWindow.Styles>
+
   <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="0">
     <Border Grid.Row="0"
             Height="40"
@@ -71,12 +93,13 @@
 
     <Border Grid.Row="3" Margin="16,0,16,10" Padding="12" CornerRadius="10" Background="#2A2F37">
       <DockPanel>
-        <StackPanel Spacing="4" Orientation="Horizontal" DockPanel.Dock="Top">
-          <Button Content="Send Page" Click="OnNavigateSendPageClick" />
-          <Button Content="Receive Page" Click="OnNavigateReceivePageClick" />
-          <Button Content="Go Back" Command="{Binding #TestFrame.GoBack}" IsEnabled="{Binding #TestFrame.CanGoBack}" />
-          <Button Content="Go Forward" Command="{Binding #TestFrame.GoForward}" IsEnabled="{Binding #TestFrame.CanGoForward}" />
-        </StackPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*,Auto,Auto" ColumnSpacing="8">
+          <ToggleButton x:Name="SendPageButton" Classes="NavTab" Content="Send" Click="OnNavigateSendPageClick" />
+          <ToggleButton x:Name="ReceivePageButton" Grid.Column="1" Classes="NavTab" Content="Receive" Click="OnNavigateReceivePageClick" />
+          <Button Grid.Column="3" Content="Go Back" Click="OnGoBackClick" IsEnabled="{Binding #TestFrame.CanGoBack}" />
+          <Button Grid.Column="4" Content="Go Forward" Click="OnGoForwardClick" IsEnabled="{Binding #TestFrame.CanGoForward}" />
+        </Grid>
+
         <ui:Frame Name="TestFrame" Margin="0,8,0,0" />
       </DockPanel>
     </Border>
