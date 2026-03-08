@@ -155,7 +155,7 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
     {
         if (TestFrame.CanGoForward)
         {
-            TestFrame.GoForward(new SlideNavigationTransitionInfo());
+            TestFrame.GoForward();
         }
     }
 
