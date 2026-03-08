@@ -1,20 +1,22 @@
-<Window xmlns="https://github.com/avaloniaui"
+<faWindowing:AppWindow xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:faControls="using:FluentAvalonia.UI.Controls"
+        xmlns:faWindowing="using:FluentAvalonia.UI.Windowing"
         x:Class="YModemWin.MainWindow"
-        Title="YModem"
+        Title=""
         Width="1280"
         Height="820"
         MinWidth="1120"
         MinHeight="760">
   <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16">
     <Border Grid.Row="0" Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
-        <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
-        <ComboBox x:Name="PortComboBox" Width="160" Margin="0,0,10,0" />
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
+        <TextBlock VerticalAlignment="Center" Margin="0,0,12,0" FontWeight="SemiBold" Text="YModem" />
+        <TextBlock Grid.Column="1" VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
+        <ComboBox x:Name="PortComboBox" Grid.Column="2" Width="160" Margin="0,0,10,0" />
 
-        <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0" Text="Baud" />
-        <ComboBox x:Name="BaudRateComboBox" Grid.Column="3" Width="120" Margin="0,0,10,0">
+        <TextBlock Grid.Column="3" VerticalAlignment="Center" Margin="0,0,8,0" Text="Baud" />
+        <ComboBox x:Name="BaudRateComboBox" Grid.Column="4" Width="120" Margin="0,0,10,0">
           <ComboBoxItem Content="9600" />
           <ComboBoxItem Content="19200" />
           <ComboBoxItem Content="38400" />
@@ -25,7 +27,7 @@
           <ComboBoxItem Content="921600" />
         </ComboBox>
 
-        <Button Grid.Column="4" Content="Refresh Ports" Click="OnRefreshPortsClick" />
+        <Button Grid.Column="5" Content="Refresh Ports" Click="OnRefreshPortsClick" />
       </Grid>
     </Border>
 
@@ -122,4 +124,4 @@
       </Grid>
     </Border>
   </Grid>
-</Window>
+</faWindowing:AppWindow>

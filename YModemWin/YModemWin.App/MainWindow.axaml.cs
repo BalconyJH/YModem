@@ -4,6 +4,7 @@ using System.IO.Ports;
 using System.Text;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
+using FluentAvalonia.UI.Windowing;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -13,7 +14,7 @@ using YModemWin.Core;
 
 namespace YModemWin;
 
-public partial class MainWindow : Window
+public partial class MainWindow : AppWindow
 {
     private readonly ObservableCollection<PreparedSendFile> sendFiles = new();
     private readonly object serialLock = new();
@@ -34,6 +35,11 @@ public partial class MainWindow : Window
         ReceiveTimeoutComboBox.SelectedIndex = 2;
 
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+
+        if (TitleBar is not null)
+        {
+            TitleBar.ExtendsContentIntoTitleBar = true;
+        }
 
         AppLogger.RuntimeLogLineReceived += OnRuntimeLogLineReceived;
         Closed += (_, _) =>
