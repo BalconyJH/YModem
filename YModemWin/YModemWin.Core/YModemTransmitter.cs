@@ -112,6 +112,7 @@ namespace YModemWin.Core
             transaction.SetTag("ymodem.file_name", fileName);
             transaction.SetData("ymodem.file_size", fileStream.Length);
             totalpackage = (int)(fileStream.Length - 1) / YModemTransmitter.DataSize + 1;
+            packagesent = 0;
             Logger.Information("Prepared transfer with {TotalPacketCount} packet(s)", totalpackage);
 
             var invertedPacketNumber = 255;
@@ -235,7 +236,7 @@ namespace YModemWin.Core
 
                     if (packetNumber % 32 == 0 || packetNumber == 1)
                     {
-                        Logger.Debug("Transmitted packet {PacketNumber}/{TotalPacketCount}", packetNumber, totalpackage);
+                        Logger.Debug("Transmitted packet {PacketNumber}/{TotalPacketCount}", packagesent, totalpackage);
                     }
 
                     invertedPacketNumber = 255 - packetNumber;

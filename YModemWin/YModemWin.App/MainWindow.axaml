@@ -108,8 +108,8 @@
 
     <Border Grid.Row="3" Margin="0,0,0,10" Padding="10" CornerRadius="10" Background="#2A2F37">
       <Grid RowDefinitions="Auto,Auto,Auto">
-        <ProgressBar x:Name="SendProgressBar" Minimum="0" Maximum="100" Height="12" />
-        <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="1" Margin="0,8,0,0" Minimum="0" Maximum="100" Height="12" />
+        <ProgressBar x:Name="SendProgressBar" Minimum="0" Maximum="100" Height="6" />
+        <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="1" Margin="0,8,0,0" Minimum="0" Maximum="100" Height="6" />
         <Grid Grid.Row="2" Margin="0,8,0,0" ColumnDefinitions="*,*,*,*">
           <TextBlock x:Name="SendBytesTextBlock" Text="Send Bytes: 0/0" />
           <TextBlock Grid.Column="1" x:Name="SendPacketsTextBlock" Text="Send Packets: 0/0" />

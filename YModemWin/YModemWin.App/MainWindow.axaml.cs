@@ -47,14 +47,27 @@ public partial class MainWindow : Window
 
     private void OnModeTabSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
-        if (ModeTabControl.SelectedItem is not TabItem tab)
+        if (ModeTabControl?.SelectedItem is not TabItem tab)
+        {
+            return;
+        }
+
+        if (SendTabContentGrid is null || ReceiveTabContentGrid is null)
         {
             return;
         }
 
         var target = Equals(tab.Header, "Receive") ? ReceiveTabContentGrid : SendTabContentGrid;
         target.Opacity = 0;
-        Dispatcher.UIThread.Post(() => target.Opacity = 1, DispatcherPriority.Background);
+        Dispatcher.UIThread.Post(() =>
+        {
+            if (!IsLoaded)
+            {
+                return;
+            }
+
+            target.Opacity = 1;
+        }, DispatcherPriority.Background);
     }
 
     private void OnRuntimeLogLineReceived(string line)
