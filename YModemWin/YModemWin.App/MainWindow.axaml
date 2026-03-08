@@ -64,7 +64,7 @@
     </Border>
 
     <Border Grid.Row="1" Margin="16,10,16,10" Padding="12" CornerRadius="10" Background="#2A2F37">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
         <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
         <ComboBox x:Name="PortComboBox" Grid.Column="1" Width="170" Margin="0,0,16,0" />
 
@@ -80,7 +80,20 @@
           <ComboBoxItem Content="921600" />
         </ComboBox>
 
-        <Button Grid.Column="4" Content="Refresh Ports" Click="OnRefreshPortsClick" />
+        <TextBlock Grid.Column="4" VerticalAlignment="Center" Margin="0,0,8,0" Text="Language" />
+        <ComboBox x:Name="LanguageComboBox" Grid.Column="5" Width="150" Margin="0,0,16,0" SelectionChanged="OnLanguageSelectionChanged">
+          <ComboBoxItem Content="English" Tag="en-US" />
+          <ComboBoxItem Content="Chinese (Simplified)" Tag="zh-CN" />
+        </ComboBox>
+
+        <TextBlock Grid.Column="6" VerticalAlignment="Center" Margin="0,0,8,0" Text="Theme" />
+        <ComboBox x:Name="ThemeComboBox" Grid.Column="7" Width="130" Margin="0,0,16,0" SelectionChanged="OnThemeSelectionChanged">
+          <ComboBoxItem Content="Dark" Tag="Dark" />
+          <ComboBoxItem Content="Light" Tag="Light" />
+          <ComboBoxItem Content="System" Tag="Default" />
+        </ComboBox>
+
+        <Button Grid.Column="8" Content="Refresh Ports" Click="OnRefreshPortsClick" />
       </Grid>
     </Border>
 
@@ -109,7 +122,13 @@
           <TextBlock Text="Transfer Progress" Opacity="0.8" Margin="0,0,10,0" />
           <TextBlock Grid.Column="1" x:Name="TransferProgressTextBlock" Text="Idle" />
         </Grid>
-        <ProgressBar Grid.Row="1" Margin="0,8,0,0" x:Name="TransferProgressBar" Minimum="0" Maximum="100" Height="6" />
+        <ProgressBar Grid.Row="1" Margin="0,8,0,0" x:Name="TransferProgressBar" Minimum="0" Maximum="100" Height="8">
+          <ProgressBar.Transitions>
+            <Transitions>
+              <DoubleTransition Property="Value" Duration="0:0:0.18" />
+            </Transitions>
+          </ProgressBar.Transitions>
+        </ProgressBar>
         <Grid Grid.Row="2" Margin="0,8,0,0" ColumnDefinitions="*,*,*,*">
           <TextBlock x:Name="SendBytesTextBlock" Text="Send Bytes: 0/0" />
           <TextBlock Grid.Column="1" x:Name="SendPacketsTextBlock" Text="Send Packets: 0/0" />

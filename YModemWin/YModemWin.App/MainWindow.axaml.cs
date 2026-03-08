@@ -3,6 +3,7 @@ using System.Globalization;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using FluentAvalonia.UI.Media.Animation;
 using FluentAvalonia.UI.Navigation;
@@ -22,6 +23,8 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
 
         UpdateTitleBar();
         TestFrame.Navigated += OnFrameNavigated;
+        InitializeLanguageSelector();
+        InitializeThemeSelector();
 
         Opened += (_, _) =>
         {
@@ -45,6 +48,23 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         };
 
         RefreshPorts();
+    }
+
+    private void InitializeLanguageSelector()
+    {
+        var uiCulture = CultureInfo.CurrentUICulture.Name;
+        LanguageComboBox.SelectedIndex = uiCulture.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+    }
+
+    private void InitializeThemeSelector()
+    {
+        var requestedTheme = Application.Current?.RequestedThemeVariant;
+        ThemeComboBox.SelectedIndex = requestedTheme switch
+        {
+            { Key: "Light" } => 1,
+            { Key: "Default" } => 2,
+            _ => 0
+        };
     }
 
     public bool TryGetSerialSettings(out string portName, out int baudRate)
@@ -121,6 +141,43 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
     private void OnRefreshPortsClick(object? sender, RoutedEventArgs e)
     {
         RefreshPorts();
+    }
+
+    private void OnLanguageSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (LanguageComboBox.SelectedItem is not ComboBoxItem { Tag: string tag })
+        {
+            return;
+        }
+
+        var newCulture = new CultureInfo(tag);
+        CultureInfo.CurrentCulture = newCulture;
+        CultureInfo.CurrentUICulture = newCulture;
+        CultureInfo.DefaultThreadCurrentCulture = newCulture;
+        CultureInfo.DefaultThreadCurrentUICulture = newCulture;
+        YModemWin.Properties.Resources.Culture = newCulture;
+
+        ShowMainInfo("Language switched. Restart app to fully apply localized resources.", FluentAvalonia.UI.Controls.InfoBarSeverity.Informational);
+    }
+
+    private void OnThemeSelectionChanged(object? sender, SelectionChangedEventArgs e)
+    {
+        if (ThemeComboBox.SelectedItem is not ComboBoxItem { Tag: string tag })
+        {
+            return;
+        }
+
+        if (Application.Current is null)
+        {
+            return;
+        }
+
+        Application.Current.RequestedThemeVariant = tag switch
+        {
+            "Light" => ThemeVariant.Light,
+            "Default" => ThemeVariant.Default,
+            _ => ThemeVariant.Dark
+        };
     }
 
     private void RefreshPorts()
