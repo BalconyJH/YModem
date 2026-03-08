@@ -7,20 +7,8 @@
         Height="820"
         MinWidth="1120"
         MinHeight="760">
-  <Grid RowDefinitions="Auto,Auto,*,Auto,Auto" Margin="16">
-    <faControls:CommandBar Grid.Row="0"
-                           Background="#2A2F37"
-                           DefaultLabelPosition="Collapsed"
-                           IsDynamicOverflowEnabled="False">
-      <faControls:CommandBar.Content>
-        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-          <TextBlock FontSize="16" FontWeight="SemiBold" Text="YModem" />
-          <TextBlock Opacity="0.75" Text="Cross-platform transfer console" />
-        </StackPanel>
-      </faControls:CommandBar.Content>
-    </faControls:CommandBar>
-
-    <Border Grid.Row="1" Margin="0,10,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
+  <Grid RowDefinitions="Auto,*,Auto,Auto" Margin="16">
+    <Border Grid.Row="0" Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
       <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
         <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
         <ComboBox x:Name="PortComboBox" Width="160" Margin="0,0,10,0" />
@@ -41,7 +29,7 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="2" Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
+    <Border Grid.Row="1" Margin="0,0,0,10" Padding="12" CornerRadius="10" Background="#2A2F37">
       <TabControl x:Name="ModeTabControl" SelectionChanged="OnModeTabSelectionChanged">
         <TabItem Header="Send">
           <Grid x:Name="SendTabContentGrid" RowDefinitions="Auto,*">
@@ -106,10 +94,13 @@
       </TabControl>
     </Border>
 
-    <Border Grid.Row="3" Margin="0,0,0,10" Padding="10" CornerRadius="10" Background="#2A2F37">
+    <Border Grid.Row="2" Margin="0,0,0,10" Padding="10" CornerRadius="10" Background="#2A2F37">
       <Grid RowDefinitions="Auto,Auto,Auto">
-        <ProgressBar x:Name="SendProgressBar" Minimum="0" Maximum="100" Height="6" />
-        <ProgressBar x:Name="ReceiveProgressBar" Grid.Row="1" Margin="0,8,0,0" Minimum="0" Maximum="100" Height="6" />
+        <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
+          <TextBlock Text="Transfer Progress" Opacity="0.8" Margin="0,0,10,0" />
+          <TextBlock Grid.Column="1" x:Name="TransferProgressTextBlock" Text="Idle" />
+        </Grid>
+        <ProgressBar Grid.Row="1" Margin="0,8,0,0" x:Name="TransferProgressBar" Minimum="0" Maximum="100" Height="6" />
         <Grid Grid.Row="2" Margin="0,8,0,0" ColumnDefinitions="*,*,*,*">
           <TextBlock x:Name="SendBytesTextBlock" Text="Send Bytes: 0/0" />
           <TextBlock Grid.Column="1" x:Name="SendPacketsTextBlock" Text="Send Packets: 0/0" />
@@ -119,7 +110,7 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="4" Padding="10" CornerRadius="10" Background="#2A2F37">
+    <Border Grid.Row="3" Padding="10" CornerRadius="10" Background="#2A2F37">
       <Grid RowDefinitions="Auto,*">
         <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
           <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Runtime Logs" />

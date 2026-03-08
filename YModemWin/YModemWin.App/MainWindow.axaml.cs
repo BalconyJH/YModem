@@ -257,6 +257,7 @@ public partial class MainWindow : Window
             isSending = true;
             SendActionButton.Content = "Cancel Send";
             SendStatusTextBlock.Text = "Sending...";
+            TransferProgressTextBlock.Text = "Sending...";
             SendInfoBar.IsOpen = false;
             transmitter = new YModemTransmitter(serialPort, GetSendTimeout(), OnSendProgress);
 
@@ -287,6 +288,7 @@ public partial class MainWindow : Window
         isSending = false;
         SendActionButton.Content = "Start Send";
         SendStatusTextBlock.Text = "Send canceled by user.";
+        TransferProgressTextBlock.Text = "Send canceled by user.";
         ClosePort();
     }
 
@@ -308,6 +310,7 @@ public partial class MainWindow : Window
             isReceiving = true;
             ReceiveActionButton.Content = "Cancel Receive";
             ReceiveStatusTextBlock.Text = "Receiving...";
+            TransferProgressTextBlock.Text = "Receiving...";
             receiver = new YModemReceiver(serialPort, GetReceiveTimeout(), SaveFolderTextBox.Text!, OnReceiveProgress);
 
             await Task.Run(() => receiver.StartReceiving());
@@ -322,6 +325,7 @@ public partial class MainWindow : Window
         isReceiving = false;
         ReceiveActionButton.Content = "Start Receive";
         ReceiveStatusTextBlock.Text = "Receive canceled by user.";
+        TransferProgressTextBlock.Text = "Receive canceled by user.";
         ClosePort();
     }
 
@@ -330,8 +334,9 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(() =>
         {
             var progress = totalBytes <= 0 ? 0 : (double)sentBytes / totalBytes * 100;
-            SendProgressBar.Value = Math.Clamp(progress, 0, 100);
+            TransferProgressBar.Value = Math.Clamp(progress, 0, 100);
             SendStatusTextBlock.Text = $"{message} (status={status})";
+            TransferProgressTextBlock.Text = $"Send: {sentBytes}/{totalBytes} bytes";
             SendBytesTextBlock.Text = $"Send Bytes: {sentBytes}/{totalBytes}";
             SendPacketsTextBlock.Text = $"Send Packets: {sentPackets}/{totalPackets}";
 
@@ -355,10 +360,11 @@ public partial class MainWindow : Window
         Dispatcher.UIThread.Post(() =>
         {
             var progress = totalBytes <= 0 ? 0 : (double)receivedBytes / totalBytes * 100;
-            ReceiveProgressBar.Value = Math.Clamp(progress, 0, 100);
+            TransferProgressBar.Value = Math.Clamp(progress, 0, 100);
             ReceiveStatusTextBlock.Text = string.IsNullOrWhiteSpace(fileName)
                 ? $"{message} (status={status})"
                 : $"{message} | File: {fileName} | Date: {fileDate} (status={status})";
+            TransferProgressTextBlock.Text = $"Receive: {receivedBytes}/{totalBytes} bytes";
             ReceiveBytesTextBlock.Text = $"Receive Bytes: {receivedBytes}/{totalBytes}";
             ReceivePacketsTextBlock.Text = $"Receive Packets: {packetNo}/{totalPacket}";
         });
