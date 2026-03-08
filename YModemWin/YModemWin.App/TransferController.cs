@@ -82,6 +82,14 @@ public sealed class TransferController : IDisposable
         sendCancellationRequested = false;
         IsSending = true;
 
+        SendProgressChanged?.Invoke(new SendProgressSnapshot(
+            SentBytes: 0,
+            TotalBytes: 0,
+            SentPackets: 0,
+            TotalPackets: 0,
+            Status: 0,
+            Message: "Waiting for sender handshake..."));
+
         transmitter = new YModemTransmitter(serialPort, timeoutSeconds, OnSendProgress);
 
         try
@@ -125,6 +133,17 @@ public sealed class TransferController : IDisposable
         var serialPort = OpenPort(portName, baudRate);
         receiveCancellationRequested = false;
         IsReceiving = true;
+
+        ReceiveProgressChanged?.Invoke(new ReceiveProgressSnapshot(
+            ReceivedBytes: 0,
+            TotalBytes: 0,
+            PacketNo: 0,
+            TotalPacket: 0,
+            Status: 0,
+            Message: "Waiting for receiver handshake...",
+            FileName: string.Empty,
+            FileDate: string.Empty));
+
         receiver = new YModemReceiver(serialPort, timeoutSeconds, saveFolder, OnReceiveProgress);
 
         try

@@ -13,6 +13,8 @@ namespace YModemWin;
 
 public partial class MainWindow : AppWindow, ISerialSettingsProvider
 {
+    private bool isInitializingSelectors;
+
     public MainWindow()
     {
         InitializeComponent();
@@ -21,10 +23,13 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         AppServices.SerialSettingsProvider = this;
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
+        isInitializingSelectors = true;
+
         UpdateTitleBar();
         TestFrame.Navigated += OnFrameNavigated;
         InitializeLanguageSelector();
         InitializeThemeSelector();
+        isInitializingSelectors = false;
 
         Opened += (_, _) =>
         {
@@ -145,7 +150,17 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
 
     private void OnLanguageSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (isInitializingSelectors)
+        {
+            return;
+        }
+
         if (LanguageComboBox.SelectedItem is not ComboBoxItem { Tag: string tag })
+        {
+            return;
+        }
+
+        if (string.Equals(CultureInfo.CurrentUICulture.Name, tag, StringComparison.OrdinalIgnoreCase))
         {
             return;
         }
@@ -162,6 +177,11 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
 
     private void OnThemeSelectionChanged(object? sender, SelectionChangedEventArgs e)
     {
+        if (isInitializingSelectors)
+        {
+            return;
+        }
+
         if (ThemeComboBox.SelectedItem is not ComboBoxItem { Tag: string tag })
         {
             return;
