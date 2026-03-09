@@ -133,17 +133,12 @@ public partial class SendPage : UserControl
         SendActionButton.Content = "Start Send";
         SendActionButton.IsEnabled = sendFiles.Count > 0;
         SendActionButton.Classes.Remove("DangerActionButton");
-        if (!SendActionButton.Classes.Contains("AccentActionButton"))
-        {
-            SendActionButton.Classes.Add("AccentActionButton");
-        }
     }
 
     private void SetSendActionButtonToCancel()
     {
         SendActionButton.Content = "Cancel Send";
         SendActionButton.IsEnabled = true;
-        SendActionButton.Classes.Remove("AccentActionButton");
         if (!SendActionButton.Classes.Contains("DangerActionButton"))
         {
             SendActionButton.Classes.Add("DangerActionButton");
@@ -154,7 +149,6 @@ public partial class SendPage : UserControl
     {
         SendActionButton.Content = "Canceling...";
         SendActionButton.IsEnabled = false;
-        SendActionButton.Classes.Remove("AccentActionButton");
         if (!SendActionButton.Classes.Contains("DangerActionButton"))
         {
             SendActionButton.Classes.Add("DangerActionButton");

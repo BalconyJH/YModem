@@ -73,17 +73,12 @@ public partial class ReceivePage : UserControl
         ReceiveActionButton.Content = "Start Receive";
         ReceiveActionButton.IsEnabled = true;
         ReceiveActionButton.Classes.Remove("DangerActionButton");
-        if (!ReceiveActionButton.Classes.Contains("AccentActionButton"))
-        {
-            ReceiveActionButton.Classes.Add("AccentActionButton");
-        }
     }
 
     private void SetReceiveActionButtonToCancel()
     {
         ReceiveActionButton.Content = "Cancel Receive";
         ReceiveActionButton.IsEnabled = true;
-        ReceiveActionButton.Classes.Remove("AccentActionButton");
         if (!ReceiveActionButton.Classes.Contains("DangerActionButton"))
         {
             ReceiveActionButton.Classes.Add("DangerActionButton");
@@ -94,7 +89,6 @@ public partial class ReceivePage : UserControl
     {
         ReceiveActionButton.Content = "Canceling...";
         ReceiveActionButton.IsEnabled = false;
-        ReceiveActionButton.Classes.Remove("AccentActionButton");
         if (!ReceiveActionButton.Classes.Contains("DangerActionButton"))
         {
             ReceiveActionButton.Classes.Add("DangerActionButton");

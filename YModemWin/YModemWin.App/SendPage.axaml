@@ -3,29 +3,29 @@
              xmlns:faControls="using:FluentAvalonia.UI.Controls"
              x:Class="YModemWin.SendPage">
   <UserControl.Styles>
-    <Style Selector="Button.AccentActionButton">
+    <Style Selector="Button#SendActionButton">
       <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
       <Setter Property="Foreground" Value="White" />
       <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
     </Style>
 
-    <Style Selector="Button.AccentActionButton:pointerover">
+    <Style Selector="Button#SendActionButton:pointerover">
       <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark1}" />
       <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorDark1}" />
     </Style>
 
-    <Style Selector="Button.DangerActionButton">
+    <Style Selector="Button#SendActionButton.DangerActionButton">
       <Setter Property="Background" Value="#C42B1C" />
       <Setter Property="Foreground" Value="White" />
       <Setter Property="BorderBrush" Value="#C42B1C" />
     </Style>
 
-    <Style Selector="Button.DangerActionButton:pointerover">
+    <Style Selector="Button#SendActionButton.DangerActionButton:pointerover">
       <Setter Property="Background" Value="#A4262C" />
       <Setter Property="BorderBrush" Value="#A4262C" />
     </Style>
 
-    <Style Selector="Button.AccentActionButton:disabled, Button.DangerActionButton:disabled">
+    <Style Selector="Button#SendActionButton:disabled">
       <Setter Property="Background" Value="#BDBDBD" />
       <Setter Property="BorderBrush" Value="#BDBDBD" />
       <Setter Property="Foreground" Value="#6B6B6B" />
@@ -37,7 +37,7 @@
       <Button Content="Add Files" Click="OnBrowseSendFileClick" />
       <CheckBox x:Name="SendParsedFilesCheckBox" Content="Parsed Files" VerticalAlignment="Center" />
       <Button Content="Remove Selected" Click="OnDeleteSendFilesClick" />
-      <Button x:Name="SendActionButton" Classes="AccentActionButton" Content="Start Send" Click="OnStartSendClick" />
+      <Button x:Name="SendActionButton" Content="Start Send" Click="OnStartSendClick" />
       <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
       <ComboBox x:Name="SendTimeoutComboBox" Width="100">
         <ComboBoxItem Content="0" />
