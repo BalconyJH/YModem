@@ -8,10 +8,20 @@
       <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
     </Style>
 
+    <Style Selector="Button.AccentActionButton:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark1}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorDark1}" />
+    </Style>
+
     <Style Selector="Button.DangerActionButton">
       <Setter Property="Background" Value="#C42B1C" />
       <Setter Property="Foreground" Value="White" />
       <Setter Property="BorderBrush" Value="#C42B1C" />
+    </Style>
+
+    <Style Selector="Button.DangerActionButton:pointerover">
+      <Setter Property="Background" Value="#A4262C" />
+      <Setter Property="BorderBrush" Value="#A4262C" />
     </Style>
 
     <Style Selector="Button.AccentActionButton:disabled, Button.DangerActionButton:disabled">
