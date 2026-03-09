@@ -17,6 +17,7 @@ public partial class SendPage : UserControl
         InitializeComponent();
         SendFilesListBox.ItemsSource = sendFiles;
         SendTimeoutComboBox.SelectedIndex = 2;
+        SetSendActionButtonToStart();
 
         AppServices.TransferController.SendProgressChanged += OnSendProgress;
         DetachedFromVisualTree += (_, _) => AppServices.TransferController.SendProgressChanged -= OnSendProgress;
@@ -85,7 +86,7 @@ public partial class SendPage : UserControl
         if (AppServices.TransferController.IsSending)
         {
             AppServices.TransferController.CancelSend();
-            SendActionButton.Content = "Start Send";
+            SetSendActionButtonToCanceling();
             SendStatusTextBlock.Text = "Send canceled by user.";
             return;
         }
@@ -103,7 +104,7 @@ public partial class SendPage : UserControl
             return;
         }
 
-        SendActionButton.Content = "Cancel Send";
+        SetSendActionButtonToCancel();
         SendStatusTextBlock.Text = "Waiting for sender handshake...";
         SendInfoBar.IsOpen = false;
 
@@ -120,7 +121,40 @@ public partial class SendPage : UserControl
         }
         finally
         {
-            SendActionButton.Content = "Start Send";
+            SetSendActionButtonToStart();
+        }
+    }
+
+    private void SetSendActionButtonToStart()
+    {
+        SendActionButton.Content = "Start Send";
+        SendActionButton.IsEnabled = true;
+        SendActionButton.Classes.Remove("DangerActionButton");
+        if (!SendActionButton.Classes.Contains("AccentActionButton"))
+        {
+            SendActionButton.Classes.Add("AccentActionButton");
+        }
+    }
+
+    private void SetSendActionButtonToCancel()
+    {
+        SendActionButton.Content = "Cancel Send";
+        SendActionButton.IsEnabled = true;
+        SendActionButton.Classes.Remove("AccentActionButton");
+        if (!SendActionButton.Classes.Contains("DangerActionButton"))
+        {
+            SendActionButton.Classes.Add("DangerActionButton");
+        }
+    }
+
+    private void SetSendActionButtonToCanceling()
+    {
+        SendActionButton.Content = "Canceling...";
+        SendActionButton.IsEnabled = false;
+        SendActionButton.Classes.Remove("AccentActionButton");
+        if (!SendActionButton.Classes.Contains("DangerActionButton"))
+        {
+            SendActionButton.Classes.Add("DangerActionButton");
         }
     }
 

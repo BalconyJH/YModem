@@ -1,12 +1,42 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="YModemWin.ReceivePage">
+  <UserControl.Styles>
+    <Style Selector="Button.AccentActionButton">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+    </Style>
+
+    <Style Selector="Button.AccentActionButton:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColorLight1}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorLight1}" />
+    </Style>
+
+    <Style Selector="Button.DangerActionButton">
+      <Setter Property="Background" Value="#C42B1C" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="#C42B1C" />
+    </Style>
+
+    <Style Selector="Button.DangerActionButton:pointerover">
+      <Setter Property="Background" Value="#D13438" />
+      <Setter Property="BorderBrush" Value="#D13438" />
+    </Style>
+
+    <Style Selector="Button.AccentActionButton:disabled, Button.DangerActionButton:disabled">
+      <Setter Property="Background" Value="#BDBDBD" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="Foreground" Value="#6B6B6B" />
+    </Style>
+  </UserControl.Styles>
+
   <Grid RowDefinitions="Auto,*">
     <StackPanel Orientation="Horizontal" Spacing="8">
       <TextBlock VerticalAlignment="Center" Text="Save Folder" />
       <TextBox x:Name="SaveFolderTextBox" Width="560" />
       <Button Content="Browse" Click="OnBrowseSaveFolderClick" />
-      <Button x:Name="ReceiveActionButton" Content="Start Receive" Click="OnStartReceiveClick" />
+      <Button x:Name="ReceiveActionButton" Classes="AccentActionButton" Content="Start Receive" Click="OnStartReceiveClick" />
       <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
       <ComboBox x:Name="ReceiveTimeoutComboBox" Width="100">
         <ComboBoxItem Content="0" />

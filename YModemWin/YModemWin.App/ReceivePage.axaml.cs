@@ -14,6 +14,7 @@ public partial class ReceivePage : UserControl
         InitializeComponent();
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
         ReceiveTimeoutComboBox.SelectedIndex = 2;
+        SetReceiveActionButtonToStart();
 
         AppServices.TransferController.ReceiveProgressChanged += OnReceiveProgress;
         DetachedFromVisualTree += (_, _) => AppServices.TransferController.ReceiveProgressChanged -= OnReceiveProgress;
@@ -39,7 +40,7 @@ public partial class ReceivePage : UserControl
         if (AppServices.TransferController.IsReceiving)
         {
             AppServices.TransferController.CancelReceive();
-            ReceiveActionButton.Content = "Start Receive";
+            SetReceiveActionButtonToCanceling();
             ReceiveStatusTextBlock.Text = "Receive canceled by user.";
             return;
         }
@@ -49,7 +50,7 @@ public partial class ReceivePage : UserControl
             return;
         }
 
-        ReceiveActionButton.Content = "Cancel Receive";
+        SetReceiveActionButtonToCancel();
         ReceiveStatusTextBlock.Text = "Waiting for receiver handshake...";
 
         try
@@ -63,7 +64,40 @@ public partial class ReceivePage : UserControl
         }
         finally
         {
-            ReceiveActionButton.Content = "Start Receive";
+            SetReceiveActionButtonToStart();
+        }
+    }
+
+    private void SetReceiveActionButtonToStart()
+    {
+        ReceiveActionButton.Content = "Start Receive";
+        ReceiveActionButton.IsEnabled = true;
+        ReceiveActionButton.Classes.Remove("DangerActionButton");
+        if (!ReceiveActionButton.Classes.Contains("AccentActionButton"))
+        {
+            ReceiveActionButton.Classes.Add("AccentActionButton");
+        }
+    }
+
+    private void SetReceiveActionButtonToCancel()
+    {
+        ReceiveActionButton.Content = "Cancel Receive";
+        ReceiveActionButton.IsEnabled = true;
+        ReceiveActionButton.Classes.Remove("AccentActionButton");
+        if (!ReceiveActionButton.Classes.Contains("DangerActionButton"))
+        {
+            ReceiveActionButton.Classes.Add("DangerActionButton");
+        }
+    }
+
+    private void SetReceiveActionButtonToCanceling()
+    {
+        ReceiveActionButton.Content = "Canceling...";
+        ReceiveActionButton.IsEnabled = false;
+        ReceiveActionButton.Classes.Remove("AccentActionButton");
+        if (!ReceiveActionButton.Classes.Contains("DangerActionButton"))
+        {
+            ReceiveActionButton.Classes.Add("DangerActionButton");
         }
     }
 
