@@ -4,6 +4,6 @@
              x:Class="YModemWin.App"
              RequestedThemeVariant="Default">
   <Application.Styles>
-    <fa:FluentAvaloniaTheme />
+    <fa:FluentAvaloniaTheme PreferUserAccentColor="True" />
   </Application.Styles>
 </Application>
