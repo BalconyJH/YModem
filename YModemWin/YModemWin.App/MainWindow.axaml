@@ -20,7 +20,7 @@
     </Style>
 
     <Style Selector="ToggleButton.NavTab:pointerover">
-      <Setter Property="Background" Value="#1FFFFFFF" />
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
     </Style>
 
     <Style Selector="ToggleButton.NavTab:checked">
