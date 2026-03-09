@@ -17,7 +17,7 @@ public partial class SendPage : UserControl
         InitializeComponent();
         SendFilesListBox.ItemsSource = sendFiles;
         SendTimeoutComboBox.SelectedIndex = 2;
-        SetSendActionButtonToStart();
+        UpdateSendStartButtonState();
 
         AppServices.TransferController.SendProgressChanged += OnSendProgress;
         DetachedFromVisualTree += (_, _) => AppServices.TransferController.SendProgressChanged -= OnSendProgress;
@@ -65,6 +65,7 @@ public partial class SendPage : UserControl
         }
 
         sendFiles.Add(file);
+        UpdateSendStartButtonState();
     }
 
     private void OnDeleteSendFilesClick(object? sender, RoutedEventArgs e)
@@ -79,6 +80,8 @@ public partial class SendPage : UserControl
         {
             sendFiles.Remove(item);
         }
+
+        UpdateSendStartButtonState();
     }
 
     private async void OnStartSendClick(object? sender, RoutedEventArgs e)
@@ -121,14 +124,14 @@ public partial class SendPage : UserControl
         }
         finally
         {
-            SetSendActionButtonToStart();
+            UpdateSendStartButtonState();
         }
     }
 
-    private void SetSendActionButtonToStart()
+    private void UpdateSendStartButtonState()
     {
         SendActionButton.Content = "Start Send";
-        SendActionButton.IsEnabled = true;
+        SendActionButton.IsEnabled = sendFiles.Count > 0;
         SendActionButton.Classes.Remove("DangerActionButton");
         if (!SendActionButton.Classes.Contains("AccentActionButton"))
         {
