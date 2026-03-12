@@ -1,7 +1,5 @@
-using System.IO;
 using System.IO.Ports;
 using System.Text;
-using Sentry;
 using Serilog;
 
 namespace YModemWin.Core
@@ -24,6 +22,7 @@ namespace YModemWin.Core
         public const int CrcSize = 2; // CRC校验的大小
         
         private const int CancelCheckIntervalMs = 200; // 取消检查间隔
+        private const int MaxRetryCount = 10; // 单个数据包最大重试次数
         
         SerialPort serialPort;
         private int originalReadTimeout;
@@ -91,7 +90,9 @@ namespace YModemWin.Core
         public bool YmodemSendParsedData(string originalFileName, DateTime lastWriteTime, byte[] payload, bool isLastFile = true)
         {
             using var memoryStream = new MemoryStream(payload, writable: false);
-            return YmodemSendStream(memoryStream, originalFileName, lastWriteTime, isLastFile);
+            // 将文件名后缀改为 .bin
+            var binFileName = System.IO.Path.ChangeExtension(originalFileName, ".bin");
+            return YmodemSendStream(memoryStream, binFileName, lastWriteTime, isLastFile);
         }
 
         private bool YmodemSendStream(Stream fileStream, string fileName, DateTime lastWriteTime, bool isLastFile)
@@ -210,6 +211,7 @@ namespace YModemWin.Core
                 }
 
                 int packageReadCount;
+                var retryCount = 0; // 当前包的重试次数
                 do
                 {
                     if (userCancel)
@@ -278,12 +280,32 @@ namespace YModemWin.Core
                     if (signal == ACK)
                     {
                         status = 2;
+                        retryCount = 0; // 发送成功，重置重试计数
                     }
                     else if (signal == NAK)
                     {
+                        retryCount++;
+                        if (retryCount >= MaxRetryCount)
+                        {
+                            // 达到最大重试次数，发送 CAN 取消传输
+                            try
+                            {
+                                serialPort.Write(new byte[] { CAN, CAN, CAN, CAN, CAN, CAN, CAN, CAN }, 0, 8);
+                            }
+                            catch { }
+                            transaction.Finish(SpanStatus.InternalError);
+                            transactionFinished = true;
+                            status = -1;
+                            RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
+                                status, $"Max retry count ({MaxRetryCount}) exceeded for packet {packagesent}. Transfer aborted.");
+                            Logger.Error("Max retry count exceeded for packet {PacketNumber}, aborting transfer", packagesent);
+                            return false;
+                        }
+                        
                         RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
-                            status, "Data transfer error, resending packet.");
-                        Logger.Warning("Data transfer error detected, resending packet {PacketNumber}", packetNumber);
+                            status, $"Data transfer error, resending packet (retry {retryCount}/{MaxRetryCount}).");
+                        Logger.Warning("Data transfer error detected, resending packet {PacketNumber} (retry {RetryCount}/{MaxRetryCount})", 
+                            packetNumber, retryCount, MaxRetryCount);
                         status = -1;
                         if (fileStream.CanSeek)
                         {

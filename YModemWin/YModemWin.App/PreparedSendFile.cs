@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace YModemWin;
 
 public sealed record PreparedSendFile(
@@ -12,8 +10,12 @@ public sealed record PreparedSendFile(
     public static PreparedSendFile FromRawFile(string path) =>
         new(path, Path.GetFileName(path), File.GetLastWriteTime(path), null, false);
 
-    public static PreparedSendFile FromParsedData(string sourcePath, byte[] payload) =>
-        new(sourcePath, Path.GetFileName(sourcePath), File.GetLastWriteTime(sourcePath), payload, true);
+    public static PreparedSendFile FromParsedData(string sourcePath, byte[] payload)
+    {
+        var originalFileName = Path.GetFileName(sourcePath);
+        var binFileName = Path.ChangeExtension(originalFileName, ".bin");
+        return new PreparedSendFile(sourcePath, binFileName, File.GetLastWriteTime(sourcePath), payload, true);
+    }
 
     public override string ToString()
     {

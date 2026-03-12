@@ -7,6 +7,7 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <ApplicationIcon>Assets\Square256x256Logo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>

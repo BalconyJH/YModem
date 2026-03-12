@@ -9,7 +9,7 @@ internal sealed class AppSplashScreen : IApplicationSplashScreen
 {
     public AppSplashScreen()
     {
-        AppName = "YModem";
+        AppName = "Akame";
         AppIcon = LoadImage("avares://YModem/Assets/YModem.png");
         MinimumShowTime = 900;
     }

@@ -11,6 +11,23 @@
     <Style Selector="Button#ReceiveActionButton:pointerover">
       <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark1}" />
       <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorDark1}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#ReceiveActionButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark1}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#ReceiveActionButton:pressed">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark2}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorDark2}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#ReceiveActionButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark2}" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="Button#ReceiveActionButton.DangerActionButton">
@@ -22,6 +39,23 @@
     <Style Selector="Button#ReceiveActionButton.DangerActionButton:pointerover">
       <Setter Property="Background" Value="#A4262C" />
       <Setter Property="BorderBrush" Value="#A4262C" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#ReceiveActionButton.DangerActionButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#A4262C" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#ReceiveActionButton.DangerActionButton:pressed">
+      <Setter Property="Background" Value="#8C1D18" />
+      <Setter Property="BorderBrush" Value="#8C1D18" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#ReceiveActionButton.DangerActionButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#8C1D18" />
+      <Setter Property="Foreground" Value="White" />
     </Style>
 
     <Style Selector="Button#ReceiveActionButton:disabled">
@@ -29,23 +63,50 @@
       <Setter Property="BorderBrush" Value="#BDBDBD" />
       <Setter Property="Foreground" Value="#6B6B6B" />
     </Style>
+
+    <Style Selector="Button#ReceiveActionButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#BDBDBD" />
+      <Setter Property="Foreground" Value="#6B6B6B" />
+    </Style>
   </UserControl.Styles>
 
-  <Grid RowDefinitions="Auto,*">
-    <StackPanel Orientation="Horizontal" Spacing="8">
-      <TextBlock VerticalAlignment="Center" Text="Save Folder" />
-      <TextBox x:Name="SaveFolderTextBox" Width="560" />
-      <Button Content="Browse" Click="OnBrowseSaveFolderClick" />
-      <Button x:Name="ReceiveActionButton" Content="Start Receive" Click="OnStartReceiveClick" />
-      <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
-      <ComboBox x:Name="ReceiveTimeoutComboBox" Width="100">
-        <ComboBoxItem Content="0" />
-        <ComboBoxItem Content="2" />
-        <ComboBoxItem Content="5" />
-        <ComboBoxItem Content="10" />
-      </ComboBox>
-    </StackPanel>
+  <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto"
+        ColumnSpacing="12"
+        HorizontalAlignment="Stretch">
+    <TextBlock x:Name="SaveFolderLabel" Grid.Column="0"
+               VerticalAlignment="Center"
+               Text="Save Folder" />
 
-    <TextBlock Grid.Row="1" x:Name="ReceiveStatusTextBlock" Margin="0,8,0,0" Text="Idle" />
+    <TextBox Grid.Column="1"
+             x:Name="SaveFolderTextBox"
+             MinWidth="320"
+             HorizontalAlignment="Stretch"
+             VerticalAlignment="Center" />
+
+    <Button x:Name="BrowseButton" Grid.Column="2"
+            Content="Browse"
+            Click="OnBrowseSaveFolderClick"
+            VerticalAlignment="Center" />
+
+    <Button Grid.Column="3"
+            x:Name="ReceiveActionButton"
+            Content="Start Receive"
+            Click="OnStartReceiveClick"
+            VerticalAlignment="Center" />
+
+    <TextBlock x:Name="TimeoutLabel" Grid.Column="4"
+               VerticalAlignment="Center"
+               Text="Timeout (sec)" />
+
+    <ComboBox Grid.Column="5"
+              x:Name="ReceiveTimeoutComboBox"
+              Width="100"
+              SelectedIndex="2"
+              VerticalAlignment="Center">
+      <ComboBoxItem Content="0" />
+      <ComboBoxItem Content="2" />
+      <ComboBoxItem Content="5" />
+      <ComboBoxItem Content="10" />
+    </ComboBox>
   </Grid>
 </UserControl>

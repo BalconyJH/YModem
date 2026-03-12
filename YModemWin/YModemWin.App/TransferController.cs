@@ -189,12 +189,7 @@ public sealed class TransferController : IDisposable
 
     private static RawMemory ParseFirmwareMemory(string filePath, string extension)
     {
-        if (string.Equals(extension, ".hex", StringComparison.OrdinalIgnoreCase))
-        {
-            return IntelHex.ParseFile(filePath);
-        }
-
-        return SRecord.ParseFile(filePath);
+        return string.Equals(extension, ".hex", StringComparison.OrdinalIgnoreCase) ? IntelHex.ParseFile(filePath) : SRecord.ParseFile(filePath);
     }
 
     private static string? GetFirmwareParserName(string extension)

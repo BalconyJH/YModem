@@ -4,7 +4,7 @@
         xmlns:faWindowing="using:FluentAvalonia.UI.Windowing"
         xmlns:ui="using:FluentAvalonia.UI.Controls"
         x:Class="YModemWin.MainWindow"
-        Title="YModem"
+        Title="Akame"
         Width="1280"
         Height="820"
         MinWidth="1120"
@@ -46,7 +46,7 @@
                  VerticalAlignment="Center" />
 
           <TextBlock VerticalAlignment="Center">
-            <Run Text="YModem"
+            <Run Text="Akame"
                  FontSize="14"
                  FontWeight="SemiBold" />
             <Run Text=" Insider"
@@ -61,11 +61,11 @@
     </Border>
 
     <Border Grid.Row="1" Margin="16,10,16,10" Padding="12" CornerRadius="10">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
-        <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
+        <TextBlock x:Name="PortLabel" VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
         <ComboBox x:Name="PortComboBox" Grid.Column="1" Width="170" Margin="0,0,16,0" />
 
-        <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0" Text="Baud" />
+        <TextBlock x:Name="BaudLabel" Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0" Text="Baud" />
         <ComboBox x:Name="BaudRateComboBox" Grid.Column="3" Width="140" Margin="0,0,16,0">
           <ComboBoxItem Content="9600" />
           <ComboBoxItem Content="19200" />
@@ -77,30 +77,33 @@
           <ComboBoxItem Content="921600" />
         </ComboBox>
 
-        <TextBlock Grid.Column="4" VerticalAlignment="Center" Margin="0,0,8,0" Text="Language" />
-        <ComboBox x:Name="LanguageComboBox" Grid.Column="5" Width="150" Margin="0,0,16,0" SelectionChanged="OnLanguageSelectionChanged">
+        <TextBlock x:Name="LanguageLabel" Grid.Column="4" VerticalAlignment="Center" Margin="0,0,8,0" Text="Language" />
+        <ComboBox x:Name="LanguageComboBox" Grid.Column="5" Width="170" Margin="0,0,16,0" SelectionChanged="OnLanguageSelectionChanged">
           <ComboBoxItem Content="English" Tag="en-US" />
-          <ComboBoxItem Content="Chinese (Simplified)" Tag="zh-CN" />
+          <ComboBoxItem Content="简体中文" Tag="zh-CN" />
         </ComboBox>
 
-        <TextBlock Grid.Column="6" VerticalAlignment="Center" Margin="0,0,8,0" Text="Theme" />
-        <ComboBox x:Name="ThemeComboBox" Grid.Column="7" Width="130" Margin="0,0,16,0" SelectionChanged="OnThemeSelectionChanged">
+        <TextBlock x:Name="ThemeLabel" Grid.Column="6" VerticalAlignment="Center" Margin="0,0,8,0" Text="Theme" />
+        <ComboBox x:Name="ThemeComboBox" Grid.Column="7" Width="100" Margin="0,0,16,0" SelectionChanged="OnThemeSelectionChanged">
           <ComboBoxItem Content="Dark" Tag="Dark" />
           <ComboBoxItem Content="Light" Tag="Light" />
           <ComboBoxItem Content="System" Tag="Default" />
         </ComboBox>
 
-        <Button Grid.Column="8" Content="Refresh Ports" Click="OnRefreshPortsClick" />
+        <CheckBox x:Name="TelemetryCheckBox" Grid.Column="8" VerticalAlignment="Center" Margin="0,0,16,0" 
+                  Content="Telemetry" IsCheckedChanged="OnTelemetryCheckBoxChanged" />
+
+        <Button x:Name="RefreshPortsButton" Grid.Column="9" Content="Refresh Ports" Click="OnRefreshPortsClick" />
       </Grid>
     </Border>
 
-    <faControls:InfoBar Grid.Row="2"
-                        x:Name="MainInfoBar"
-                        IsOpen="False"
-                        IsClosable="True"
-                        Margin="16,0,16,10"
-                        Severity="Informational"
-                        Message="Ready." />
+    <Border Grid.Row="2" Margin="16,0,16,10" MinHeight="40">
+      <faControls:InfoBar x:Name="MainInfoBar"
+                          IsOpen="False"
+                          IsClosable="True"
+                          Severity="Informational"
+                          Message="Ready." />
+    </Border>
 
     <Border Grid.Row="3" Margin="16,0,16,10" Padding="12" CornerRadius="10">
       <DockPanel>
@@ -116,7 +119,7 @@
     <Border Grid.Row="4" Margin="16,0,16,10" Padding="10" CornerRadius="10">
       <Grid RowDefinitions="Auto,Auto,Auto">
         <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-          <TextBlock Text="Transfer Progress" Opacity="0.8" Margin="0,0,10,0" />
+          <TextBlock x:Name="TransferProgressLabel" Text="Transfer Progress" Opacity="0.8" Margin="0,0,10,0" />
           <TextBlock Grid.Column="1" x:Name="TransferProgressTextBlock" Text="Idle" />
         </Grid>
         <ProgressBar Grid.Row="1" Margin="0,8,0,0" x:Name="TransferProgressBar" Minimum="0" Maximum="100" Height="8">
@@ -138,9 +141,9 @@
     <Border Grid.Row="5" Margin="16,0,16,16" Padding="10" CornerRadius="10">
       <Grid RowDefinitions="Auto,*">
         <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
-          <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Runtime Logs" />
+          <TextBlock x:Name="RuntimeLogsLabel" VerticalAlignment="Center" FontWeight="SemiBold" Text="Runtime Logs" />
           <CheckBox Grid.Column="1" x:Name="AutoScrollLogCheckBox" Margin="0,0,10,0" IsChecked="True" Content="Auto Scroll" />
-          <Button Grid.Column="2" Content="Clear Logs" Click="OnClearLogClick" />
+          <Button x:Name="ClearLogsButton" Grid.Column="2" Content="Clear Logs" Click="OnClearLogClick" />
         </Grid>
 
         <TextBox Grid.Row="1" x:Name="RuntimeLogTextBox" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" Height="170" />

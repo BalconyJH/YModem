@@ -2,17 +2,17 @@ using System.Text;
 using System.Globalization;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Styling;
 using Avalonia.Threading;
+using FluentAvalonia.UI.Controls;
 using FluentAvalonia.UI.Media.Animation;
 using FluentAvalonia.UI.Navigation;
 using FluentAvalonia.UI.Windowing;
 
 namespace YModemWin;
 
-public partial class MainWindow : AppWindow, ISerialSettingsProvider
+public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarProvider
 {
     private bool isInitializingSelectors;
 
@@ -22,6 +22,7 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         BaudRateComboBox.SelectedIndex = 4;
 
         AppServices.SerialSettingsProvider = this;
+        AppServices.InfoBarProvider = this;
         Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
         isInitializingSelectors = true;
@@ -30,6 +31,8 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         TestFrame.Navigated += OnFrameNavigated;
         InitializeLanguageSelector();
         InitializeThemeSelector();
+        InitializeTelemetryCheckBox();
+        ApplyLocalization();
         isInitializingSelectors = false;
 
         Opened += (_, _) =>
@@ -38,7 +41,7 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
             NavigateToPage(typeof(SendPage));
         };
 
-        ResetTransferProgress("Idle");
+        ResetTransferProgress(Properties.Resources.Idle);
 
         AppServices.TransferController.SendProgressChanged += OnSendProgressChanged;
         AppServices.TransferController.ReceiveProgressChanged += OnReceiveProgressChanged;
@@ -58,8 +61,27 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
 
     private void InitializeLanguageSelector()
     {
-        var uiCulture = CultureInfo.CurrentUICulture.Name;
-        LanguageComboBox.SelectedIndex = uiCulture.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
+        // Load saved language setting, or use system language as default
+        var savedLanguage = Properties.Settings.Default.Language;
+        string languageToUse;
+
+        if (!string.IsNullOrEmpty(savedLanguage))
+        {
+            // Use saved language setting
+            languageToUse = savedLanguage;
+        }
+        else
+        {
+            // No saved setting, use system language
+            var uiCulture = CultureInfo.CurrentUICulture.Name;
+            languageToUse = uiCulture.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? "zh-CN" : "en-US";
+        }
+
+        // Apply language culture at startup
+        ApplyLanguageCulture(languageToUse);
+
+        // Set combobox selection
+        LanguageComboBox.SelectedIndex = languageToUse.StartsWith("zh", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
     }
 
     private void InitializeThemeSelector()
@@ -73,6 +95,40 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         };
     }
 
+    private void InitializeTelemetryCheckBox()
+    {
+        TelemetryCheckBox.IsChecked = Properties.Settings.Default.TelemetryEnabled;
+        ToolTip.SetTip(TelemetryCheckBox, Properties.Resources.TelemetryTooltip);
+    }
+
+    private void ApplyLocalization()
+    {
+        // Main Window labels
+        PortLabel.Text = Properties.Resources.Port;
+        BaudLabel.Text = Properties.Resources.Baud;
+        LanguageLabel.Text = Properties.Resources.Language;
+        ThemeLabel.Text = Properties.Resources.Theme;
+        RefreshPortsButton.Content = Properties.Resources.RefreshPorts;
+        TelemetryCheckBox.Content = Properties.Resources.Telemetry;
+        ToolTip.SetTip(TelemetryCheckBox, Properties.Resources.TelemetryTooltip);
+
+        // Navigation tabs
+        SendPageButton.Content = Properties.Resources.Send;
+        ReceivePageButton.Content = Properties.Resources.Receive;
+
+        // Transfer progress section
+        TransferProgressLabel.Text = Properties.Resources.TransferProgress;
+        SendBytesTextBlock.Text = string.Format(Properties.Resources.SendBytesFormat, 0, 0);
+        SendPacketsTextBlock.Text = string.Format(Properties.Resources.SendPacketsFormat, 0, 0);
+        ReceiveBytesTextBlock.Text = string.Format(Properties.Resources.ReceiveBytesFormat, 0, 0);
+        ReceivePacketsTextBlock.Text = string.Format(Properties.Resources.ReceivePacketsFormat, 0, 0);
+
+        // Runtime logs section
+        RuntimeLogsLabel.Text = Properties.Resources.RuntimeLogs;
+        AutoScrollLogCheckBox.Content = Properties.Resources.AutoScroll;
+        ClearLogsButton.Content = Properties.Resources.ClearLogs;
+    }
+
     public bool TryGetSerialSettings(out string portName, out int baudRate)
     {
         portName = string.Empty;
@@ -81,7 +137,7 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         var selectedPort = PortComboBox.SelectedItem?.ToString();
         if (string.IsNullOrWhiteSpace(selectedPort))
         {
-            ShowMainInfo("Please select a serial port.", FluentAvalonia.UI.Controls.InfoBarSeverity.Warning);
+            ShowInfo(Properties.Resources.PleaseSelectPort, InfoBarSeverity.Warning);
             return false;
         }
 
@@ -117,15 +173,15 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
                 var percentage = (double)progress.SentBytes / progress.TotalBytes * 100;
                 TransferProgressBar.IsIndeterminate = false;
                 TransferProgressBar.Value = Math.Clamp(percentage, 0, 100);
-                TransferProgressTextBlock.Text = $"Send: {progress.SentBytes}/{progress.TotalBytes} bytes";
+                TransferProgressTextBlock.Text = $"{Properties.Resources.Send}: {progress.SentBytes}/{progress.TotalBytes} bytes";
             }
             else
             {
-                SetTransferWaiting("Sending");
+                SetTransferWaiting(Properties.Resources.Send);
             }
 
-            SendBytesTextBlock.Text = $"Send Bytes: {progress.SentBytes}/{progress.TotalBytes}";
-            SendPacketsTextBlock.Text = $"Send Packets: {progress.SentPackets}/{progress.TotalPackets}";
+            SendBytesTextBlock.Text = string.Format(Properties.Resources.SendBytesFormat, progress.SentBytes, progress.TotalBytes);
+            SendPacketsTextBlock.Text = string.Format(Properties.Resources.SendPacketsFormat, progress.SentPackets, progress.TotalPackets);
         });
     }
 
@@ -144,15 +200,15 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
                 var percentage = (double)progress.ReceivedBytes / progress.TotalBytes * 100;
                 TransferProgressBar.IsIndeterminate = false;
                 TransferProgressBar.Value = Math.Clamp(percentage, 0, 100);
-                TransferProgressTextBlock.Text = $"Receive: {progress.ReceivedBytes}/{progress.TotalBytes} bytes";
+                TransferProgressTextBlock.Text = $"{Properties.Resources.Receive}: {progress.ReceivedBytes}/{progress.TotalBytes} bytes";
             }
             else
             {
-                SetTransferWaiting("Receiving");
+                SetTransferWaiting(Properties.Resources.Receive);
             }
 
-            ReceiveBytesTextBlock.Text = $"Receive Bytes: {progress.ReceivedBytes}/{progress.TotalBytes}";
-            ReceivePacketsTextBlock.Text = $"Receive Packets: {progress.PacketNo}/{progress.TotalPacket}";
+            ReceiveBytesTextBlock.Text = string.Format(Properties.Resources.ReceiveBytesFormat, progress.ReceivedBytes, progress.TotalBytes);
+            ReceivePacketsTextBlock.Text = string.Format(Properties.Resources.ReceivePacketsFormat, progress.PacketNo, progress.TotalPacket);
         });
     }
 
@@ -178,14 +234,82 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
             return;
         }
 
-        var newCulture = new CultureInfo(tag);
+        // Save language setting
+        Properties.Settings.Default.Language = tag;
+        Properties.Settings.Default.Save();
+
+        // Apply the language culture
+        ApplyLanguageCulture(tag);
+
+        // Apply localization to current window immediately
+        ApplyLocalization();
+
+        ShowLanguageSwitchedInfo();
+    }
+
+    private void ShowLanguageSwitchedInfo()
+    {
+        var restartButton = new Button
+        {
+            Content = Properties.Resources.Restart
+        };
+        restartButton.Click += (_, _) => RestartApplication();
+
+        MainInfoBar.Severity = InfoBarSeverity.Informational;
+        MainInfoBar.Message = Properties.Resources.LanguageSwitched;
+        MainInfoBar.ActionButton = restartButton;
+        MainInfoBar.IsOpen = true;
+    }
+
+    private void RestartApplication()
+    {
+        var exePath = Environment.ProcessPath;
+        if (!string.IsNullOrEmpty(exePath))
+        {
+            System.Diagnostics.Process.Start(exePath);
+            if (Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.Shutdown();
+            }
+        }
+    }
+
+    private void ApplyLanguageCulture(string cultureName)
+    {
+        var newCulture = new CultureInfo(cultureName);
         CultureInfo.CurrentCulture = newCulture;
         CultureInfo.CurrentUICulture = newCulture;
         CultureInfo.DefaultThreadCurrentCulture = newCulture;
         CultureInfo.DefaultThreadCurrentUICulture = newCulture;
-        YModemWin.Properties.Resources.Culture = newCulture;
+        Properties.Resources.Culture = newCulture;
+    }
 
-        ShowMainInfo("Language switched. Restart app to fully apply localized resources.", FluentAvalonia.UI.Controls.InfoBarSeverity.Informational);
+    private void OnTelemetryCheckBoxChanged(object? sender, RoutedEventArgs e)
+    {
+        if (isInitializingSelectors)
+        {
+            return;
+        }
+
+        var isEnabled = TelemetryCheckBox.IsChecked == true;
+        Properties.Settings.Default.TelemetryEnabled = isEnabled;
+        Properties.Settings.Default.Save();
+
+        ShowTelemetrySwitchedInfo();
+    }
+
+    private void ShowTelemetrySwitchedInfo()
+    {
+        var restartButton = new Button
+        {
+            Content = Properties.Resources.Restart
+        };
+        restartButton.Click += (_, _) => RestartApplication();
+
+        MainInfoBar.Severity = InfoBarSeverity.Informational;
+        MainInfoBar.Message = Properties.Resources.TelemetrySwitched;
+        MainInfoBar.ActionButton = restartButton;
+        MainInfoBar.IsOpen = true;
     }
 
     private void OnThemeSelectionChanged(object? sender, SelectionChangedEventArgs e)
@@ -271,8 +395,9 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider
         RuntimeLogTextBox.Text = string.Empty;
     }
 
-    private void ShowMainInfo(string message, FluentAvalonia.UI.Controls.InfoBarSeverity severity)
+    public void ShowInfo(string message, InfoBarSeverity severity)
     {
+        MainInfoBar.ActionButton = null;
         MainInfoBar.Severity = severity;
         MainInfoBar.Message = message;
         MainInfoBar.IsOpen = true;

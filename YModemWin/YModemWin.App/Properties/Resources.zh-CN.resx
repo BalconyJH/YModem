@@ -1,64 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <root>
-  <!-- 
-    Microsoft ResX Schema 
-    
-    Version 2.0
-    
-    The primary goals of this format is to allow a simple XML format 
-    that is mostly human readable. The generation and parsing of the 
-    various data types are done through the TypeConverter classes 
-    associated with the data types.
-    
-    Example:
-    
-    ... ado.net/XML headers & schema ...
-    <resheader name="resmimetype">text/microsoft-resx</resheader>
-    <resheader name="version">2.0</resheader>
-    <resheader name="reader">System.Resources.ResXResourceReader, System.Windows.Forms, ...</resheader>
-    <resheader name="writer">System.Resources.ResXResourceWriter, System.Windows.Forms, ...</resheader>
-    <data name="Name1"><value>this is my long string</value><comment>this is a comment</comment></data>
-    <data name="Color1" type="System.Drawing.Color, System.Drawing">Blue</data>
-    <data name="Bitmap1" mimetype="application/x-microsoft.net.object.binary.base64">
-        <value>[base64 mime encoded serialized .NET Framework object]</value>
-    </data>
-    <data name="Icon1" type="System.Drawing.Icon, System.Drawing" mimetype="application/x-microsoft.net.object.bytearray.base64">
-        <value>[base64 mime encoded string representing a byte array form of the .NET Framework object]</value>
-        <comment>This is a comment</comment>
-    </data>
-                
-    There are any number of "resheader" rows that contain simple 
-    name/value pairs.
-    
-    Each data row contains a name, and value. The row also contains a 
-    type or mimetype. Type corresponds to a .NET class that support 
-    text/value conversion through the TypeConverter architecture. 
-    Classes that don't support this are serialized and stored with the 
-    mimetype set.
-    
-    The mimetype is used for serialized objects, and tells the 
-    ResXResourceReader how to depersist the object. This is currently not 
-    extensible. For a given mimetype the value must be set accordingly:
-    
-    Note - application/x-microsoft.net.object.binary.base64 is the format 
-    that the ResXResourceWriter will generate, however the reader can 
-    read any of the formats listed below.
-    
-    mimetype: application/x-microsoft.net.object.binary.base64
-    value   : The object must be serialized with 
-            : System.Serialization.Formatters.Binary.BinaryFormatter
-            : and then encoded with base64 encoding.
-    
-    mimetype: application/x-microsoft.net.object.soap.base64
-    value   : The object must be serialized with 
-            : System.Runtime.Serialization.Formatters.Soap.SoapFormatter
-            : and then encoded with base64 encoding.
-
-    mimetype: application/x-microsoft.net.object.bytearray.base64
-    value   : The object must be serialized into a byte array 
-            : using a System.ComponentModel.TypeConverter
-            : and then encoded with base64 encoding.
-    -->
   <xsd:schema id="root" xmlns="" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:msdata="urn:schemas-microsoft-com:xml-msdata">
     <xsd:element name="root" msdata:IsDataSet="true">
       <xsd:complexType>
@@ -116,119 +57,120 @@
   </resheader>
   <!-- Main Window -->
   <data name="Port" xml:space="preserve">
-    <value>Port</value>
+    <value>端口</value>
   </data>
   <data name="Baud" xml:space="preserve">
-    <value>Baud</value>
+    <value>波特率</value>
   </data>
   <data name="Language" xml:space="preserve">
-    <value>Language</value>
+    <value>语言</value>
   </data>
   <data name="Theme" xml:space="preserve">
-    <value>Theme</value>
+    <value>主题</value>
   </data>
   <data name="RefreshPorts" xml:space="preserve">
-    <value>Refresh Ports</value>
+    <value>刷新端口</value>
   </data>
   <data name="Send" xml:space="preserve">
-    <value>Send</value>
+    <value>发送</value>
   </data>
   <data name="Receive" xml:space="preserve">
-    <value>Receive</value>
+    <value>接收</value>
   </data>
   <data name="TransferProgress" xml:space="preserve">
-    <value>Transfer Progress</value>
+    <value>传输进度</value>
   </data>
   <data name="Idle" xml:space="preserve">
-    <value>Idle</value>
+    <value>空闲</value>
   </data>
   <data name="RuntimeLogs" xml:space="preserve">
-    <value>Runtime Logs</value>
+    <value>运行日志</value>
   </data>
   <data name="AutoScroll" xml:space="preserve">
-    <value>Auto Scroll</value>
+    <value>自动滚动</value>
   </data>
   <data name="ClearLogs" xml:space="preserve">
-    <value>Clear Logs</value>
+    <value>清除日志</value>
   </data>
   <!-- Send Page -->
   <data name="AddFiles" xml:space="preserve">
-    <value>Add Files</value>
+    <value>添加文件</value>
   </data>
   <data name="ParsedFiles" xml:space="preserve">
-    <value>Parsed Files</value>
+    <value>解析文件</value>
   </data>
   <data name="ParsedFilesTooltip" xml:space="preserve">
-    <value>Firmware files will be parsed and sent as .bin files instead of the original format. Only available for firmware files (*.hex, *.s19, *.s37, *.srec).</value>
+    <value>固件文件将被解析并以 .bin 文件发送，而非原始格式。仅对固件文件 (*.hex, *.s19, *.s37, *.srec) 有效。</value>
   </data>
   <data name="ParsedFilesDisabledTooltip" xml:space="preserve">
-    <value>Add firmware files (*.hex, *.s19, *.s37, *.srec) to enable this option.</value>
+    <value>添加固件文件 (*.hex, *.s19, *.s37, *.srec) 以启用此选项。</value>
   </data>
   <data name="RemoveSelected" xml:space="preserve">
-    <value>Remove Selected</value>
+    <value>移除选中</value>
   </data>
   <data name="StartSend" xml:space="preserve">
-    <value>Start Send</value>
+    <value>开始发送</value>
   </data>
   <data name="TimeoutSec" xml:space="preserve">
-    <value>Timeout (sec)</value>
+    <value>超时 (秒)</value>
   </data>
   <data name="SelectFilesFirst" xml:space="preserve">
-    <value>Please select files first</value>
+    <value>请先选择文件</value>
   </data>
   <!-- Receive Page -->
   <data name="SaveFolder" xml:space="preserve">
-    <value>Save Folder</value>
+    <value>保存目录</value>
   </data>
   <data name="Browse" xml:space="preserve">
-    <value>Browse</value>
+    <value>浏览</value>
   </data>
   <data name="StartReceive" xml:space="preserve">
-    <value>Start Receive</value>
+    <value>开始接收</value>
   </data>
   <!-- Common -->
   <data name="Cancel" xml:space="preserve">
-    <value>Cancel</value>
+    <value>取消</value>
   </data>
   <data name="Cancelling" xml:space="preserve">
-    <value>Cancelling...</value>
+    <value>取消中...</value>
   </data>
   <!-- Status Messages -->
   <data name="SendCanceledByUser" xml:space="preserve">
-    <value>Send canceled by user.</value>
+    <value>发送已被用户取消。</value>
   </data>
   <data name="ReceiveCanceledByUser" xml:space="preserve">
-    <value>Receive canceled by user.</value>
+    <value>接收已被用户取消。</value>
   </data>
   <data name="LanguageSwitched" xml:space="preserve">
-    <value>Language switched. Restart app to fully apply.</value>
+    <value>语言已切换。重启应用以完全应用。</value>
   </data>
   <data name="Restart" xml:space="preserve">
-    <value>Restart</value>
+    <value>重启</value>
   </data>
   <data name="Telemetry" xml:space="preserve">
-    <value>Telemetry</value>
+    <value>遥测</value>
   </data>
   <data name="TelemetrySwitched" xml:space="preserve">
-    <value>Telemetry setting changed. Restart app to apply.</value>
+    <value>遥测设置已更改。重启应用以生效。</value>
   </data>
   <data name="TelemetryTooltip" xml:space="preserve">
-    <value>Enable anonymous usage data collection to help improve the app.</value>
+    <value>启用匿名使用数据收集以帮助改进应用。</value>
   </data>
   <data name="PleaseSelectPort" xml:space="preserve">
-    <value>Please select a serial port.</value>
+    <value>请选择串口。</value>
   </data>
   <!-- Progress -->
   <data name="SendBytesFormat" xml:space="preserve">
-    <value>Send Bytes: {0}/{1}</value>
+    <value>发送字节: {0}/{1}</value>
   </data>
   <data name="SendPacketsFormat" xml:space="preserve">
-    <value>Send Packets: {0}/{1}</value>
+    <value>发送包: {0}/{1}</value>
   </data>
   <data name="ReceiveBytesFormat" xml:space="preserve">
-    <value>Receive Bytes: {0}/{1}</value>
+    <value>接收字节: {0}/{1}</value>
   </data>
   <data name="ReceivePacketsFormat" xml:space="preserve">
-    <value>Receive Packets: {0}/{1}</value>
+    <value>接收包: {0}/{1}</value>
   </data>
 </root>
+

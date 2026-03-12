@@ -1,9 +1,9 @@
 using System.Globalization;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using FluentAvalonia.UI.Controls;
 
 namespace YModemWin;
 
@@ -14,10 +14,23 @@ public partial class ReceivePage : UserControl
         InitializeComponent();
         SaveFolderTextBox.Text = AppContext.BaseDirectory;
         ReceiveTimeoutComboBox.SelectedIndex = 2;
+        ApplyLocalization();
         SetReceiveActionButtonToStart();
 
         AppServices.TransferController.ReceiveProgressChanged += OnReceiveProgress;
         DetachedFromVisualTree += (_, _) => AppServices.TransferController.ReceiveProgressChanged -= OnReceiveProgress;
+    }
+
+    private void ApplyLocalization()
+    {
+        SaveFolderLabel.Text = Properties.Resources.SaveFolder;
+        BrowseButton.Content = Properties.Resources.Browse;
+        TimeoutLabel.Text = Properties.Resources.TimeoutSec;
+    }
+
+    private void ShowInfo(string message, InfoBarSeverity severity)
+    {
+        AppServices.InfoBarProvider?.ShowInfo(message, severity);
     }
 
     private async void OnBrowseSaveFolderClick(object? sender, RoutedEventArgs e)
@@ -41,7 +54,7 @@ public partial class ReceivePage : UserControl
         {
             AppServices.TransferController.CancelReceive();
             SetReceiveActionButtonToCanceling();
-            ReceiveStatusTextBlock.Text = "Receive canceled by user.";
+            ShowInfo(Properties.Resources.ReceiveCanceledByUser, InfoBarSeverity.Warning);
             return;
         }
 
@@ -51,7 +64,7 @@ public partial class ReceivePage : UserControl
         }
 
         SetReceiveActionButtonToCancel();
-        ReceiveStatusTextBlock.Text = "Waiting for receiver handshake...";
+        ShowInfo("Waiting for sender handshake...", InfoBarSeverity.Informational);
 
         try
         {
@@ -60,7 +73,7 @@ public partial class ReceivePage : UserControl
         catch (Exception ex)
         {
             AppLogger.Error(ex, "Failed to receive files");
-            ReceiveStatusTextBlock.Text = ex.Message;
+            ShowInfo(ex.Message, InfoBarSeverity.Warning);
         }
         finally
         {
@@ -70,14 +83,14 @@ public partial class ReceivePage : UserControl
 
     private void SetReceiveActionButtonToStart()
     {
-        ReceiveActionButton.Content = "Start Receive";
+        ReceiveActionButton.Content = Properties.Resources.StartReceive;
         ReceiveActionButton.IsEnabled = true;
         ReceiveActionButton.Classes.Remove("DangerActionButton");
     }
 
     private void SetReceiveActionButtonToCancel()
     {
-        ReceiveActionButton.Content = "Cancel Receive";
+        ReceiveActionButton.Content = Properties.Resources.Cancel;
         ReceiveActionButton.IsEnabled = true;
         if (!ReceiveActionButton.Classes.Contains("DangerActionButton"))
         {
@@ -87,7 +100,7 @@ public partial class ReceivePage : UserControl
 
     private void SetReceiveActionButtonToCanceling()
     {
-        ReceiveActionButton.Content = "Canceling...";
+        ReceiveActionButton.Content = Properties.Resources.Cancelling;
         ReceiveActionButton.IsEnabled = false;
         if (!ReceiveActionButton.Classes.Contains("DangerActionButton"))
         {
@@ -101,9 +114,22 @@ public partial class ReceivePage : UserControl
     {
         Dispatcher.UIThread.Post(() =>
         {
-            ReceiveStatusTextBlock.Text = string.IsNullOrWhiteSpace(progress.FileName)
-                ? $"{progress.Message} (status={progress.Status})"
-                : $"{progress.Message} | File: {progress.FileName} | Date: {progress.FileDate} (status={progress.Status})";
+            var message = string.IsNullOrWhiteSpace(progress.FileName)
+                ? progress.Message
+                : $"{progress.Message} | File: {progress.FileName} | Date: {progress.FileDate}";
+
+            if (progress.Status < 0)
+            {
+                ShowInfo(message, InfoBarSeverity.Warning);
+            }
+            else if (progress.Status == 1)
+            {
+                ShowInfo(message, InfoBarSeverity.Success);
+            }
+            else
+            {
+                ShowInfo(message, InfoBarSeverity.Informational);
+            }
         });
     }
 }

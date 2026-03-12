@@ -1,15 +1,20 @@
 using System.Collections.ObjectModel;
 using System.Globalization;
 using Avalonia.Controls;
-using Avalonia.Controls.Primitives;
 using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using FluentAvalonia.UI.Controls;
 
 namespace YModemWin;
 
 public partial class SendPage : UserControl
 {
+    private static readonly HashSet<string> FirmwareExtensions = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ".hex", ".s19", ".s37", ".srec"
+    };
+
     private readonly ObservableCollection<PreparedSendFile> sendFiles = new();
 
     public SendPage()
@@ -17,10 +22,26 @@ public partial class SendPage : UserControl
         InitializeComponent();
         SendFilesListBox.ItemsSource = sendFiles;
         SendTimeoutComboBox.SelectedIndex = 2;
+        ApplyLocalization();
         UpdateSendStartButtonState();
+        UpdateParsedFilesCheckBoxState();
 
         AppServices.TransferController.SendProgressChanged += OnSendProgress;
         DetachedFromVisualTree += (_, _) => AppServices.TransferController.SendProgressChanged -= OnSendProgress;
+    }
+
+    private void ApplyLocalization()
+    {
+        AddFilesButton.Content = Properties.Resources.AddFiles;
+        SendParsedFilesCheckBox.Content = Properties.Resources.ParsedFiles;
+        RemoveSelectedButton.Content = Properties.Resources.RemoveSelected;
+        TimeoutLabel.Text = Properties.Resources.TimeoutSec;
+        UpdateParsedFilesCheckBoxState();
+    }
+
+    private void ShowInfo(string message, InfoBarSeverity severity)
+    {
+        AppServices.InfoBarProvider?.ShowInfo(message, severity);
     }
 
     private async void OnBrowseSendFileClick(object? sender, RoutedEventArgs e)
@@ -30,14 +51,12 @@ public partial class SendPage : UserControl
         {
             try
             {
-                AddSendFile(AppServices.TransferController.PrepareSendFile(path, SendParsedFilesCheckBox.IsChecked == true));
+                AddSendFile(AppServices.TransferController.PrepareSendFile(path, parsePreferred: true));
             }
             catch (Exception ex)
             {
                 AppLogger.Error(ex, "Failed to prepare file {File}", path);
-                SendInfoBar.Severity = FluentAvalonia.UI.Controls.InfoBarSeverity.Warning;
-                SendInfoBar.Message = $"Failed to prepare {Path.GetFileName(path)}: {ex.Message}";
-                SendInfoBar.IsOpen = true;
+                ShowInfo($"Failed to prepare {Path.GetFileName(path)}: {ex.Message}", InfoBarSeverity.Warning);
             }
         }
     }
@@ -66,6 +85,7 @@ public partial class SendPage : UserControl
 
         sendFiles.Add(file);
         UpdateSendStartButtonState();
+        UpdateParsedFilesCheckBoxState();
     }
 
     private void OnDeleteSendFilesClick(object? sender, RoutedEventArgs e)
@@ -82,6 +102,7 @@ public partial class SendPage : UserControl
         }
 
         UpdateSendStartButtonState();
+        UpdateParsedFilesCheckBoxState();
     }
 
     private async void OnStartSendClick(object? sender, RoutedEventArgs e)
@@ -90,15 +111,13 @@ public partial class SendPage : UserControl
         {
             AppServices.TransferController.CancelSend();
             SetSendActionButtonToCanceling();
-            SendStatusTextBlock.Text = "Send canceled by user.";
+            ShowInfo(Properties.Resources.SendCanceledByUser, InfoBarSeverity.Warning);
             return;
         }
 
         if (sendFiles.Count == 0)
         {
-            SendInfoBar.Severity = FluentAvalonia.UI.Controls.InfoBarSeverity.Warning;
-            SendInfoBar.Message = "No files selected.";
-            SendInfoBar.IsOpen = true;
+            ShowInfo(Properties.Resources.SelectFilesFirst, InfoBarSeverity.Warning);
             return;
         }
 
@@ -108,8 +127,7 @@ public partial class SendPage : UserControl
         }
 
         SetSendActionButtonToCancel();
-        SendStatusTextBlock.Text = "Waiting for sender handshake...";
-        SendInfoBar.IsOpen = false;
+        ShowInfo("Waiting for receiver handshake...", InfoBarSeverity.Informational);
 
         try
         {
@@ -118,9 +136,7 @@ public partial class SendPage : UserControl
         catch (Exception ex)
         {
             AppLogger.Error(ex, "Failed to send files");
-            SendInfoBar.Severity = FluentAvalonia.UI.Controls.InfoBarSeverity.Warning;
-            SendInfoBar.Message = ex.Message;
-            SendInfoBar.IsOpen = true;
+            ShowInfo(ex.Message, InfoBarSeverity.Warning);
         }
         finally
         {
@@ -130,14 +146,31 @@ public partial class SendPage : UserControl
 
     private void UpdateSendStartButtonState()
     {
-        SendActionButton.Content = "Start Send";
+        SendActionButton.Content = Properties.Resources.StartSend;
         SendActionButton.IsEnabled = sendFiles.Count > 0;
         SendActionButton.Classes.Remove("DangerActionButton");
+
+        // 仅在未选择文件时显示 ToolTip 提示
+        ToolTip.SetTip(SendActionButton, sendFiles.Count == 0 ? Properties.Resources.SelectFilesFirst : null);
     }
+
+    private void UpdateParsedFilesCheckBoxState()
+    {
+        SendParsedFilesCheckBox.IsChecked = true;
+        SendParsedFilesCheckBox.IsEnabled = false;
+        ToolTip.SetTip(SendParsedFilesCheckBox, Properties.Resources.ParsedFilesTooltip);
+    }
+
+    private static bool IsFirmwareFile(string filePath)
+    {
+        var extension = Path.GetExtension(filePath);
+        return FirmwareExtensions.Contains(extension);
+    }
+
 
     private void SetSendActionButtonToCancel()
     {
-        SendActionButton.Content = "Cancel Send";
+        SendActionButton.Content = Properties.Resources.Cancel;
         SendActionButton.IsEnabled = true;
         if (!SendActionButton.Classes.Contains("DangerActionButton"))
         {
@@ -147,7 +180,7 @@ public partial class SendPage : UserControl
 
     private void SetSendActionButtonToCanceling()
     {
-        SendActionButton.Content = "Canceling...";
+        SendActionButton.Content = Properties.Resources.Cancelling;
         SendActionButton.IsEnabled = false;
         if (!SendActionButton.Classes.Contains("DangerActionButton"))
         {
@@ -161,19 +194,17 @@ public partial class SendPage : UserControl
     {
         Dispatcher.UIThread.Post(() =>
         {
-            SendStatusTextBlock.Text = $"{progress.Message} (status={progress.Status})";
-
             if (progress.Status < 0)
             {
-                SendInfoBar.Severity = FluentAvalonia.UI.Controls.InfoBarSeverity.Warning;
-                SendInfoBar.Message = progress.Message;
-                SendInfoBar.IsOpen = true;
+                ShowInfo(progress.Message, InfoBarSeverity.Warning);
             }
             else if (progress.Status == 1)
             {
-                SendInfoBar.Severity = FluentAvalonia.UI.Controls.InfoBarSeverity.Success;
-                SendInfoBar.Message = progress.Message;
-                SendInfoBar.IsOpen = true;
+                ShowInfo(progress.Message, InfoBarSeverity.Success);
+            }
+            else
+            {
+                ShowInfo(progress.Message, InfoBarSeverity.Informational);
             }
         });
     }
