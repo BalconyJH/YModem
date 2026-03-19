@@ -1,0 +1,94 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="YModemWin.SendPage">
+  <UserControl.Styles>
+    <Style Selector="Button#SendActionButton">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark1}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorDark1}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark1}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton:pressed">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark2}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColorDark2}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColorDark2}" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton.DangerActionButton">
+      <Setter Property="Background" Value="#C42B1C" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="#C42B1C" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton.DangerActionButton:pointerover">
+      <Setter Property="Background" Value="#A4262C" />
+      <Setter Property="BorderBrush" Value="#A4262C" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton.DangerActionButton:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#A4262C" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton.DangerActionButton:pressed">
+      <Setter Property="Background" Value="#8C1D18" />
+      <Setter Property="BorderBrush" Value="#8C1D18" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton.DangerActionButton:pressed /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#8C1D18" />
+      <Setter Property="Foreground" Value="White" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton:disabled">
+      <Setter Property="Background" Value="#BDBDBD" />
+      <Setter Property="BorderBrush" Value="#BDBDBD" />
+      <Setter Property="Foreground" Value="#6B6B6B" />
+    </Style>
+
+    <Style Selector="Button#SendActionButton:disabled /template/ ContentPresenter#PART_ContentPresenter">
+      <Setter Property="Background" Value="#BDBDBD" />
+      <Setter Property="Foreground" Value="#6B6B6B" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid RowDefinitions="Auto,*">
+    <StackPanel Orientation="Horizontal" Spacing="8">
+      <Button x:Name="AddFilesButton" Content="Add Files" Click="OnBrowseSendFileClick" />
+      <CheckBox x:Name="SendParsedFilesCheckBox" Content="Parsed Files" VerticalAlignment="Center"
+                IsChecked="True" IsEnabled="False" ToolTip.ShowOnDisabled="True" />
+      <Button x:Name="RemoveSelectedButton" Content="Remove Selected" Click="OnDeleteSendFilesClick" />
+      <Button x:Name="SendActionButton" Content="Start Send" Click="OnStartSendClick"
+              ToolTip.ShowOnDisabled="True" />
+      <TextBlock x:Name="TimeoutLabel" VerticalAlignment="Center" Text="Timeout (sec)" />
+      <ComboBox x:Name="SendTimeoutComboBox" Width="100">
+        <ComboBoxItem Content="0" />
+        <ComboBoxItem Content="2" />
+        <ComboBoxItem Content="5" />
+        <ComboBoxItem Content="10" />
+      </ComboBox>
+    </StackPanel>
+
+    <Grid Grid.Row="1" Margin="0,8,0,0">
+      <ListBox x:Name="SendFilesListBox" SelectionMode="Multiple" />
+    </Grid>
+  </Grid>
+</UserControl>

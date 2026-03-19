@@ -2,17 +2,39 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:faControls="using:FluentAvalonia.UI.Controls"
         xmlns:faWindowing="using:FluentAvalonia.UI.Windowing"
+        xmlns:ui="using:FluentAvalonia.UI.Controls"
         x:Class="YModemWin.MainWindow"
-        Title="YModem"
+        Title="Akame"
         Width="1280"
         Height="820"
         MinWidth="1120"
-        MinHeight="760">
+        MinHeight="760"
+        Icon="/Assets/YModem.png">
+  <faWindowing:AppWindow.Styles>
+    <Style Selector="ToggleButton.NavTab">
+      <Setter Property="Background" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="0" />
+      <Setter Property="Padding" Value="12,6" />
+      <Setter Property="FontWeight" Value="SemiBold" />
+      <Setter Property="CornerRadius" Value="8" />
+    </Style>
+
+    <Style Selector="ToggleButton.NavTab:pointerover">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+    </Style>
+
+    <Style Selector="ToggleButton.NavTab:checked">
+      <Setter Property="Background" Value="{DynamicResource SystemAccentColor}" />
+      <Setter Property="Foreground" Value="White" />
+      <Setter Property="BorderBrush" Value="{DynamicResource SystemAccentColor}" />
+      <Setter Property="BorderThickness" Value="1" />
+    </Style>
+  </faWindowing:AppWindow.Styles>
+
   <Grid RowDefinitions="Auto,Auto,Auto,*,Auto,Auto" Margin="0">
     <Border Grid.Row="0"
             Height="40"
-            Padding="12,0"
-            Background="#2A2F37">
+            Padding="12,0">
       <Grid x:Name="TitleBarHost" ColumnDefinitions="Auto,*,Auto">
         <StackPanel Orientation="Horizontal"
                     Spacing="8"
@@ -24,12 +46,11 @@
                  VerticalAlignment="Center" />
 
           <TextBlock VerticalAlignment="Center">
-            <Run Text="YModem"
+            <Run Text="Akame"
                  FontSize="14"
                  FontWeight="SemiBold" />
-            <Run Text="  Insider"
-                 FontSize="10"
-                 Foreground="#8CFFFFFF" />
+            <Run Text=" Insider"
+                 FontSize="10" />
           </TextBlock>
         </StackPanel>
 
@@ -39,12 +60,12 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="1" Margin="16,10,16,10" Padding="12" CornerRadius="10" Background="#2A2F37">
-      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
-        <TextBlock VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
+    <Border Grid.Row="1" Margin="16,10,16,10" Padding="12" CornerRadius="10">
+      <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,*">
+        <TextBlock x:Name="PortLabel" VerticalAlignment="Center" Margin="0,0,8,0" Text="Port" />
         <ComboBox x:Name="PortComboBox" Grid.Column="1" Width="170" Margin="0,0,16,0" />
 
-        <TextBlock Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0" Text="Baud" />
+        <TextBlock x:Name="BaudLabel" Grid.Column="2" VerticalAlignment="Center" Margin="0,0,8,0" Text="Baud" />
         <ComboBox x:Name="BaudRateComboBox" Grid.Column="3" Width="140" Margin="0,0,16,0">
           <ComboBoxItem Content="9600" />
           <ComboBoxItem Content="19200" />
@@ -56,90 +77,58 @@
           <ComboBoxItem Content="921600" />
         </ComboBox>
 
-        <Button Grid.Column="4" Content="Refresh Ports" Click="OnRefreshPortsClick" />
+        <TextBlock x:Name="LanguageLabel" Grid.Column="4" VerticalAlignment="Center" Margin="0,0,8,0" Text="Language" />
+        <ComboBox x:Name="LanguageComboBox" Grid.Column="5" Width="170" Margin="0,0,16,0" SelectionChanged="OnLanguageSelectionChanged">
+          <ComboBoxItem Content="English" Tag="en-US" />
+          <ComboBoxItem Content="简体中文" Tag="zh-CN" />
+        </ComboBox>
+
+        <TextBlock x:Name="ThemeLabel" Grid.Column="6" VerticalAlignment="Center" Margin="0,0,8,0" Text="Theme" />
+        <ComboBox x:Name="ThemeComboBox" Grid.Column="7" Width="100" Margin="0,0,16,0" SelectionChanged="OnThemeSelectionChanged">
+          <ComboBoxItem Content="Dark" Tag="Dark" />
+          <ComboBoxItem Content="Light" Tag="Light" />
+          <ComboBoxItem Content="System" Tag="Default" />
+        </ComboBox>
+
+        <CheckBox x:Name="TelemetryCheckBox" Grid.Column="8" VerticalAlignment="Center" Margin="0,0,16,0" 
+                  Content="Telemetry" IsCheckedChanged="OnTelemetryCheckBoxChanged" />
+
+        <Button x:Name="RefreshPortsButton" Grid.Column="9" Content="Refresh Ports" Click="OnRefreshPortsClick" />
       </Grid>
     </Border>
 
-    <faControls:InfoBar Grid.Row="2"
-                        x:Name="MainInfoBar"
-                        IsOpen="False"
-                        IsClosable="True"
-                        Margin="16,0,16,10"
-                        Severity="Informational"
-                        Message="Ready." />
-
-    <Border Grid.Row="3" Margin="16,0,16,10" Padding="12" CornerRadius="10" Background="#2A2F37">
-      <TabControl x:Name="ModeTabControl" SelectionChanged="OnModeTabSelectionChanged">
-        <TabItem Header="Send">
-          <Grid x:Name="SendTabContentGrid" RowDefinitions="Auto,*">
-            <Grid.Transitions>
-              <Transitions>
-                <DoubleTransition Property="Opacity" Duration="0:0:0.20" />
-              </Transitions>
-            </Grid.Transitions>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <Button Content="Add Files" Click="OnBrowseSendFileClick" />
-              <CheckBox x:Name="SendParsedFilesCheckBox" Content="Parsed Files" VerticalAlignment="Center" />
-              <Button Content="Remove Selected" Click="OnDeleteSendFilesClick" />
-              <Button x:Name="SendActionButton" Content="Start Send" Click="OnStartSendClick" />
-              <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
-              <ComboBox x:Name="SendTimeoutComboBox" Width="100">
-                <ComboBoxItem Content="0" />
-                <ComboBoxItem Content="2" />
-                <ComboBoxItem Content="5" />
-                <ComboBoxItem Content="10" />
-              </ComboBox>
-            </StackPanel>
-
-            <Grid Grid.Row="1" Margin="0,8,0,0" RowDefinitions="*,Auto,Auto">
-              <ListBox x:Name="SendFilesListBox" SelectionMode="Multiple" />
-              <faControls:InfoBar Grid.Row="1"
-                                  Margin="0,8,0,0"
-                                  x:Name="SendInfoBar"
-                                  IsOpen="False"
-                                  Severity="Informational"
-                                  Message="Ready." />
-              <TextBlock Grid.Row="2" x:Name="SendStatusTextBlock" Margin="0,8,0,0" Text="Idle" />
-            </Grid>
-          </Grid>
-        </TabItem>
-
-        <TabItem Header="Receive">
-          <Grid x:Name="ReceiveTabContentGrid" RowDefinitions="Auto,*">
-            <Grid.Transitions>
-              <Transitions>
-                <DoubleTransition Property="Opacity" Duration="0:0:0.20" />
-              </Transitions>
-            </Grid.Transitions>
-
-            <StackPanel Orientation="Horizontal" Spacing="8">
-              <TextBlock VerticalAlignment="Center" Text="Save Folder" />
-              <TextBox x:Name="SaveFolderTextBox" Width="560" />
-              <Button Content="Browse" Click="OnBrowseSaveFolderClick" />
-              <Button x:Name="ReceiveActionButton" Content="Start Receive" Click="OnStartReceiveClick" />
-              <TextBlock VerticalAlignment="Center" Text="Timeout (sec)" />
-              <ComboBox x:Name="ReceiveTimeoutComboBox" Width="100">
-                <ComboBoxItem Content="0" />
-                <ComboBoxItem Content="2" />
-                <ComboBoxItem Content="5" />
-                <ComboBoxItem Content="10" />
-              </ComboBox>
-            </StackPanel>
-
-            <TextBlock Grid.Row="1" x:Name="ReceiveStatusTextBlock" Margin="0,8,0,0" Text="Idle" />
-          </Grid>
-        </TabItem>
-      </TabControl>
+    <Border Grid.Row="2" Margin="16,0,16,10" MinHeight="40">
+      <faControls:InfoBar x:Name="MainInfoBar"
+                          IsOpen="False"
+                          IsClosable="True"
+                          Severity="Informational"
+                          Message="Ready." />
     </Border>
 
-    <Border Grid.Row="4" Margin="16,0,16,10" Padding="10" CornerRadius="10" Background="#2A2F37">
+    <Border Grid.Row="3" Margin="16,0,16,10" Padding="12" CornerRadius="10">
+      <DockPanel>
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,Auto,*" ColumnSpacing="8">
+          <ToggleButton x:Name="SendPageButton" Classes="NavTab" Content="Send" Click="OnNavigateSendPageClick" />
+          <ToggleButton x:Name="ReceivePageButton" Grid.Column="1" Classes="NavTab" Content="Receive" Click="OnNavigateReceivePageClick" />
+        </Grid>
+
+        <ui:Frame Name="TestFrame" Margin="0,8,0,0" />
+      </DockPanel>
+    </Border>
+
+    <Border Grid.Row="4" Margin="16,0,16,10" Padding="10" CornerRadius="10">
       <Grid RowDefinitions="Auto,Auto,Auto">
         <Grid ColumnDefinitions="Auto,*" VerticalAlignment="Center">
-          <TextBlock Text="Transfer Progress" Opacity="0.8" Margin="0,0,10,0" />
+          <TextBlock x:Name="TransferProgressLabel" Text="Transfer Progress" Opacity="0.8" Margin="0,0,10,0" />
           <TextBlock Grid.Column="1" x:Name="TransferProgressTextBlock" Text="Idle" />
         </Grid>
-        <ProgressBar Grid.Row="1" Margin="0,8,0,0" x:Name="TransferProgressBar" Minimum="0" Maximum="100" Height="6" />
+        <ProgressBar Grid.Row="1" Margin="0,8,0,0" x:Name="TransferProgressBar" Minimum="0" Maximum="100" Height="8">
+          <ProgressBar.Transitions>
+            <Transitions>
+              <DoubleTransition Property="Value" Duration="0:0:0.18" />
+            </Transitions>
+          </ProgressBar.Transitions>
+        </ProgressBar>
         <Grid Grid.Row="2" Margin="0,8,0,0" ColumnDefinitions="*,*,*,*">
           <TextBlock x:Name="SendBytesTextBlock" Text="Send Bytes: 0/0" />
           <TextBlock Grid.Column="1" x:Name="SendPacketsTextBlock" Text="Send Packets: 0/0" />
@@ -149,12 +138,12 @@
       </Grid>
     </Border>
 
-    <Border Grid.Row="5" Margin="16,0,16,16" Padding="10" CornerRadius="10" Background="#2A2F37">
+    <Border Grid.Row="5" Margin="16,0,16,16" Padding="10" CornerRadius="10">
       <Grid RowDefinitions="Auto,*">
         <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
-          <TextBlock VerticalAlignment="Center" FontWeight="SemiBold" Text="Runtime Logs" />
+          <TextBlock x:Name="RuntimeLogsLabel" VerticalAlignment="Center" FontWeight="SemiBold" Text="Runtime Logs" />
           <CheckBox Grid.Column="1" x:Name="AutoScrollLogCheckBox" Margin="0,0,10,0" IsChecked="True" Content="Auto Scroll" />
-          <Button Grid.Column="2" Content="Clear Logs" Click="OnClearLogClick" />
+          <Button x:Name="ClearLogsButton" Grid.Column="2" Content="Clear Logs" Click="OnClearLogClick" />
         </Grid>
 
         <TextBox Grid.Row="1" x:Name="RuntimeLogTextBox" AcceptsReturn="True" IsReadOnly="True" TextWrapping="Wrap" Height="170" />

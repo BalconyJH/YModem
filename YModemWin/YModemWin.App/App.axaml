@@ -2,8 +2,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:fa="using:FluentAvalonia.Styling"
              x:Class="YModemWin.App"
-             RequestedThemeVariant="Dark">
+             RequestedThemeVariant="Default">
   <Application.Styles>
-    <fa:FluentAvaloniaTheme />
+    <fa:FluentAvaloniaTheme PreferUserAccentColor="True" />
   </Application.Styles>
 </Application>

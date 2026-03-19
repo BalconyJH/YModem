@@ -4,7 +4,7 @@ using Avalonia.Markup.Xaml;
 
 namespace YModemWin;
 
-public partial class App : Application
+public class App : Application
 {
     private IDisposable? sentrySdk;
 
@@ -20,38 +20,48 @@ public partial class App : Application
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.ShutdownRequested += (_, _) => sentrySdk?.Dispose();
-            desktop.MainWindow = new MainWindow();
+            desktop.MainWindow = new MainWindow
+            {
+                SplashScreen = new AppSplashScreen()
+            };
         }
 
         AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
         {
-            if (eventArgs.ExceptionObject is Exception exception)
-            {
-                AppLogger.Error(exception, "Unhandled domain exception. IsTerminating={IsTerminating}", eventArgs.IsTerminating);
-                Sentry.SentrySdk.CaptureException(exception);
-            }
+            if (eventArgs.ExceptionObject is not Exception exception) return;
+            AppLogger.Error(exception, "Unhandled domain exception. IsTerminating={IsTerminating}", eventArgs.IsTerminating);
+            SentrySdk.CaptureException(exception);
         };
 
         TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
         {
             AppLogger.Error(eventArgs.Exception, "Unobserved task exception");
-            Sentry.SentrySdk.CaptureException(eventArgs.Exception);
+            SentrySdk.CaptureException(eventArgs.Exception);
             eventArgs.SetObserved();
         };
 
         base.OnFrameworkInitializationCompleted();
     }
 
+    private const string DefaultSentryDsn = "https://2980e617e7ca15a54cb134915955a58c@o4505203476660224.ingest.us.sentry.io/4510962730926080";
+
     private void ConfigureSentry()
     {
-        var sentryDsn = Environment.GetEnvironmentVariable("SENTRY_DSN");
-        if (string.IsNullOrWhiteSpace(sentryDsn))
+        // Check if telemetry is enabled by user
+        if (!Properties.Settings.Default.TelemetryEnabled)
         {
-            AppLogger.Warn("Sentry DSN is empty; Sentry is disabled.");
+            AppLogger.Info("Telemetry is disabled by user.");
             return;
         }
 
-        sentrySdk = Sentry.SentrySdk.Init(options =>
+        var sentryDsn = Environment.GetEnvironmentVariable("SENTRY_DSN");
+        if (string.IsNullOrWhiteSpace(sentryDsn))
+        {
+            sentryDsn = DefaultSentryDsn;
+            AppLogger.Info("Using default Sentry DSN.");
+        }
+
+        sentrySdk = SentrySdk.Init(options =>
         {
             options.Dsn = sentryDsn;
             options.Debug = false;
@@ -62,6 +72,6 @@ public partial class App : Application
             options.EnableLogs = true;
         });
 
-        AppLogger.Info("Sentry initialized.");
+        AppLogger.Info("Sentry initialized (telemetry enabled by user).");
     }
 }

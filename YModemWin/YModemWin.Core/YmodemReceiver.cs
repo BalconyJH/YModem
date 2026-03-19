@@ -535,7 +535,7 @@ namespace YModemWin.Core
 
         private void SendChar(byte c)
         {
-            if (serialPort.IsOpen) serialPort.Write(new byte[] { c }, 0, 1);
+            if (serialPort.IsOpen) serialPort.Write([c], 0, 1);
         }
     }
 

@@ -59,5 +59,233 @@ namespace YModemWin.Properties {
                 resourceCulture = value;
             }
         }
+        
+        // Main Window
+        internal static string Port {
+            get {
+                return ResourceManager.GetString("Port", resourceCulture);
+            }
+        }
+        
+        internal static string Baud {
+            get {
+                return ResourceManager.GetString("Baud", resourceCulture);
+            }
+        }
+        
+        internal static string Language {
+            get {
+                return ResourceManager.GetString("Language", resourceCulture);
+            }
+        }
+        
+        internal static string Theme {
+            get {
+                return ResourceManager.GetString("Theme", resourceCulture);
+            }
+        }
+        
+        internal static string RefreshPorts {
+            get {
+                return ResourceManager.GetString("RefreshPorts", resourceCulture);
+            }
+        }
+        
+        internal static string Send {
+            get {
+                return ResourceManager.GetString("Send", resourceCulture);
+            }
+        }
+        
+        internal static string Receive {
+            get {
+                return ResourceManager.GetString("Receive", resourceCulture);
+            }
+        }
+        
+        internal static string TransferProgress {
+            get {
+                return ResourceManager.GetString("TransferProgress", resourceCulture);
+            }
+        }
+        
+        internal static string Idle {
+            get {
+                return ResourceManager.GetString("Idle", resourceCulture);
+            }
+        }
+        
+        internal static string RuntimeLogs {
+            get {
+                return ResourceManager.GetString("RuntimeLogs", resourceCulture);
+            }
+        }
+        
+        internal static string AutoScroll {
+            get {
+                return ResourceManager.GetString("AutoScroll", resourceCulture);
+            }
+        }
+        
+        internal static string ClearLogs {
+            get {
+                return ResourceManager.GetString("ClearLogs", resourceCulture);
+            }
+        }
+        
+        // Send Page
+        internal static string AddFiles {
+            get {
+                return ResourceManager.GetString("AddFiles", resourceCulture);
+            }
+        }
+        
+        internal static string ParsedFiles {
+            get {
+                return ResourceManager.GetString("ParsedFiles", resourceCulture);
+            }
+        }
+        
+        internal static string ParsedFilesTooltip {
+            get {
+                return ResourceManager.GetString("ParsedFilesTooltip", resourceCulture);
+            }
+        }
+        
+        internal static string ParsedFilesDisabledTooltip {
+            get {
+                return ResourceManager.GetString("ParsedFilesDisabledTooltip", resourceCulture);
+            }
+        }
+        
+        internal static string RemoveSelected {
+            get {
+                return ResourceManager.GetString("RemoveSelected", resourceCulture);
+            }
+        }
+        
+        internal static string StartSend {
+            get {
+                return ResourceManager.GetString("StartSend", resourceCulture);
+            }
+        }
+        
+        internal static string TimeoutSec {
+            get {
+                return ResourceManager.GetString("TimeoutSec", resourceCulture);
+            }
+        }
+        
+        internal static string SelectFilesFirst {
+            get {
+                return ResourceManager.GetString("SelectFilesFirst", resourceCulture);
+            }
+        }
+        
+        // Receive Page
+        internal static string SaveFolder {
+            get {
+                return ResourceManager.GetString("SaveFolder", resourceCulture);
+            }
+        }
+        
+        internal static string Browse {
+            get {
+                return ResourceManager.GetString("Browse", resourceCulture);
+            }
+        }
+        
+        internal static string StartReceive {
+            get {
+                return ResourceManager.GetString("StartReceive", resourceCulture);
+            }
+        }
+        
+        // Common
+        internal static string Cancel {
+            get {
+                return ResourceManager.GetString("Cancel", resourceCulture);
+            }
+        }
+        
+        internal static string Cancelling {
+            get {
+                return ResourceManager.GetString("Cancelling", resourceCulture);
+            }
+        }
+        
+        // Status Messages
+        internal static string SendCanceledByUser {
+            get {
+                return ResourceManager.GetString("SendCanceledByUser", resourceCulture);
+            }
+        }
+        
+        internal static string ReceiveCanceledByUser {
+            get {
+                return ResourceManager.GetString("ReceiveCanceledByUser", resourceCulture);
+            }
+        }
+        
+        internal static string LanguageSwitched {
+            get {
+                return ResourceManager.GetString("LanguageSwitched", resourceCulture);
+            }
+        }
+        
+        internal static string Restart {
+            get {
+                return ResourceManager.GetString("Restart", resourceCulture);
+            }
+        }
+        
+        internal static string Telemetry {
+            get {
+                return ResourceManager.GetString("Telemetry", resourceCulture);
+            }
+        }
+        
+        internal static string TelemetrySwitched {
+            get {
+                return ResourceManager.GetString("TelemetrySwitched", resourceCulture);
+            }
+        }
+        
+        internal static string TelemetryTooltip {
+            get {
+                return ResourceManager.GetString("TelemetryTooltip", resourceCulture);
+            }
+        }
+        
+        internal static string PleaseSelectPort {
+            get {
+                return ResourceManager.GetString("PleaseSelectPort", resourceCulture);
+            }
+        }
+        
+        // Progress
+        internal static string SendBytesFormat {
+            get {
+                return ResourceManager.GetString("SendBytesFormat", resourceCulture);
+            }
+        }
+        
+        internal static string SendPacketsFormat {
+            get {
+                return ResourceManager.GetString("SendPacketsFormat", resourceCulture);
+            }
+        }
+        
+        internal static string ReceiveBytesFormat {
+            get {
+                return ResourceManager.GetString("ReceiveBytesFormat", resourceCulture);
+            }
+        }
+        
+        internal static string ReceivePacketsFormat {
+            get {
+                return ResourceManager.GetString("ReceivePacketsFormat", resourceCulture);
+            }
+        }
     }
 }

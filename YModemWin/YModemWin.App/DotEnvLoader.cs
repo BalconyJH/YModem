@@ -1,5 +1,3 @@
-using System.IO;
-
 namespace YModemWin;
 
 internal static class DotEnvLoader
