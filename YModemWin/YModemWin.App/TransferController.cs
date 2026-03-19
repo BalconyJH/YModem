@@ -91,6 +91,8 @@ public sealed class TransferController : IDisposable
             Message: "Waiting for sender handshake..."));
 
         transmitter = new YModemTransmitter(serialPort, timeoutSeconds, OnSendProgress);
+        var maxPayloadBytes = files.Max(GetSendFilePayloadLength);
+        transmitter.ConfigureBatchDataBlockSize(maxPayloadBytes);
 
         try
         {
@@ -207,6 +209,16 @@ public sealed class TransferController : IDisposable
         }
 
         return null;
+    }
+
+    private static long GetSendFilePayloadLength(PreparedSendFile file)
+    {
+        if (file.ParsedPayload is not null)
+        {
+            return file.ParsedPayload.LongLength;
+        }
+
+        return new FileInfo(file.SourcePath).Length;
     }
 
     private void OnSendProgress(long sentBytes, long totalBytes, long sentPackets, long totalPackets, long status, string message)

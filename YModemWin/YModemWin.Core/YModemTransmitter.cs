@@ -11,7 +11,8 @@ public class YModemTransmitter
     private const int MaxRetryCount = 10;
     private const int CancelBurstLength = 8;
 
-    public const int DataSize = 1024;
+    public const int SmallDataBlockSize = 128;
+    public const int LargeDataBlockSize = 1024;
 
     private readonly SerialPort serialPort;
     private readonly int originalReadTimeout;
@@ -19,6 +20,8 @@ public class YModemTransmitter
 
     private YModemBatchSender? batchSender;
     private YModemPacketEncoder? packetEncoder;
+    private int? preferredDataBlockSize;
+    private int activeDataBlockSize;
     private bool userCancel;
     private long status;
 
@@ -48,40 +51,25 @@ public class YModemTransmitter
     public void StopTransmitting()
     {
         userCancel = true;
+        Logger.Information("Send cancel requested by user");
     }
 
-    public void ResetCancel()
+    public void ConfigureBatchDataBlockSize(long maxFileSize)
     {
-        userCancel = false;
-    }
-
-    public void YmodemSendFiles(List<string> files)
-    {
-        for (var i = 0; i < files.Count; i++)
-        {
-            if (userCancel)
-            {
-                break;
-            }
-
-            var success = YmodemSendFile(files[i], i == files.Count - 1);
-            if (!success || userCancel)
-            {
-                break;
-            }
-        }
+        preferredDataBlockSize = SelectDataBlockSize(maxFileSize);
     }
 
     private bool YmodemSendStream(Stream fileStream, string fileName, bool isLastFile)
     {
-        var context = new FileTransferContext(fileStream, NormalizeFileName(fileName));
         if (userCancel)
         {
-            CancelByUser(context, "Send canceled by user.");
+            var canceledContext = new FileTransferContext(fileStream, fileName, SelectDataBlockSize(fileStream.Length));
+            CancelByUser(canceledContext, "Send canceled by user.");
             return false;
         }
 
-        EnsureBatchSession();
+        EnsureBatchSession(fileStream.Length);
+        var context = new FileTransferContext(fileStream, fileName, activeDataBlockSize);
         Logger.Information("Prepared transfer for {FileName} with {TotalPacketCount} packet(s)", context.FileName, context.TotalPackets);
 
         var pendingActions = new Queue<YModemAction>();
@@ -117,6 +105,7 @@ public class YModemTransmitter
 
                     var step = batchSender!.Advance(new YModemEvent.PeerByteReceived((byte)peerByte));
                     lastSnapshot = step.Snapshot;
+                    Logger.Debug("Sender received peer byte 0x{PeerByte:X2}, phase={Phase}, actions={ActionCount}", peerByte, lastSnapshot.Phase, step.Actions.Count);
                     EnqueueActions(step.Actions, pendingActions);
 
                     if (!isLastFile && lastSnapshot.Phase == YModemBatchSenderPhase.WaitingNextHeaderRequest)
@@ -128,6 +117,7 @@ public class YModemTransmitter
                 while (pendingActions.Count > 0)
                 {
                     var action = pendingActions.Dequeue();
+                    Logger.Debug("Sender action: {ActionDescription}", DescribeAction(action));
                     switch (action)
                     {
                         case YModemAction.SendPacket sendPacket:
@@ -153,8 +143,10 @@ public class YModemTransmitter
                             if (!providedCurrentFileHeader)
                             {
                                 var descriptor = new YModemFileDescriptor(context.FileName, context.FileSize);
+                                Logger.Information("Providing file header: {FileName} ({FileSize} bytes)", context.FileName, context.FileSize);
                                 var headerStep = batchSender!.Advance(new YModemEvent.FileHeaderReady(descriptor));
                                 lastSnapshot = headerStep.Snapshot;
+                                Logger.Debug("Sender phase after file header: {Phase}, actions={ActionCount}", lastSnapshot.Phase, headerStep.Actions.Count);
                                 EnqueueActions(headerStep.Actions, pendingActions);
                                 providedCurrentFileHeader = true;
                                 break;
@@ -162,8 +154,10 @@ public class YModemTransmitter
 
                             if (isLastFile && !providedNoMoreFiles)
                             {
+                                Logger.Information("Providing batch trailer (no more files)");
                                 var trailerStep = batchSender!.Advance(new YModemEvent.NoMoreFiles());
                                 lastSnapshot = trailerStep.Snapshot;
+                                Logger.Debug("Sender phase after trailer: {Phase}, actions={ActionCount}", lastSnapshot.Phase, trailerStep.Actions.Count);
                                 EnqueueActions(trailerStep.Actions, pendingActions);
                                 providedNoMoreFiles = true;
                                 break;
@@ -176,6 +170,12 @@ public class YModemTransmitter
                             var payload = new byte[requestDataBlock.BlockSize];
                             var bytesRead = context.Stream.Read(payload, 0, requestDataBlock.BlockSize);
                             var isLastBlock = bytesRead < requestDataBlock.BlockSize || context.Stream.Position >= context.FileSize;
+                            Logger.Debug(
+                                "Preparing data block #{BlockNumber}: requested={RequestedSize}, read={BytesRead}, isLast={IsLastBlock}",
+                                requestDataBlock.BlockNumber,
+                                requestDataBlock.BlockSize,
+                                bytesRead,
+                                isLastBlock);
 
                             context.SentPackets++;
                             status = 2;
@@ -189,11 +189,13 @@ public class YModemTransmitter
 
                             var dataStep = batchSender!.Advance(new YModemEvent.DataBlockReady(requestDataBlock.BlockNumber, payload, bytesRead, isLastBlock));
                             lastSnapshot = dataStep.Snapshot;
+                            Logger.Debug("Sender phase after data block #{BlockNumber}: {Phase}, actions={ActionCount}", requestDataBlock.BlockNumber, lastSnapshot.Phase, dataStep.Actions.Count);
                             EnqueueActions(dataStep.Actions, pendingActions);
                             break;
 
                         case YModemAction.Complete:
                             status = 1;
+                            Logger.Information("Send completed for {FileName}", context.FileName);
                             var elapsed = DateTime.Now - dt;
                             refreshSendUi?.Invoke(
                                 context.FileSize,
@@ -236,15 +238,17 @@ public class YModemTransmitter
         }
     }
 
-    private void EnsureBatchSession()
+    private void EnsureBatchSession(long currentFileSize)
     {
         if (batchSender is not null && packetEncoder is not null)
         {
             return;
         }
 
-        batchSender = new YModemBatchSender(DataSize);
-        packetEncoder = new YModemPacketEncoder(DataSize);
+        activeDataBlockSize = preferredDataBlockSize ?? SelectDataBlockSize(currentFileSize);
+        batchSender = new YModemBatchSender(activeDataBlockSize);
+        packetEncoder = new YModemPacketEncoder(activeDataBlockSize);
+        Logger.Information("Initialized YMODEM sender with adaptive data block size: {BlockSize}", activeDataBlockSize);
         if (dt == DateTime.MinValue)
         {
             dt = DateTime.Now;
@@ -253,16 +257,28 @@ public class YModemTransmitter
 
     private void ResetBatchSession()
     {
+        Logger.Debug("Resetting sender batch session");
         batchSender = null;
         packetEncoder = null;
+        preferredDataBlockSize = null;
+        activeDataBlockSize = 0;
         dt = DateTime.MinValue;
     }
 
-    private static string NormalizeFileName(string fileName) => fileName.Replace(' ', '_');
+    private static int SelectDataBlockSize(long fileSize)
+    {
+        if (fileSize <= LargeDataBlockSize)
+        {
+            return SmallDataBlockSize;
+        }
+
+        return LargeDataBlockSize;
+    }
 
     private void WritePacket(YModemPacket packet)
     {
         var packetBytes = packetEncoder!.Encode(packet);
+        Logger.Debug("Sending packet {PacketType} ({Length} bytes)", DescribePacketType(packet), packetBytes.Length);
         serialPort.Write(packetBytes, 0, packetBytes.Length);
     }
 
@@ -270,6 +286,7 @@ public class YModemTransmitter
     {
         SendCancelBurst();
         status = -2;
+        Logger.Information("Send canceled for {FileName}: {Message}", context.FileName, message);
         refreshSendUi?.Invoke(context.Stream.Position, context.FileSize, context.SentPackets, context.TotalPackets, status, message);
         ResetBatchSession();
     }
@@ -277,6 +294,7 @@ public class YModemTransmitter
     private void FailTransfer(FileTransferContext context, string message)
     {
         status = -1;
+        Logger.Warning("Send failed for {FileName}: {Message}", context.FileName, message);
         refreshSendUi?.Invoke(context.Stream.Position, context.FileSize, context.SentPackets, context.TotalPackets, status, message);
         ResetBatchSession();
     }
@@ -300,6 +318,33 @@ public class YModemTransmitter
         {
             pendingActions.Enqueue(action);
         }
+    }
+
+    private static string DescribeAction(YModemAction action)
+    {
+        return action switch
+        {
+            YModemAction.SendControl c => $"SendControl(0x{c.Value:X2}, {c.Description})",
+            YModemAction.SendPacket p => $"SendPacket({DescribePacketType(p.Packet)}, {p.Description})",
+            YModemAction.RequestFileHeader => "RequestFileHeader",
+            YModemAction.RequestDataBlock d => $"RequestDataBlock(block={d.BlockNumber}, size={d.BlockSize})",
+            YModemAction.Complete => "Complete",
+            YModemAction.Cancel c => $"Cancel({c.Reason})",
+            YModemAction.Fail f => $"Fail({f.Reason})",
+            _ => action.GetType().Name
+        };
+    }
+
+    private static string DescribePacketType(YModemPacket packet)
+    {
+        return packet switch
+        {
+            YModemPacket.Header => "Header",
+            YModemPacket.Data d => $"Data#{d.BlockNumber}",
+            YModemPacket.Eot => "EOT",
+            YModemPacket.BatchTrailer => "BatchTrailer",
+            _ => packet.GetType().Name
+        };
     }
 
     private int ReadByteWithCancel()
@@ -331,12 +376,12 @@ public class YModemTransmitter
 
     private sealed class FileTransferContext
     {
-        public FileTransferContext(Stream stream, string fileName)
+        public FileTransferContext(Stream stream, string fileName, int dataBlockSize)
         {
             Stream = stream;
             FileName = fileName;
             FileSize = stream.Length;
-            TotalPackets = FileSize == 0 ? 1 : ((FileSize - 1) / DataSize) + 1;
+            TotalPackets = FileSize == 0 ? 1 : ((FileSize - 1) / dataBlockSize) + 1;
         }
 
         public Stream Stream { get; }

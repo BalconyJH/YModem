@@ -1,544 +1,477 @@
-namespace YModemWin.Core
-{
-    using System;
-    using System.IO;
-    using System.IO.Ports;
-    using Sentry;
-    using Serilog;
-    using System.Text;
-    
-    public class YModemReceiver
-    {
-        private static readonly ILogger Logger = Log.ForContext<YModemReceiver>();
-        private const int PacketSize128 = 128; // 128 字节包大小
-        private const int PacketSize1024 = 1024; // 1024 字节包大小
-        private const byte SOH = 0x01; // 128 字节包标识
-        private const byte STX = 0x02; // 1024 字节包标识
-        private const byte EOT = 0x04; // 结束传输标识
-        private const byte ACK = 0x06; // 确认标识
-        private const byte NAK = 0x15; // 否认标识
-        private const byte CAN = 0x18; // 取消传输标识
-        private const byte C = 0x43; // 'C' 字符，表示准备接收数据
-        private const byte CTRLZ = 0x1A; // 填充字符
-        
-        private const int CancelCheckIntervalMs = 200; // 取消检查间隔
+using System.IO.Ports;
+using Serilog;
+using Ymodem.Protocol;
 
-        private SerialPort serialPort; // 串口对象
-        private int originalReadTimeout;
-        public string? saveFileName; // 文件保存路径
-        public DateTime saveFileDate; //文件修改日期
-        public string? saveFilePath; // 文件保存路径
-        public long fileLength = 0;
-        private string saveDirectory;
-        private bool isTransmissionComplete;
-        private long ReceivedLength = 0;
-        DateTime dt;
-        long status;
-        private byte[]? packetBuffer;
-        private long expectedPackageNo = 0;
-        private long totalPackage = 0;
-        
-        //完成字节，总字节，文件名，文件日期
-        Action<long, long, long, long, long, string, string, string>? RefreshReceiveUI=null;
-        public YModemReceiver(SerialPort sp, int timeoutSeconds, string path, Action<long,long, long, long, long, string,string, string> action)
+namespace YModemWin.Core;
+
+public class YModemReceiver
+{
+    private static readonly ILogger Logger = Log.ForContext<YModemReceiver>();
+    private const int PacketSize128 = 128;
+    private const int PacketSize1024 = 1024;
+    private const int CancelCheckIntervalMs = 200;
+    private const int CancelBurstLength = 8;
+
+    private readonly SerialPort serialPort;
+    private readonly int originalReadTimeout;
+    private readonly string saveDirectory;
+    private readonly Action<long, long, long, long, long, string, string, string>? refreshReceiveUi;
+
+    private bool isTransmissionComplete;
+    private long receivedLength;
+    private DateTime startedAt;
+    private long status;
+
+    public string? saveFileName;
+    public DateTime saveFileDate;
+    public string? saveFilePath;
+    public long fileLength;
+
+    private long expectedPackageNo;
+    private long totalPackage;
+
+    public YModemReceiver(SerialPort sp, int timeoutSeconds, string path, Action<long, long, long, long, long, string, string, string> action)
+    {
+        serialPort = sp;
+        originalReadTimeout = timeoutSeconds <= 0 ? 1_000_000 : timeoutSeconds * 1000;
+        serialPort.ReadTimeout = originalReadTimeout;
+        saveDirectory = path;
+        refreshReceiveUi = action;
+    }
+
+    public void StartReceiving()
+    {
+        var receiver = new YModemBatchReceiver();
+        var eventAdapter = new YModemReceiverEventAdapter();
+        Logger.Information("Receiver started with Ymodem.Protocol");
+
+        status = 0;
+        expectedPackageNo = 0;
+        totalPackage = 0;
+        fileLength = 0;
+        receivedLength = 0;
+        saveFileName = null;
+        saveFilePath = null;
+        saveFileDate = DateTime.MinValue;
+        isTransmissionComplete = false;
+        startedAt = DateTime.MinValue;
+
+        serialPort.DiscardInBuffer();
+
+        var pendingActions = new Queue<YModemAction>();
+        var initial = receiver.Advance(new YModemEvent.StartRequested());
+        var snapshot = initial.Snapshot;
+        EnqueueActions(initial.Actions, pendingActions);
+
+        try
         {
-            serialPort = sp;
-            originalReadTimeout = timeoutSeconds <= 0 ? 1000000 : timeoutSeconds * 1000;
-            serialPort.ReadTimeout = originalReadTimeout;
-            saveDirectory = path;
-            isTransmissionComplete = false;
-            status = 0;
-            expectedPackageNo = 0;
-            RefreshReceiveUI = action;
+            while (!isTransmissionComplete)
+            {
+                while (pendingActions.Count > 0 && !isTransmissionComplete)
+                {
+                    var action = pendingActions.Dequeue();
+                    if (!HandleAction(receiver, action, pendingActions, ref snapshot))
+                    {
+                        return;
+                    }
+                }
+
+                if (isTransmissionComplete)
+                {
+                    break;
+                }
+
+                var frame = ReceiveFrame();
+                if (frame.Kind == FrameKind.Cancelled)
+                {
+                    status = -2;
+                    isTransmissionComplete = true;
+                    Logger.Information("Receiver canceled by user");
+                    refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive canceled by user", saveFileName ?? string.Empty, FormatDate(saveFileDate));
+                    break;
+                }
+
+                if (frame.Kind == FrameKind.Timeout)
+                {
+                    if (snapshot.Phase == YModemBatchReceiverPhase.WaitingFileHeaderPacket)
+                    {
+                        // Keep advertising readiness while waiting for the first/next file header.
+                        Logger.Debug("Receiver timeout while waiting header, re-sending CRC request");
+                        SendControl(YModemControlBytes.CrcRequest);
+                        continue;
+                    }
+
+                    status = -1;
+                    isTransmissionComplete = true;
+                    Logger.Warning("Receiver timed out in phase {Phase}", snapshot.Phase);
+                    refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, "Data receive timeout", saveFileName ?? string.Empty, FormatDate(saveFileDate));
+                    break;
+                }
+
+                if (frame.Kind == FrameKind.Invalid)
+                {
+                    Logger.Warning("Receiver got invalid frame, sending NAK");
+                    SendControl(YModemControlBytes.Nak);
+                    continue;
+                }
+
+                YModemEvent protocolEvent;
+                try
+                {
+                    protocolEvent = eventAdapter.Decode(frame.Bytes!);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Warning(ex, "Failed to decode incoming frame");
+                    SendControl(YModemControlBytes.Nak);
+                    continue;
+                }
+
+                var step = receiver.Advance(protocolEvent);
+                snapshot = step.Snapshot;
+                Logger.Debug("Receiver event {EventType}, phase={Phase}, actions={ActionCount}", protocolEvent.GetType().Name, snapshot.Phase, step.Actions.Count);
+                EnqueueActions(step.Actions, pendingActions);
+            }
         }
-        
-        /// <summary>
-        /// 可取消的读取单个字节
-        /// </summary>
-        private int ReadByteWithCancel()
+        catch (Exception ex)
         {
+            Logger.Error(ex, "Unexpected receive failure");
+            status = -1;
+            isTransmissionComplete = true;
+            refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, ex.Message, saveFileName ?? string.Empty, FormatDate(saveFileDate));
+        }
+    }
+
+    public void StopReceiving()
+    {
+        isTransmissionComplete = true;
+        Logger.Information("Receive cancel requested by user");
+        SendCancelBurst();
+        status = -2;
+        refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive canceled by user", saveFileName ?? string.Empty, FormatDate(saveFileDate));
+    }
+
+    private bool HandleAction(
+        YModemBatchReceiver receiver,
+        YModemAction action,
+        Queue<YModemAction> pendingActions,
+        ref YModemBatchReceiverSnapshot snapshot)
+    {
+        switch (action)
+        {
+            case YModemAction.SendControl sendControl:
+                Logger.Debug("Receiver action: SendControl 0x{Control:X2} ({Description})", sendControl.Value, sendControl.Description);
+                SendControl(sendControl.Value);
+                return true;
+
+            case YModemAction.OfferFileHeader offerFileHeader:
+                Logger.Information("Receiver offered file header: {FileName} ({FileSize} bytes)", offerFileHeader.File.FileName, offerFileHeader.File.FileSize);
+                PrepareIncomingFile(offerFileHeader.File);
+                var headerAccepted = receiver.Advance(new YModemEvent.FileHeaderAccepted());
+                snapshot = headerAccepted.Snapshot;
+                Logger.Debug("Receiver accepted header, phase={Phase}, actions={ActionCount}", snapshot.Phase, headerAccepted.Actions.Count);
+                EnqueueActions(headerAccepted.Actions, pendingActions);
+                return true;
+
+            case YModemAction.DeliverDataBlock deliverDataBlock:
+                Logger.Debug("Receiver action: DeliverDataBlock #{BlockNumber}, payload={PayloadLength}, data={DataLength}", deliverDataBlock.BlockNumber, deliverDataBlock.Payload.Length, deliverDataBlock.DataLength);
+                if (!WriteDataBlock(deliverDataBlock.Payload, deliverDataBlock.DataLength))
+                {
+                    var reject = receiver.Advance(new YModemEvent.DataBlockRejected());
+                    snapshot = reject.Snapshot;
+                    Logger.Warning("Receiver rejected data block #{BlockNumber}", deliverDataBlock.BlockNumber);
+                    EnqueueActions(reject.Actions, pendingActions);
+                    return true;
+                }
+
+                if (totalPackage == 0)
+                {
+                    var detectedBlockSize = Math.Max(deliverDataBlock.Payload.Length, 1);
+                    totalPackage = fileLength == 0 ? 1 : ((fileLength - 1) / detectedBlockSize) + 1;
+                }
+
+                expectedPackageNo = deliverDataBlock.BlockNumber;
+                status = 2;
+                refreshReceiveUi?.Invoke(
+                    receivedLength,
+                    fileLength,
+                    expectedPackageNo,
+                    totalPackage,
+                    status,
+                    "Receiving file " + (saveFileName ?? string.Empty),
+                    saveFileName ?? string.Empty,
+                    FormatDate(saveFileDate));
+
+                var dataAccepted = receiver.Advance(new YModemEvent.DataBlockAccepted());
+                snapshot = dataAccepted.Snapshot;
+                Logger.Debug("Receiver accepted data block #{BlockNumber}, phase={Phase}, actions={ActionCount}", deliverDataBlock.BlockNumber, snapshot.Phase, dataAccepted.Actions.Count);
+                EnqueueActions(dataAccepted.Actions, pendingActions);
+                return true;
+
+            case YModemAction.Complete:
+                status = 1;
+                isTransmissionComplete = true;
+                Logger.Information("Receive completed for {FileName}", saveFileName ?? "<unknown>");
+                var elapsed = startedAt == DateTime.MinValue ? 0 : (DateTime.Now - startedAt).TotalSeconds;
+                refreshReceiveUi?.Invoke(
+                    receivedLength,
+                    fileLength,
+                    expectedPackageNo,
+                    totalPackage,
+                    status,
+                    "Receive completed, elapsed: " + elapsed.ToString("0.###") + "s",
+                    saveFileName ?? string.Empty,
+                    FormatDate(saveFileDate));
+                return true;
+
+            case YModemAction.Cancel cancel:
+                status = -1;
+                isTransmissionComplete = true;
+                Logger.Warning("Receiver canceled by protocol: {Reason}", cancel.Reason);
+                refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, cancel.Reason, saveFileName ?? string.Empty, FormatDate(saveFileDate));
+                return false;
+
+            case YModemAction.Fail fail:
+                status = -1;
+                isTransmissionComplete = true;
+                Logger.Warning("Receiver failed by protocol: {Reason}", fail.Reason);
+                refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, fail.Reason, saveFileName ?? string.Empty, FormatDate(saveFileDate));
+                return false;
+
+            default:
+                status = -1;
+                isTransmissionComplete = true;
+                refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, "Unsupported receive action", saveFileName ?? string.Empty, FormatDate(saveFileDate));
+                return false;
+        }
+    }
+
+    private void PrepareIncomingFile(YModemFileDescriptor file)
+    {
+        if (startedAt == DateTime.MinValue)
+        {
+            startedAt = DateTime.Now;
+        }
+
+        saveFileName = file.FileName;
+        fileLength = file.FileSize;
+        receivedLength = 0;
+        expectedPackageNo = 0;
+        totalPackage = fileLength == 0 ? 1 : 0;
+
+        saveFileDate = DateTime.UtcNow;
+        saveFilePath = Path.Combine(saveDirectory, file.FileName);
+
+        if (File.Exists(saveFilePath))
+        {
+            File.Delete(saveFilePath);
+        }
+
+        Logger.Information("Incoming file size: {FileLength} bytes", fileLength);
+    }
+
+    private bool WriteDataBlock(byte[] data, int dataLength)
+    {
+        if (saveFilePath is null)
+        {
+            return false;
+        }
+
+        try
+        {
+            using var fileStream = new FileStream(saveFilePath, FileMode.Append, FileAccess.Write, FileShare.Read);
+            var writeLength = dataLength;
+            if (fileLength > 0)
+            {
+                var remaining = fileLength - receivedLength;
+                if (remaining < writeLength)
+                {
+                    writeLength = (int)Math.Max(remaining, 0);
+                }
+            }
+
+            if (writeLength > 0)
+            {
+                fileStream.Write(data, 0, writeLength);
+                receivedLength += writeLength;
+            }
+
+            return true;
+        }
+        catch (Exception ex)
+        {
+            Logger.Warning(ex, "Failed writing data block to file {FilePath}", saveFilePath);
+            return false;
+        }
+    }
+
+    private FrameReadResult ReceiveFrame()
+    {
+        while (true)
+        {
+            if (isTransmissionComplete)
+            {
+                return new FrameReadResult(FrameKind.Cancelled, null);
+            }
+
+            var firstByte = ReadByteWithCancel();
+            if (firstByte == -2)
+            {
+                return new FrameReadResult(FrameKind.Cancelled, null);
+            }
+
+            if (firstByte == -1)
+            {
+                return new FrameReadResult(FrameKind.Timeout, null);
+            }
+
+            var header = (byte)firstByte;
+            Logger.Debug("Receiver read frame start byte: 0x{Header:X2}", header);
+            if (header == YModemControlBytes.Eot || header == YModemControlBytes.Can)
+            {
+                return new FrameReadResult(FrameKind.Packet, new[] { header });
+            }
+
+            var packetLength = header switch
+            {
+                YModemControlBytes.Soh => PacketSize128 + 5,
+                YModemControlBytes.Stx => PacketSize1024 + 5,
+                _ => 0
+            };
+
+            if (packetLength == 0)
+            {
+                Logger.Debug("Receiver ignored non-frame byte 0x{Header:X2}", header);
+                continue;
+            }
+
+            var buffer = new byte[packetLength];
+            buffer[0] = header;
+            var bytesRead = 1;
             var elapsed = 0;
             serialPort.ReadTimeout = CancelCheckIntervalMs;
-            
+
             try
             {
-                while (!isTransmissionComplete && elapsed < originalReadTimeout)
+                while (bytesRead < packetLength)
                 {
+                    if (isTransmissionComplete)
+                    {
+                        return new FrameReadResult(FrameKind.Cancelled, null);
+                    }
+
                     try
                     {
-                        return serialPort.ReadByte();
+                        var read = serialPort.Read(buffer, bytesRead, packetLength - bytesRead);
+                        if (read > 0)
+                        {
+                            bytesRead += read;
+                        }
                     }
                     catch (TimeoutException)
                     {
                         elapsed += CancelCheckIntervalMs;
+                        if (elapsed >= originalReadTimeout)
+                        {
+                            return new FrameReadResult(FrameKind.Timeout, null);
+                        }
                     }
                 }
-                
-                return isTransmissionComplete ? -2 : -1; // -2 = 用户取消, -1 = 超时
+
+                return new FrameReadResult(FrameKind.Packet, buffer);
+            }
+            catch (Exception ex)
+            {
+                Logger.Warning(ex, "Failed while reading frame payload");
+                return new FrameReadResult(FrameKind.Invalid, null);
             }
             finally
             {
                 serialPort.ReadTimeout = originalReadTimeout;
             }
         }
+    }
 
-        public void StartReceiving()
+    private int ReadByteWithCancel()
+    {
+        var elapsed = 0;
+        serialPort.ReadTimeout = CancelCheckIntervalMs;
+
+        try
         {
-            var transaction = SentrySdk.StartTransaction("ymodem.receive", "serial.transfer");
-            var transactionFinished = false;
-            transaction.SetData("receiver.path", saveDirectory);
-
-            status = 0;
-            expectedPackageNo = 0;
-            isTransmissionComplete = false;
-            serialPort.DiscardInBuffer();
-            dt = new DateTime(0);
-
-            try
+            while (!isTransmissionComplete && elapsed < originalReadTimeout)
             {
-                SendChar(C);
-
-                while (!isTransmissionComplete)
-                {
-                    if (expectedPackageNo % 32 == 0)
-                    {
-                        Logger.Debug("Waiting for packet #{ExpectedPacketNo}", expectedPackageNo);
-                    }
-                    var receivePacketSpan = transaction.StartChild("serial.packet.receive", "receive_packet");
-                    var packetLength = ReceivePacket();
-                    receivePacketSpan.SetData("packet.length", packetLength);
-                    receivePacketSpan.SetData("packet.expected", expectedPackageNo);
-                    receivePacketSpan.Finish();
-
-                    if (packetLength > 0)
-                    {
-                        if (packetBuffer == null) continue;
-                        var packetType = packetBuffer[0];
-
-                        if (packetType == SOH || packetType == STX)
-                        {
-                            if (dt.Ticks == 0)
-                            {
-                                dt = DateTime.Now;
-                            }
-
-                            if (expectedPackageNo == 0)
-                            {
-                                var rsvPackageNo = packetBuffer[1];
-                                if (rsvPackageNo == 0)
-                                {
-                                    if (packetBuffer[3] == 0)
-                                    {
-                                        var finishSpan = transaction.StartChild("serial.transfer.complete", "all_files_completed");
-                                        HandleFilesAllCompeted();
-                                        finishSpan.Finish();
-                                        isTransmissionComplete = true;
-                                    }
-                                    else
-                                    {
-                                        var metadataSpan = transaction.StartChild("serial.packet.parse", "metadata");
-                                        ParseFileInfo(packetBuffer, packetLength);
-                                        metadataSpan.Finish();
-                                    }
-                                }
-                                else
-                                {
-                                    transaction.Finish(SpanStatus.InternalError);
-                                    transactionFinished = true;
-                                    Logger.Warning("Packet sequence mismatch detected");
-                                    status = -1;
-                                    isTransmissionComplete = true;
-                                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Packet sequence number mismatch", saveFileName ?? "", saveFileDate.ToShortDateString());
-                                }
-                            }
-                            else
-                            {
-                                var dataPacketSpan = transaction.StartChild("serial.packet.process", "data");
-                                HandleDataPacket(packetLength, packetType);
-                                dataPacketSpan.Finish();
-                            }
-                        }
-                        else if (packetType == EOT)
-                        {
-                            var eotSpan = transaction.StartChild("serial.handshake", "eot");
-                            HandleEndOfTransmission();
-                            eotSpan.Finish();
-                            continue;
-                        }
-                        else if (packetType == CAN)
-                        {
-                            transaction.Finish(SpanStatus.Aborted);
-                            transactionFinished = true;
-                            status = -1;
-                            isTransmissionComplete = true;
-                            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive task was canceled by sender", saveFileName ?? "", saveFileDate.ToShortDateString());
-                        }
-                    }
-                    else if (packetLength == -2)
-                    {
-                        // 用户取消
-                        transaction.Finish(SpanStatus.Cancelled);
-                        transactionFinished = true;
-                        status = -2;
-                        isTransmissionComplete = true;
-                        RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive canceled by user", saveFileName ?? "", saveFileDate.ToShortDateString());
-                    }
-                    else if (expectedPackageNo != 0)
-                    {
-                        transaction.Finish(SpanStatus.InternalError);
-                        transactionFinished = true;
-                        status = -1;
-                        isTransmissionComplete = true;
-                        RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Data receive timeout", saveFileName ?? "", saveFileDate.ToShortDateString());
-                    }
-                    else
-                    {
-                        SendChar(C);
-                    }
-                }
-
-                transaction.Finish(status == 1 ? SpanStatus.Ok : SpanStatus.InternalError);
-                transactionFinished = true;
-            }
-            catch (Exception ex)
-            {
-                SentrySdk.CaptureException(ex);
-                transaction.Finish(SpanStatus.InternalError);
-                transactionFinished = true;
-                status = -1;
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, ex.Message, saveFileName ?? "", saveFileDate.ToShortDateString());
-            }
-            finally
-            {
-                if (!transactionFinished)
-                {
-                    transaction.Finish();
-                }
-            }
-        }
-
-        public void StopReceiving()
-        {
-            isTransmissionComplete = true;
-            
-
-            try
-            {
-                SendChar(CAN);
-                SendChar(CAN);
-                SendChar(CAN);
-            }
-            catch
-            {
-                // 忽略异常
-            }
-            
-            status = -2;
-            RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive canceled by user", saveFileName ?? "", saveFileDate.ToShortDateString());
-
-        }
-
-        private int ReceivePacket()
-        {
-            var packetSize = 0;
-            var headerLength = 3; // 3 字节头部 (类型, 包编号, 包编号的补码)
-            var crcLength = 2; // 2 字节 CRC 校验
-
-            while (true)
-            {
-                if (isTransmissionComplete)
-                {
-                    status = -2;
-                    return -2; // 用户取消
-                }
-                
-                var readByte = ReadByteWithCancel();
-                
-                if (readByte == -2)
-                {
-                    status = -2;
-                    return -2; // 用户取消
-                }
-                
-                if (readByte == -1)
-                {
-                    status = -1;
-                    return -1; // 超时或错误
-                }
-
-                var packetType = (byte)readByte;
-
-                if (packetType == SOH)
-                {
-                    packetSize = PacketSize128;
-                }
-                else if (packetType == STX)
-                {
-                    packetSize = PacketSize1024;
-                }
-                else if (packetType == EOT)
-                {
-                    packetBuffer = new byte[1];
-                    packetBuffer[0] = packetType;
-                    return 1;
-
-                }
-                else if (packetType == CAN)
-                {
-                    packetBuffer = new byte[1];
-                    packetBuffer[0] = packetType;
-                    return 1;
-
-                }
-                else
-                {
-                    continue;
-                }
-
-                packetBuffer = new byte[packetSize + headerLength + crcLength];
-                packetBuffer[0] = packetType;
-                break;
-            }
-
-            var bytesRead = 1;
-            while (bytesRead < packetBuffer.Length)
-            {
-                if (isTransmissionComplete)
-                {
-                    status = -2;
-                    return -2; // 用户取消
-                }
-                
-                // 使用短超时进行轮询读取
-                serialPort.ReadTimeout = CancelCheckIntervalMs;
                 try
                 {
-                    var read = serialPort.Read(packetBuffer, bytesRead, packetBuffer.Length - bytesRead);
-                    if (read > 0)
-                    {
-                        bytesRead += read;
-                    }
+                    return serialPort.ReadByte();
                 }
                 catch (TimeoutException)
                 {
-                    // 超时继续等待，检查取消标志
-                    continue;
-                }
-                catch
-                {
-                    status = -1;
-                    RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Data receive timeout", saveFileName ?? "", saveFileDate.ToShortDateString());
-                    return -1; // 超时或错误
-                }
-                finally
-                {
-                    serialPort.ReadTimeout = originalReadTimeout;
+                    elapsed += CancelCheckIntervalMs;
                 }
             }
-            status = 2;
-            return bytesRead;
+
+            return isTransmissionComplete ? -2 : -1;
         }
-
-        private void ParseFileInfo(byte[] buffer, int packetLength)
+        finally
         {
-            // 提取文件名
-            var nameEndIndex = Array.IndexOf(buffer, (byte)0, 3);
-            var fileName = Encoding.GetEncoding("gb2312").GetString(buffer, 3, nameEndIndex - 3);
-            saveFileName = fileName;
-
-            // 提取文件扩展信息
-            var extendedStartIndex = nameEndIndex + 1;
-            var extendedEndIndex = Array.IndexOf(buffer, (byte)0, extendedStartIndex);
-            var infoString = Encoding.ASCII.GetString(buffer, extendedStartIndex, extendedEndIndex - extendedStartIndex);
-            var infoParts = infoString.Split(' ');
-
-            // 生成保存文件路径
-            saveFilePath = Path.Combine(saveDirectory, fileName);
-            if (File.Exists(saveFilePath)) File.Delete(saveFilePath);
-
-            if (infoParts.Length >= 1)
-            {
-                // 解析文件长度
-                if (long.TryParse(infoParts[0], out fileLength))
-                {
-                    Logger.Information("Incoming file size: {FileLength} bytes", fileLength);
-                }
-                else
-                {
-                    throw new InvalidOperationException("Failed to parse file length");
-                }
-            }
-
-            if (infoParts.Length >= 2)
-            {
-                // 解析修改日期
-                var octalDateString = infoParts[1];
-                if (octalDateString != "0" && !string.IsNullOrEmpty(octalDateString))
-                {
-                    try
-                    {
-                        var secondsSinceEpoch = Convert.ToInt64(octalDateString, 8);
-                        var epoch = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
-                        saveFileDate = epoch.AddSeconds(secondsSinceEpoch);
-                        Logger.Debug("Parsed file timestamp: {FileTimestamp}", saveFileDate);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Warning(ex, "Failed to parse file timestamp, fallback to current UTC time");
-                        saveFileDate = DateTime.UtcNow; // 如果解析出错，则使用接收日期
-                    }
-                }
-                else
-                {
-                    saveFileDate = DateTime.UtcNow; // 如果日期为0，则使用当前日期
-                    Logger.Debug("File timestamp missing, fallback timestamp: {FallbackTimestamp}", saveFileDate);
-                }
-            }
-
-            if (infoParts.Length >= 3)
-            {
-                // 解析序列号（八进制）
-                var serialNumberString = infoParts[2];
-                if (!string.IsNullOrEmpty(serialNumberString))
-                {
-                    try
-                    {
-                        var serialNumber = Convert.ToInt32(serialNumberString, 8);
-                        totalPackage = serialNumber;
-                        Logger.Debug("Parsed file sequence number: {SerialNumber}", serialNumber);
-                    }
-                    catch (Exception ex)
-                    {
-                        throw new InvalidOperationException($"Failed to parse file sequence number: {ex.Message}");
-                    }
-                }
-            }
-
-            if (infoParts.Length == 0)
-            {
-                throw new InvalidOperationException("Invalid file metadata packet format");
-            }
-
-            System.Threading.Thread.Sleep(100);
-            SendChar(ACK); // 发送确认信号
-            System.Threading.Thread.Sleep(300);
-            SendChar(C); // 请求数据传输
-            expectedPackageNo++;
-        }
-
-
-        private void HandleDataPacket(int packetLength, byte packetType)
-        {
-            if (packetBuffer == null) return;
-            
-            var packetNum = packetBuffer[1];
-            var inversePacketNum = packetBuffer[2];
-            var dataLength = packetType == SOH ? PacketSize128 : PacketSize1024;
-            var data = new byte[dataLength];
-            Array.Copy(packetBuffer, 3, data, 0, data.Length);
-
-            var receivedCrc = (ushort)((packetBuffer[packetLength - 2] << 8) | packetBuffer[packetLength - 1]);
-            var calculatedCrc = CalculateCrc16(data);
-
-            if (packetNum + inversePacketNum == 0xFF && receivedCrc == calculatedCrc && packetNum==expectedPackageNo%256)
-            {
-                SaveDataToFile(data);
-                SendChar(ACK);
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receiving file " + saveFileName, saveFileName ?? "", saveFileDate.ToShortDateString()) ;
-                expectedPackageNo++;
-            }
-            else
-            {
-                SendChar(NAK);
-            }
-
-            
-        }
-
-        private void HandleEndOfTransmission()
-        {
-            // 回复 NAK，等待确认 EOT
-            SendChar(NAK);
-            var packetLength = ReceivePacket();
-            if (packetLength > 0 && packetBuffer != null && packetBuffer[0] == EOT)
-            {
-                SendChar(ACK); // 确认接收到 EOT
-                SendChar(C); // 请求下一个传输（如果有）
-                expectedPackageNo = 0;
-                ReceivedLength = 0;
-            }else
-            {
-                status = -1;
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "End-of-transmission command was not acknowledged correctly", saveFileName ?? "", saveFileDate.ToShortDateString());
-            }
-        }
-        private void HandleFilesAllCompeted()
-        {
-            if (packetBuffer == null) return;
-            
-            if (packetBuffer[4]==0x30 && packetBuffer[5] == 0x20 && packetBuffer[6] == 0x30 && packetBuffer[7] == 0x20 && packetBuffer[8] == 0x30)
-            {
-                isTransmissionComplete = true; // 结束传输
-                SendChar(ACK); // 发送确认信号
-                var span = DateTime.Now - dt;
-                status = 1;
-                //MessageBox.Show("Receive elapsed:" + span.TotalMilliseconds.ToString() + "ms", "Receive completed", MessageBoxButtons.OK, MessageBoxIcon.None);
-                RefreshReceiveUI?.Invoke(ReceivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive completed, elapsed: " + span.TotalSeconds.ToString() + "s", saveFileName ?? "", saveFileDate.ToShortDateString());
-            }
-        }
-
-        private void SaveDataToFile(byte[] data)
-        {
-            if (saveFilePath == null) return;
-            
-            using (var fileStream = new FileStream(saveFilePath, FileMode.Append))
-            {
-                var datelen = data.Length;
-                var actualLength = Array.IndexOf(data, CTRLZ);
-                if (actualLength > 0 && (fileLength-ReceivedLength)< datelen)
-                {
-                    if ((fileLength - ReceivedLength) > actualLength) actualLength =(int)(fileLength - ReceivedLength);
-                    fileStream.Write(data, 0, actualLength);
-                    ReceivedLength = ReceivedLength + actualLength;
-                }
-                else
-                {
-                    fileStream.Write(data, 0, data.Length);
-                    ReceivedLength = ReceivedLength + data.Length;
-                }
-            }
-        }
-
-        private ushort CalculateCrc16(byte[] data)
-        {
-            const ushort polynomial = 0x1021;
-            ushort crc = 0;
-
-            foreach (var b in data)
-            {
-                crc ^= (ushort)(b << 8);
-                for (var i = 0; i < 8; i++)
-                {
-                    if ((crc & 0x8000) != 0)
-                    {
-                        crc = (ushort)((crc << 1) ^ polynomial);
-                    }
-                    else
-                    {
-                        crc <<= 1;
-                    }
-                }
-            }
-
-            return crc;
-        }
-
-        private void SendChar(byte c)
-        {
-            if (serialPort.IsOpen) serialPort.Write([c], 0, 1);
+            serialPort.ReadTimeout = originalReadTimeout;
         }
     }
 
+    private void SendCancelBurst()
+    {
+        try
+        {
+            var canBytes = Enumerable.Repeat(YModemControlBytes.Can, CancelBurstLength).ToArray();
+            serialPort.Write(canBytes, 0, canBytes.Length);
+        }
+        catch (Exception ex)
+        {
+            Logger.Debug(ex, "Failed to send cancel burst");
+        }
+    }
 
+    private void SendControl(byte value)
+    {
+        if (serialPort.IsOpen)
+        {
+            Logger.Debug("Receiver sending control byte: 0x{Control:X2}", value);
+            serialPort.Write([value], 0, 1);
+        }
+    }
 
+    private static void EnqueueActions(IReadOnlyList<YModemAction> actions, Queue<YModemAction> pendingActions)
+    {
+        foreach (var action in actions)
+        {
+            pendingActions.Enqueue(action);
+        }
+    }
+
+    private static string FormatDate(DateTime value)
+    {
+        return value == DateTime.MinValue ? string.Empty : value.ToShortDateString();
+    }
+
+    private readonly struct FrameReadResult
+    {
+        public FrameReadResult(FrameKind kind, byte[]? bytes)
+        {
+            Kind = kind;
+            Bytes = bytes;
+        }
+
+        public FrameKind Kind { get; }
+
+        public byte[]? Bytes { get; }
+    }
+
+    private enum FrameKind
+    {
+        Packet,
+        Timeout,
+        Cancelled,
+        Invalid
+    }
 }
