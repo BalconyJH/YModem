@@ -212,6 +212,7 @@ namespace YModemWin.Core
 
                 int packageReadCount;
                 var retryCount = 0; // 当前包的重试次数
+                long packetStartPosition = 0;
                 do
                 {
                     if (userCancel)
@@ -223,6 +224,7 @@ namespace YModemWin.Core
                         return false;
                     }
                     
+                    packetStartPosition = fileStream.Position;
                     packageReadCount = fileStream.Read(data, 0, DataSize);
                     if (packageReadCount == 0) break;
                     if (packageReadCount != DataSize)
@@ -309,10 +311,20 @@ namespace YModemWin.Core
                         status = -1;
                         if (fileStream.CanSeek)
                         {
-                            fileStream.Position -= DataSize;
+                            // Roll back to the exact start of the current packet; fixed -1024 can underflow on small/last packets.
+                            fileStream.Position = packetStartPosition;
                         }
-                        packagesent--;
-                        packetNumber--;
+                        else
+                        {
+                            transaction.Finish(SpanStatus.InternalError);
+                            transactionFinished = true;
+                            RefreshSendUI?.Invoke(fileStream.Position, fileStream.Length, packetNumber, totalpackage,
+                                status, "Stream is not seekable, cannot retry packet.");
+                            Logger.Error("Cannot retry packet because stream does not support seeking");
+                            return false;
+                        }
+                        packagesent = Math.Max(0, packagesent - 1);
+                        packetNumber = packetNumber == 0 ? 255 : packetNumber - 1;
                     }
                     else if (signal == CAN)
                     {
