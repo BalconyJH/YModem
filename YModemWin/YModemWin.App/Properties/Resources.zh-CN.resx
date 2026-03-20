@@ -117,6 +117,18 @@
   <data name="SelectFilesFirst" xml:space="preserve">
     <value>请先选择文件</value>
   </data>
+  <data name="ParsedMultiBlockWarningTitle" xml:space="preserve">
+    <value>检测到多个数据块</value>
+  </data>
+  <data name="ParsedMultiBlockWarningMessage" xml:space="preserve">
+    <value>文件“{0}”解析到 {1} 个数据块，且未进行填充，因此仅会发送第一个数据块。是否继续发送？</value>
+  </data>
+  <data name="NonAsciiFileNameWarningTitle" xml:space="preserve">
+    <value>文件名包含非 ASCII 字符</value>
+  </data>
+  <data name="NonAsciiFileNameWarningMessage" xml:space="preserve">
+    <value>文件“{0}”文件名包含非 ASCII 字符，可能导致传输兼容性问题。是否继续发送？</value>
+  </data>
   <!-- Receive Page -->
   <data name="SaveFolder" xml:space="preserve">
     <value>保存目录</value>
@@ -133,6 +145,9 @@
   </data>
   <data name="Cancelling" xml:space="preserve">
     <value>取消中...</value>
+  </data>
+  <data name="DialogReturn" xml:space="preserve">
+    <value>返回</value>
   </data>
   <!-- Status Messages -->
   <data name="SendCanceledByUser" xml:space="preserve">

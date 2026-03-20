@@ -176,6 +176,18 @@
   <data name="SelectFilesFirst" xml:space="preserve">
     <value>Please select files first</value>
   </data>
+  <data name="ParsedMultiBlockWarningTitle" xml:space="preserve">
+    <value>Multiple Data Blocks Detected</value>
+  </data>
+  <data name="ParsedMultiBlockWarningMessage" xml:space="preserve">
+    <value>File "{0}" contains {1} data blocks and has not been padded. Only the first block will be sent. Continue sending?</value>
+  </data>
+  <data name="NonAsciiFileNameWarningTitle" xml:space="preserve">
+    <value>Non-ASCII File Name Detected</value>
+  </data>
+  <data name="NonAsciiFileNameWarningMessage" xml:space="preserve">
+    <value>File "{0}" contains non-ASCII characters. This may cause transfer compatibility issues. Continue sending?</value>
+  </data>
   <!-- Receive Page -->
   <data name="SaveFolder" xml:space="preserve">
     <value>Save Folder</value>
@@ -192,6 +204,9 @@
   </data>
   <data name="Cancelling" xml:space="preserve">
     <value>Cancelling...</value>
+  </data>
+  <data name="DialogReturn" xml:space="preserve">
+    <value>Back</value>
   </data>
   <!-- Status Messages -->
   <data name="SendCanceledByUser" xml:space="preserve">

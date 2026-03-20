@@ -46,22 +46,16 @@ public sealed class TransferController : IDisposable
         }
 
         var memory = ParseFirmwareMemory(sourcePath, extension);
-        var segments = memory.Segments.OrderBy(segment => segment.StartAddress).ToList();
+        var segments = memory.Segments
+            .Where(segment => segment.Data is { Length: > 0 })
+            .OrderBy(segment => segment.StartAddress)
+            .ToList();
         if (segments.Count == 0)
         {
             throw new InvalidDataException($"No segments found in {Path.GetFileName(sourcePath)}");
         }
 
-        using var stream = new MemoryStream();
-        foreach (var segment in segments)
-        {
-            if (segment.Data is { Length: > 0 })
-            {
-                stream.Write(segment.Data, 0, segment.Data.Length);
-            }
-        }
-
-        var payload = stream.ToArray();
+        var payload = segments[0].Data.ToArray();
         if (payload.Length == 0)
         {
             throw new InvalidDataException($"No payload bytes found in {Path.GetFileName(sourcePath)}");
