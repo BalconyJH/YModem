@@ -24,8 +24,8 @@ public class YModemTransmitter
     private int activeDataBlockSize;
     private bool userCancel;
     private long status;
-
-    public DateTime dt = DateTime.MinValue;
+    private DateTime sessionStartedAt = DateTime.MinValue;
+    private DateTime handshakeEstablishedAt = DateTime.MinValue;
 
     public YModemTransmitter(SerialPort sp, int timeoutSeconds, Action<long, long, long, long, long, string> action)
     {
@@ -136,7 +136,7 @@ public class YModemTransmitter
                             break;
 
                         case YModemAction.SendControl sendControl:
-                            serialPort.Write(new[] { sendControl.Value }, 0, 1);
+                            WriteControlByte(sendControl.Value, sendControl.Description);
                             break;
 
                         case YModemAction.RequestFileHeader:
@@ -196,14 +196,17 @@ public class YModemTransmitter
                         case YModemAction.Complete:
                             status = 1;
                             Logger.Information("Send completed for {FileName}", context.FileName);
-                            var elapsed = DateTime.Now - dt;
+                            var now = DateTime.Now;
+                            var waitSeconds = GetHandshakeWaitSeconds(now);
+                            var transferSeconds = GetTransferSeconds(now);
+                            var totalSeconds = GetTotalSeconds(now);
                             refreshSendUi?.Invoke(
                                 context.FileSize,
                                 context.FileSize,
                                 context.TotalPackets,
                                 context.TotalPackets,
                                 status,
-                                $"Send completed, elapsed: {elapsed.TotalSeconds:0.###}s");
+                                $"Send completed. wait: {waitSeconds:0.###}s, transfer: {transferSeconds:0.###}s, total: {totalSeconds:0.###}s");
                             ResetBatchSession();
                             return true;
 
@@ -249,9 +252,9 @@ public class YModemTransmitter
         batchSender = new YModemBatchSender(activeDataBlockSize);
         packetEncoder = new YModemPacketEncoder(activeDataBlockSize);
         Logger.Information("Initialized YMODEM sender with adaptive data block size: {BlockSize}", activeDataBlockSize);
-        if (dt == DateTime.MinValue)
+        if (sessionStartedAt == DateTime.MinValue)
         {
-            dt = DateTime.Now;
+            sessionStartedAt = DateTime.Now;
         }
     }
 
@@ -262,7 +265,8 @@ public class YModemTransmitter
         packetEncoder = null;
         preferredDataBlockSize = null;
         activeDataBlockSize = 0;
-        dt = DateTime.MinValue;
+        sessionStartedAt = DateTime.MinValue;
+        handshakeEstablishedAt = DateTime.MinValue;
     }
 
     private static int SelectDataBlockSize(long fileSize)
@@ -279,7 +283,14 @@ public class YModemTransmitter
     {
         var packetBytes = packetEncoder!.Encode(packet);
         Logger.Debug("Sending packet {PacketType} ({Length} bytes)", DescribePacketType(packet), packetBytes.Length);
+        SerialTraceLogger.TraceTx(Logger, $"packet-{DescribePacketType(packet)}", packetBytes);
         serialPort.Write(packetBytes, 0, packetBytes.Length);
+    }
+
+    private void WriteControlByte(byte value, string description)
+    {
+        serialPort.Write(new[] { value }, 0, 1);
+        SerialTraceLogger.TraceTx(Logger, $"control-{description}", [value]);
     }
 
     private void CancelByUser(FileTransferContext context, string message)
@@ -305,6 +316,7 @@ public class YModemTransmitter
         {
             var canBytes = Enumerable.Repeat(YModemControlBytes.Can, CancelBurstLength).ToArray();
             serialPort.Write(canBytes, 0, canBytes.Length);
+            SerialTraceLogger.TraceTx(Logger, "cancel-burst", canBytes);
         }
         catch (Exception ex)
         {
@@ -358,7 +370,18 @@ public class YModemTransmitter
             {
                 try
                 {
-                    return serialPort.ReadByte();
+                    var peerByte = serialPort.ReadByte();
+                    if (peerByte >= 0)
+                    {
+                        if (handshakeEstablishedAt == DateTime.MinValue)
+                        {
+                            handshakeEstablishedAt = DateTime.Now;
+                        }
+
+                        SerialTraceLogger.TraceRx(Logger, "peer-byte", [(byte)peerByte]);
+                    }
+
+                    return peerByte;
                 }
                 catch (TimeoutException)
                 {
@@ -393,5 +416,36 @@ public class YModemTransmitter
         public long TotalPackets { get; }
 
         public long SentPackets { get; set; }
+    }
+
+    private double GetHandshakeWaitSeconds(DateTime now)
+    {
+        if (sessionStartedAt == DateTime.MinValue)
+        {
+            return 0;
+        }
+
+        var handshakeTime = handshakeEstablishedAt == DateTime.MinValue ? now : handshakeEstablishedAt;
+        return Math.Max(0, (handshakeTime - sessionStartedAt).TotalSeconds);
+    }
+
+    private double GetTransferSeconds(DateTime now)
+    {
+        if (handshakeEstablishedAt == DateTime.MinValue)
+        {
+            return 0;
+        }
+
+        return Math.Max(0, (now - handshakeEstablishedAt).TotalSeconds);
+    }
+
+    private double GetTotalSeconds(DateTime now)
+    {
+        if (sessionStartedAt == DateTime.MinValue)
+        {
+            return 0;
+        }
+
+        return Math.Max(0, (now - sessionStartedAt).TotalSeconds);
     }
 }

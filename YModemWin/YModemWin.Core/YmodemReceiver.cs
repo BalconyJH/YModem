@@ -1,4 +1,5 @@
 using System.IO.Ports;
+using System.Text;
 using Serilog;
 using Ymodem.Protocol;
 
@@ -19,7 +20,8 @@ public class YModemReceiver
 
     private bool isTransmissionComplete;
     private long receivedLength;
-    private DateTime startedAt;
+    private DateTime sessionStartedAt;
+    private DateTime handshakeEstablishedAt;
     private long status;
 
     public string? saveFileName;
@@ -54,7 +56,8 @@ public class YModemReceiver
         saveFilePath = null;
         saveFileDate = DateTime.MinValue;
         isTransmissionComplete = false;
-        startedAt = DateTime.MinValue;
+        sessionStartedAt = DateTime.Now;
+        handshakeEstablishedAt = DateTime.MinValue;
 
         serialPort.DiscardInBuffer();
 
@@ -116,15 +119,22 @@ public class YModemReceiver
                 }
 
                 YModemEvent protocolEvent;
-                try
+                if (TryDecodeDataPhasePacket(frame.Bytes!, snapshot, out protocolEvent))
                 {
-                    protocolEvent = eventAdapter.Decode(frame.Bytes!);
                 }
-                catch (Exception ex)
+
+                else
                 {
-                    Logger.Warning(ex, "Failed to decode incoming frame");
-                    SendControl(YModemControlBytes.Nak);
-                    continue;
+                    try
+                    {
+                        protocolEvent = eventAdapter.Decode(frame.Bytes!);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Warning(ex, "Failed to decode incoming frame");
+                        SendControl(YModemControlBytes.Nak);
+                        continue;
+                    }
                 }
 
                 var step = receiver.Advance(protocolEvent);
@@ -212,14 +222,17 @@ public class YModemReceiver
                 status = 1;
                 isTransmissionComplete = true;
                 Logger.Information("Receive completed for {FileName}", saveFileName ?? "<unknown>");
-                var elapsed = startedAt == DateTime.MinValue ? 0 : (DateTime.Now - startedAt).TotalSeconds;
+                var now = DateTime.Now;
+                var waitSeconds = GetHandshakeWaitSeconds(now);
+                var transferSeconds = GetTransferSeconds(now);
+                var totalSeconds = GetTotalSeconds(now);
                 refreshReceiveUi?.Invoke(
                     receivedLength,
                     fileLength,
                     expectedPackageNo,
                     totalPackage,
                     status,
-                    "Receive completed, elapsed: " + elapsed.ToString("0.###") + "s",
+                    $"Receive completed. wait: {waitSeconds:0.###}s, transfer: {transferSeconds:0.###}s, total: {totalSeconds:0.###}s",
                     saveFileName ?? string.Empty,
                     FormatDate(saveFileDate));
                 return true;
@@ -248,19 +261,25 @@ public class YModemReceiver
 
     private void PrepareIncomingFile(YModemFileDescriptor file)
     {
-        if (startedAt == DateTime.MinValue)
-        {
-            startedAt = DateTime.Now;
-        }
-
-        saveFileName = file.FileName;
+        var originalFileName = file.FileName;
+        var normalizedFileName = NormalizeIncomingFileName(originalFileName);
+        saveFileName = normalizedFileName;
         fileLength = file.FileSize;
         receivedLength = 0;
         expectedPackageNo = 0;
         totalPackage = fileLength == 0 ? 1 : 0;
 
         saveFileDate = DateTime.UtcNow;
-        saveFilePath = Path.Combine(saveDirectory, file.FileName);
+        Directory.CreateDirectory(saveDirectory);
+        saveFilePath = Path.Combine(saveDirectory, normalizedFileName);
+
+        if (!string.Equals(originalFileName, normalizedFileName, StringComparison.Ordinal))
+        {
+            Logger.Warning(
+                "Incoming file name normalized from {OriginalFileName} to {NormalizedFileName}",
+                originalFileName,
+                normalizedFileName);
+        }
 
         if (File.Exists(saveFilePath))
         {
@@ -268,6 +287,170 @@ public class YModemReceiver
         }
 
         Logger.Information("Incoming file size: {FileLength} bytes", fileLength);
+    }
+
+    private static string NormalizeIncomingFileName(string? rawFileName)
+    {
+        const string fallback = "received.bin";
+
+        var fileName = string.IsNullOrWhiteSpace(rawFileName)
+            ? fallback
+            : Path.GetFileName(rawFileName.Trim());
+
+        if (string.IsNullOrWhiteSpace(fileName))
+        {
+            fileName = fallback;
+        }
+
+        var invalid = Path.GetInvalidFileNameChars();
+        var builder = new StringBuilder(fileName.Length);
+        foreach (var ch in fileName)
+        {
+            if (char.IsControl(ch) || Array.IndexOf(invalid, ch) >= 0)
+            {
+                builder.Append('_');
+            }
+            else
+            {
+                builder.Append(ch);
+            }
+        }
+
+        var normalized = builder.ToString().TrimEnd(' ', '.');
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            normalized = fallback;
+        }
+
+        if (IsReservedWindowsFileName(normalized))
+        {
+            normalized = "_" + normalized;
+        }
+
+        return normalized;
+    }
+
+    private static bool IsReservedWindowsFileName(string fileName)
+    {
+        var stem = Path.GetFileNameWithoutExtension(fileName);
+        if (string.IsNullOrWhiteSpace(stem))
+        {
+            return false;
+        }
+
+        var upper = stem.ToUpperInvariant();
+        if (upper is "CON" or "PRN" or "AUX" or "NUL")
+        {
+            return true;
+        }
+
+        if (upper.Length == 4
+            && (upper.StartsWith("COM", StringComparison.Ordinal) || upper.StartsWith("LPT", StringComparison.Ordinal))
+            && upper[3] is >= '1' and <= '9')
+        {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static bool TryDecodeDataPhasePacket(
+        byte[] frameBytes,
+        YModemBatchReceiverSnapshot snapshot,
+        out YModemEvent protocolEvent)
+    {
+        protocolEvent = null!;
+
+        if (snapshot.Phase == YModemBatchReceiverPhase.WaitingFileHeaderPacket)
+        {
+            return false;
+        }
+
+        if (frameBytes.Length < 5)
+        {
+            return false;
+        }
+
+        var startByte = frameBytes[0];
+        var blockSize = startByte switch
+        {
+            YModemControlBytes.Soh => PacketSize128,
+            YModemControlBytes.Stx => PacketSize1024,
+            _ => 0
+        };
+
+        if (blockSize == 0 || frameBytes.Length != blockSize + 5)
+        {
+            return false;
+        }
+
+        var rawBlockNumber = frameBytes[1];
+        var blockNumberComplement = frameBytes[2];
+        if (blockNumberComplement != unchecked((byte)(255 - rawBlockNumber)))
+        {
+            return false;
+        }
+
+        var payload = new byte[blockSize];
+        Buffer.BlockCopy(frameBytes, 3, payload, 0, blockSize);
+
+        var expectedCrc = (ushort)((frameBytes[blockSize + 3] << 8) | frameBytes[blockSize + 4]);
+        var actualCrc = ComputeCrc16(payload, 0, blockSize);
+        if (expectedCrc != actualCrc)
+        {
+            return false;
+        }
+
+        var normalizedBlockNumber = NormalizeDataBlockNumber(rawBlockNumber, snapshot.NextBlockNumber);
+        if (normalizedBlockNumber <= 0)
+        {
+            return false;
+        }
+
+        protocolEvent = new YModemEvent.PacketReceived(
+            new YModemPacket.Data(normalizedBlockNumber, payload, payload.Length));
+        return true;
+    }
+
+    private static int NormalizeDataBlockNumber(byte rawBlockNumber, int expectedBlockNumber)
+    {
+        var expected = Math.Max(expectedBlockNumber, 1);
+        var expectedRaw = expected & 0xFF;
+        if (rawBlockNumber == expectedRaw)
+        {
+            return expected;
+        }
+
+        if (expected > 1)
+        {
+            var previous = expected - 1;
+            var previousRaw = previous & 0xFF;
+            if (rawBlockNumber == previousRaw)
+            {
+                return previous;
+            }
+        }
+
+        // Keep legacy (1..255) behavior when no rollover mapping applies.
+        return rawBlockNumber;
+    }
+
+    private static ushort ComputeCrc16(byte[] buffer, int offset, int count)
+    {
+        ushort crc = 0;
+
+        for (var i = 0; i < count; i++)
+        {
+            crc ^= (ushort)(buffer[offset + i] << 8);
+            for (var bit = 0; bit < 8; bit++)
+            {
+                crc = (crc & 0x8000) != 0
+                    ? (ushort)((crc << 1) ^ 0x1021)
+                    : (ushort)(crc << 1);
+            }
+        }
+
+        return crc;
     }
 
     private bool WriteDataBlock(byte[] data, int dataLength)
@@ -327,9 +510,16 @@ public class YModemReceiver
 
             var header = (byte)firstByte;
             Logger.Debug("Receiver read frame start byte: 0x{Header:X2}", header);
+            if (handshakeEstablishedAt == DateTime.MinValue
+                && (header == YModemControlBytes.Soh || header == YModemControlBytes.Stx || header == YModemControlBytes.Eot || header == YModemControlBytes.Can))
+            {
+                handshakeEstablishedAt = DateTime.Now;
+            }
+
             if (header == YModemControlBytes.Eot || header == YModemControlBytes.Can)
             {
-                return new FrameReadResult(FrameKind.Packet, new[] { header });
+                SerialTraceLogger.TraceRx(Logger, "frame-control", [header]);
+                return new FrameReadResult(FrameKind.Packet, [header]);
             }
 
             var packetLength = header switch
@@ -342,6 +532,7 @@ public class YModemReceiver
             if (packetLength == 0)
             {
                 Logger.Debug("Receiver ignored non-frame byte 0x{Header:X2}", header);
+                SerialTraceLogger.TraceRx(Logger, "frame-ignored", [header]);
                 continue;
             }
 
@@ -373,15 +564,21 @@ public class YModemReceiver
                         elapsed += CancelCheckIntervalMs;
                         if (elapsed >= originalReadTimeout)
                         {
+                            SerialTraceLogger.TraceRx(Logger, "frame-partial-timeout", buffer.AsSpan(0, bytesRead));
                             return new FrameReadResult(FrameKind.Timeout, null);
                         }
                     }
                 }
 
+                SerialTraceLogger.TraceRx(
+                    Logger,
+                    header == YModemControlBytes.Soh ? "frame-soh" : "frame-stx",
+                    buffer);
                 return new FrameReadResult(FrameKind.Packet, buffer);
             }
             catch (Exception ex)
             {
+                SerialTraceLogger.TraceRx(Logger, "frame-partial-invalid", buffer.AsSpan(0, bytesRead));
                 Logger.Warning(ex, "Failed while reading frame payload");
                 return new FrameReadResult(FrameKind.Invalid, null);
             }
@@ -425,6 +622,7 @@ public class YModemReceiver
         {
             var canBytes = Enumerable.Repeat(YModemControlBytes.Can, CancelBurstLength).ToArray();
             serialPort.Write(canBytes, 0, canBytes.Length);
+            SerialTraceLogger.TraceTx(Logger, "cancel-burst", canBytes);
         }
         catch (Exception ex)
         {
@@ -438,6 +636,7 @@ public class YModemReceiver
         {
             Logger.Debug("Receiver sending control byte: 0x{Control:X2}", value);
             serialPort.Write([value], 0, 1);
+            SerialTraceLogger.TraceTx(Logger, "control-byte", [value]);
         }
     }
 
@@ -473,5 +672,36 @@ public class YModemReceiver
         Timeout,
         Cancelled,
         Invalid
+    }
+
+    private double GetHandshakeWaitSeconds(DateTime now)
+    {
+        if (sessionStartedAt == DateTime.MinValue)
+        {
+            return 0;
+        }
+
+        var handshakeTime = handshakeEstablishedAt == DateTime.MinValue ? now : handshakeEstablishedAt;
+        return Math.Max(0, (handshakeTime - sessionStartedAt).TotalSeconds);
+    }
+
+    private double GetTransferSeconds(DateTime now)
+    {
+        if (handshakeEstablishedAt == DateTime.MinValue)
+        {
+            return 0;
+        }
+
+        return Math.Max(0, (now - handshakeEstablishedAt).TotalSeconds);
+    }
+
+    private double GetTotalSeconds(DateTime now)
+    {
+        if (sessionStartedAt == DateTime.MinValue)
+        {
+            return 0;
+        }
+
+        return Math.Max(0, (now - sessionStartedAt).TotalSeconds);
     }
 }

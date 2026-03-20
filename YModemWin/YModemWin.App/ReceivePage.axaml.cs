@@ -35,6 +35,7 @@ public partial class ReceivePage : UserControl
 
     private async void OnBrowseSaveFolderClick(object? sender, RoutedEventArgs e)
     {
+        AppMetrics.EmitButtonClick("browse_save_folder", "/receive");
         var folders = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             AllowMultiple = false,
@@ -52,6 +53,7 @@ public partial class ReceivePage : UserControl
     {
         if (AppServices.TransferController.IsReceiving)
         {
+            AppMetrics.EmitButtonClick("cancel_receive", "/receive");
             AppServices.TransferController.CancelReceive();
             SetReceiveActionButtonToCanceling();
             ShowInfo(Properties.Resources.ReceiveCanceledByUser, InfoBarSeverity.Warning);
@@ -63,6 +65,7 @@ public partial class ReceivePage : UserControl
             return;
         }
 
+        AppMetrics.EmitButtonClick("start_receive", "/receive");
         SetReceiveActionButtonToCancel();
         ShowInfo("Waiting for sender handshake...", InfoBarSeverity.Informational);
 

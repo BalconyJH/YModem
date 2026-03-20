@@ -67,8 +67,12 @@ public class App : Application
             options.Debug = false;
             options.AutoSessionTracking = true;
             options.TracesSampleRate = 1.0;
+#if SENTRY_PROFILING
             options.ProfilesSampleRate = 1.0;
             options.AddProfilingIntegration();
+#else
+            options.ProfilesSampleRate = 0.0;
+#endif
             options.EnableLogs = true;
         });
 

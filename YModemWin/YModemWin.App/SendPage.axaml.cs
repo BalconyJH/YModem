@@ -46,6 +46,7 @@ public partial class SendPage : UserControl
 
     private async void OnBrowseSendFileClick(object? sender, RoutedEventArgs e)
     {
+        AppMetrics.EmitButtonClick("browse_send_files", "/send");
         var files = await PickFilesAsync();
         foreach (var path in files)
         {
@@ -90,6 +91,7 @@ public partial class SendPage : UserControl
 
     private void OnDeleteSendFilesClick(object? sender, RoutedEventArgs e)
     {
+        AppMetrics.EmitButtonClick("remove_send_files", "/send");
         if (SendFilesListBox.SelectedItems is null || SendFilesListBox.SelectedItems.Count == 0)
         {
             return;
@@ -109,6 +111,7 @@ public partial class SendPage : UserControl
     {
         if (AppServices.TransferController.IsSending)
         {
+            AppMetrics.EmitButtonClick("cancel_send", "/send");
             AppServices.TransferController.CancelSend();
             SetSendActionButtonToCanceling();
             ShowInfo(Properties.Resources.SendCanceledByUser, InfoBarSeverity.Warning);
@@ -126,6 +129,7 @@ public partial class SendPage : UserControl
             return;
         }
 
+        AppMetrics.EmitButtonClick("start_send", "/send");
         SetSendActionButtonToCancel();
         ShowInfo("Waiting for receiver handshake...", InfoBarSeverity.Informational);
 

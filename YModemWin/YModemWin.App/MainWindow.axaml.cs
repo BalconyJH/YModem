@@ -1,5 +1,6 @@
 using System.Text;
 using System.Globalization;
+using System.Diagnostics;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
@@ -14,7 +15,11 @@ namespace YModemWin;
 
 public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarProvider
 {
+    private const int RuntimeLogUiRefreshLineLimit = 50;
+
     private bool isInitializingSelectors;
+    private readonly Stopwatch pageLoadStopwatch = Stopwatch.StartNew();
+    private int runtimeLogUiLineCount;
 
     public MainWindow()
     {
@@ -37,6 +42,7 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
 
         Opened += (_, _) =>
         {
+            AppMetrics.EmitPageLoad("/main", pageLoadStopwatch.Elapsed.TotalMilliseconds);
             UpdateTitleBar();
             NavigateToPage(typeof(SendPage));
         };
@@ -150,7 +156,15 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
     {
         Dispatcher.UIThread.Post(() =>
         {
+            var incomingLines = CountRuntimeLogLines(line);
+            if (runtimeLogUiLineCount + incomingLines > RuntimeLogUiRefreshLineLimit)
+            {
+                RuntimeLogTextBox.Text = string.Empty;
+                runtimeLogUiLineCount = 0;
+            }
+
             RuntimeLogTextBox.Text += line;
+            runtimeLogUiLineCount += incomingLines;
             if (AutoScrollLogCheckBox.IsChecked == true)
             {
                 RuntimeLogTextBox.CaretIndex = RuntimeLogTextBox.Text?.Length ?? 0;
@@ -214,6 +228,7 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
 
     private void OnRefreshPortsClick(object? sender, RoutedEventArgs e)
     {
+        AppMetrics.EmitButtonClick("refresh_ports", "/main");
         RefreshPorts();
     }
 
@@ -294,6 +309,7 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
         var isEnabled = TelemetryCheckBox.IsChecked == true;
         Properties.Settings.Default.TelemetryEnabled = isEnabled;
         Properties.Settings.Default.Save();
+        AppMetrics.EmitButtonClick("telemetry_toggle", "/main");
 
         ShowTelemetrySwitchedInfo();
     }
@@ -349,11 +365,13 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
 
     private void OnNavigateSendPageClick(object? sender, RoutedEventArgs e)
     {
+        AppMetrics.EmitButtonClick("navigate_send", "/main");
         NavigateToPage(typeof(SendPage));
     }
 
     private void OnNavigateReceivePageClick(object? sender, RoutedEventArgs e)
     {
+        AppMetrics.EmitButtonClick("navigate_receive", "/main");
         NavigateToPage(typeof(ReceivePage));
     }
 
@@ -392,7 +410,28 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
 
     private void OnClearLogClick(object? sender, RoutedEventArgs e)
     {
+        AppMetrics.EmitButtonClick("clear_logs", "/main");
         RuntimeLogTextBox.Text = string.Empty;
+        runtimeLogUiLineCount = 0;
+    }
+
+    private static int CountRuntimeLogLines(string? text)
+    {
+        if (string.IsNullOrEmpty(text))
+        {
+            return 0;
+        }
+
+        var count = 1;
+        foreach (var ch in text)
+        {
+            if (ch == '\n')
+            {
+                count++;
+            }
+        }
+
+        return count;
     }
 
     public void ShowInfo(string message, InfoBarSeverity severity)

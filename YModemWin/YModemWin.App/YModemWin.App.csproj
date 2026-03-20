@@ -8,6 +8,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     <ApplicationIcon>Assets\Square256x256Logo.ico</ApplicationIcon>
+    <EnableSentryProfiling Condition="'$(EnableSentryProfiling)' == ''">true</EnableSentryProfiling>
+    <DefineConstants Condition="'$(EnableSentryProfiling)' == 'true'">$(DefineConstants);SENTRY_PROFILING</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -22,11 +24,11 @@
     <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.10" />
     <PackageReference Include="Avalonia.Fonts.Inter" Version="11.3.10" />
     <PackageReference Include="FluentAvaloniaUI" Version="2.5.0" />
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.5" />
     <PackageReference Include="Sentry" Version="6.1.0" />
-    <PackageReference Include="Sentry.Profiling" Version="6.1.0" />
+    <PackageReference Include="Sentry.Profiling" Version="6.1.0" Condition="'$(EnableSentryProfiling)' == 'true'" />
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
-    <PackageReference Include="Serilog.Sinks.File" Version="6.0.0" />
     <PackageReference Include="DeviceProgramming" Version="1.0.8" />
     <PackageReference Include="System.IO.Ports" Version="10.0.3" />
     <PackageReference Include="System.Configuration.ConfigurationManager" Version="8.0.0" />
