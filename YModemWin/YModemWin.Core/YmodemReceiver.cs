@@ -119,22 +119,16 @@ public class YModemReceiver
                 }
 
                 YModemEvent protocolEvent;
-                if (TryDecodeDataPhasePacket(frame.Bytes!, snapshot, out protocolEvent))
+                try
                 {
+                    var isDataPhase = snapshot.Phase != YModemBatchReceiverPhase.WaitingFileHeaderPacket;
+                    protocolEvent = eventAdapter.Decode(frame.Bytes!, isDataPhase);
                 }
-
-                else
+                catch (Exception ex)
                 {
-                    try
-                    {
-                        protocolEvent = eventAdapter.Decode(frame.Bytes!);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger.Warning(ex, "Failed to decode incoming frame");
-                        SendControl(YModemControlBytes.Nak);
-                        continue;
-                    }
+                    Logger.Warning(ex, "Failed to decode incoming frame");
+                    SendControl(YModemControlBytes.Nak);
+                    continue;
                 }
 
                 var step = receiver.Advance(protocolEvent);
@@ -352,105 +346,6 @@ public class YModemReceiver
         }
 
         return false;
-    }
-
-    private static bool TryDecodeDataPhasePacket(
-        byte[] frameBytes,
-        YModemBatchReceiverSnapshot snapshot,
-        out YModemEvent protocolEvent)
-    {
-        protocolEvent = null!;
-
-        if (snapshot.Phase == YModemBatchReceiverPhase.WaitingFileHeaderPacket)
-        {
-            return false;
-        }
-
-        if (frameBytes.Length < 5)
-        {
-            return false;
-        }
-
-        var startByte = frameBytes[0];
-        var blockSize = startByte switch
-        {
-            YModemControlBytes.Soh => PacketSize128,
-            YModemControlBytes.Stx => PacketSize1024,
-            _ => 0
-        };
-
-        if (blockSize == 0 || frameBytes.Length != blockSize + 5)
-        {
-            return false;
-        }
-
-        var rawBlockNumber = frameBytes[1];
-        var blockNumberComplement = frameBytes[2];
-        if (blockNumberComplement != unchecked((byte)(255 - rawBlockNumber)))
-        {
-            return false;
-        }
-
-        var payload = new byte[blockSize];
-        Buffer.BlockCopy(frameBytes, 3, payload, 0, blockSize);
-
-        var expectedCrc = (ushort)((frameBytes[blockSize + 3] << 8) | frameBytes[blockSize + 4]);
-        var actualCrc = ComputeCrc16(payload, 0, blockSize);
-        if (expectedCrc != actualCrc)
-        {
-            return false;
-        }
-
-        var normalizedBlockNumber = NormalizeDataBlockNumber(rawBlockNumber, snapshot.NextBlockNumber);
-        if (normalizedBlockNumber <= 0)
-        {
-            return false;
-        }
-
-        protocolEvent = new YModemEvent.PacketReceived(
-            new YModemPacket.Data(normalizedBlockNumber, payload, payload.Length));
-        return true;
-    }
-
-    private static int NormalizeDataBlockNumber(byte rawBlockNumber, int expectedBlockNumber)
-    {
-        var expected = Math.Max(expectedBlockNumber, 1);
-        var expectedRaw = expected & 0xFF;
-        if (rawBlockNumber == expectedRaw)
-        {
-            return expected;
-        }
-
-        if (expected > 1)
-        {
-            var previous = expected - 1;
-            var previousRaw = previous & 0xFF;
-            if (rawBlockNumber == previousRaw)
-            {
-                return previous;
-            }
-        }
-
-        // Keep legacy (1..255) behavior when no rollover mapping applies.
-        return rawBlockNumber;
-    }
-
-    private static ushort ComputeCrc16(byte[] buffer, int offset, int count)
-    {
-        ushort crc = 0;
-
-        for (var i = 0; i < count; i++)
-        {
-            crc ^= (ushort)(buffer[offset + i] << 8);
-            for (var bit = 0; bit < 8; bit++)
-            {
-                crc = (crc & 0x8000) != 0
-                    ? (ushort)((crc << 1) ^ 0x1021)
-                    : (ushort)(crc << 1);
-            }
-        }
-
-        return crc;
     }
 
     private bool WriteDataBlock(byte[] data, int dataLength)
