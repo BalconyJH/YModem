@@ -49,8 +49,10 @@
             <Run Text="Akame"
                  FontSize="14"
                  FontWeight="SemiBold" />
+            <!--
             <Run Text=" Insider"
                  FontSize="10" />
+            -->
           </TextBlock>
         </StackPanel>
 
