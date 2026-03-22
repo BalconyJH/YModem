@@ -5,5 +5,21 @@
              RequestedThemeVariant="Default">
   <Application.Styles>
     <fa:FluentAvaloniaTheme PreferUserAccentColor="True" />
+
+    <Style Selector="ComboBox">
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ComboBox /template/ ContentPresenter">
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ComboBoxItem">
+      <Setter Property="VerticalContentAlignment" Value="Center" />
+    </Style>
+
+    <Style Selector="ComboBoxItem /template/ ContentPresenter">
+      <Setter Property="VerticalAlignment" Value="Center" />
+    </Style>
   </Application.Styles>
 </Application>
