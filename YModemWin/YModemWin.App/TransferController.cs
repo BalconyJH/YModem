@@ -1,4 +1,6 @@
 using System.IO.Ports;
+using System.Globalization;
+using System.Text.RegularExpressions;
 using DeviceProgramming.FileFormat;
 using DeviceProgramming.Memory;
 using Serilog.Context;
@@ -20,6 +22,20 @@ public sealed class TransferController : IDisposable
     private long lastReceivedBytes;
     private bool sendOutcomeMetricReported;
     private bool receiveOutcomeMetricReported;
+    private static readonly Regex SendingFileMessageRegex = new(@"^Sending file (?<file>.+)$", RegexOptions.Compiled);
+    private static readonly Regex ReceivingFileMessageRegex = new(@"^Receiving file (?<file>.+)$", RegexOptions.Compiled);
+    private static readonly Regex SendCompletedMessageRegex = new(
+        @"^Send completed\. wait: (?<wait>[\d.,]+)s, transfer: (?<transfer>[\d.,]+)s, total: (?<total>[\d.,]+)s$",
+        RegexOptions.Compiled);
+    private static readonly Regex ReceiveCompletedMessageRegex = new(
+        @"^Receive completed\. wait: (?<wait>[\d.,]+)s, transfer: (?<transfer>[\d.,]+)s, total: (?<total>[\d.,]+)s$",
+        RegexOptions.Compiled);
+    private static readonly Regex MaxRetryExceededMessageRegex = new(
+        @"^Max retry count \((?<count>\d+)\) exceeded\. Transfer aborted\.$",
+        RegexOptions.Compiled);
+    private static readonly Regex UnsupportedProtocolActionMessageRegex = new(
+        @"^Unsupported protocol action: (?<action>.+)$",
+        RegexOptions.Compiled);
 
     public bool IsSending { get; private set; }
 
@@ -67,16 +83,23 @@ public sealed class TransferController : IDisposable
         return PreparedSendFile.FromParsedData(sourcePath, payload, parserName, segments.Count);
     }
 
-    public async Task StartSendAsync(string portName, int baudRate, int timeoutSeconds, IReadOnlyList<PreparedSendFile> files)
+    public async Task StartSendAsync(
+        string portName,
+        int baudRate,
+        int timeoutSeconds,
+        IReadOnlyList<PreparedSendFile> files,
+        string dataBlockMode = "Dynamic1K",
+        bool use1KBlock0 = true,
+        bool use1KFinalDataBlock = true)
     {
         if (files.Count == 0)
         {
-            throw new InvalidOperationException("No files selected.");
+            throw new InvalidOperationException(GetLocalizedText("NoFilesSelected", "No files selected."));
         }
 
         if (IsReceiving || IsSending)
         {
-            throw new InvalidOperationException("Transfer is already in progress.");
+            throw new InvalidOperationException(GetLocalizedText("TransferAlreadyInProgress", "Transfer is already in progress."));
         }
 
         var serialPort = OpenPort(portName, baudRate);
@@ -87,6 +110,16 @@ public sealed class TransferController : IDisposable
         IsSending = true;
         var totalSendBytes = files.Sum(GetSendFilePayloadLength);
         AppMetrics.EmitTransferStart("send", files.Count, totalSendBytes);
+        AppLogger.Debug(
+            "Send session config: port={PortName}, baud={BaudRate}, timeoutSec={TimeoutSeconds}, dataBlock={DataBlockModeDescription}, use1KBlock0={Use1KBlock0}, use1KFinalDataBlock={Use1KFinalDataBlock}, files={FileCount}, totalBytes={TotalBytes}",
+            portName,
+            baudRate,
+            timeoutSeconds,
+            DescribeDataBlockMode(dataBlockMode),
+            use1KBlock0,
+            use1KFinalDataBlock,
+            files.Count,
+            totalSendBytes);
 
         SendProgressChanged?.Invoke(new SendProgressSnapshot(
             SentBytes: 0,
@@ -94,11 +127,10 @@ public sealed class TransferController : IDisposable
             SentPackets: 0,
             TotalPackets: 0,
             Status: 0,
-            Message: "Waiting for sender handshake..."));
+            Message: GetLocalizedText("WaitingForReceiverHandshake", "Waiting for receiver handshake...")));
 
         transmitter = new YModemTransmitter(serialPort, timeoutSeconds, OnSendProgress);
-        var maxPayloadBytes = files.Max(GetSendFilePayloadLength);
-        transmitter.ConfigureBatchDataBlockSize(maxPayloadBytes);
+        transmitter.ConfigureBatchDataBlockOptions(dataBlockMode, use1KBlock0, use1KFinalDataBlock);
 
         try
         {
@@ -136,12 +168,12 @@ public sealed class TransferController : IDisposable
     {
         if (!Directory.Exists(saveFolder))
         {
-            throw new InvalidOperationException("Save folder does not exist.");
+            throw new InvalidOperationException(GetLocalizedText("SaveFolderNotExist", "Save folder does not exist."));
         }
 
         if (IsSending || IsReceiving)
         {
-            throw new InvalidOperationException("Transfer is already in progress.");
+            throw new InvalidOperationException(GetLocalizedText("TransferAlreadyInProgress", "Transfer is already in progress."));
         }
 
         var serialPort = OpenPort(portName, baudRate);
@@ -158,7 +190,7 @@ public sealed class TransferController : IDisposable
             PacketNo: 0,
             TotalPacket: 0,
             Status: 0,
-            Message: "Waiting for receiver handshake...",
+            Message: GetLocalizedText("WaitingForSenderHandshake", "Waiting for sender handshake..."),
             FileName: string.Empty,
             FileDate: string.Empty));
 
@@ -192,7 +224,7 @@ public sealed class TransferController : IDisposable
             SentPackets: 0,
             TotalPackets: 0,
             Status: -1,
-            Message: "Send canceled by user."));
+            Message: GetLocalizedText("SendCanceledByUser", "Send canceled by user.")));
     }
 
     public void CancelReceive()
@@ -207,7 +239,7 @@ public sealed class TransferController : IDisposable
             PacketNo: 0,
             TotalPacket: 0,
             Status: -1,
-            Message: "Receive canceled by user.",
+            Message: GetLocalizedText("ReceiveCanceledByUser", "Receive canceled by user."),
             FileName: string.Empty,
             FileDate: string.Empty));
     }
@@ -244,6 +276,23 @@ public sealed class TransferController : IDisposable
         return new FileInfo(file.SourcePath).Length;
     }
 
+    private static string DescribeDataBlockMode(string dataBlockMode)
+    {
+        return dataBlockMode switch
+        {
+            "Fixed128" => GetLocalizedText("DataBlockModeDescriptionFixed128", "Fixed128(128B)"),
+            "Fixed1K" => GetLocalizedText("DataBlockModeDescriptionFixed1K", "Fixed1K(1024B)"),
+            "Dynamic1K" => GetLocalizedText("DataBlockModeDescriptionDynamic1K", "Dynamic1K(<=128B:128B,>128B:1024B)"),
+            _ => dataBlockMode
+        };
+    }
+
+    private static string GetLocalizedText(string key, string fallback)
+    {
+        var value = Properties.Resources.ResourceManager.GetString(key, Properties.Resources.Culture);
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
     private void OnSendProgress(long sentBytes, long totalBytes, long sentPackets, long totalPackets, long status, string message)
     {
         lastSentBytes = sentBytes;
@@ -261,7 +310,13 @@ public sealed class TransferController : IDisposable
             return;
         }
 
-        SendProgressChanged?.Invoke(new SendProgressSnapshot(sentBytes, totalBytes, sentPackets, totalPackets, status, message));
+        SendProgressChanged?.Invoke(new SendProgressSnapshot(
+            sentBytes,
+            totalBytes,
+            sentPackets,
+            totalPackets,
+            status,
+            LocalizeSendProgressMessage(message)));
     }
 
     private void OnReceiveProgress(long receivedBytes, long totalBytes, long packetNo, long totalPacket, long status, string message, string fileName, string fileDate)
@@ -281,7 +336,139 @@ public sealed class TransferController : IDisposable
             return;
         }
 
-        ReceiveProgressChanged?.Invoke(new ReceiveProgressSnapshot(receivedBytes, totalBytes, packetNo, totalPacket, status, message, fileName, fileDate));
+        ReceiveProgressChanged?.Invoke(new ReceiveProgressSnapshot(
+            receivedBytes,
+            totalBytes,
+            packetNo,
+            totalPacket,
+            status,
+            LocalizeReceiveProgressMessage(message),
+            fileName,
+            fileDate));
+    }
+
+    private static string LocalizeSendProgressMessage(string message)
+    {
+        var localized = LocalizeCommonProgressMessage(message);
+        if (string.IsNullOrWhiteSpace(localized))
+        {
+            return localized;
+        }
+
+        var sendingMatch = SendingFileMessageRegex.Match(localized);
+        if (sendingMatch.Success)
+        {
+            return string.Format(
+                CultureInfo.CurrentUICulture,
+                GetLocalizedText("SendProgressFileFormat", "Sending file {0}"),
+                sendingMatch.Groups["file"].Value);
+        }
+
+        var completedMatch = SendCompletedMessageRegex.Match(localized);
+        if (completedMatch.Success)
+        {
+            return string.Format(
+                CultureInfo.CurrentUICulture,
+                GetLocalizedText("SendCompletedWithTimingFormat", "Send completed. wait: {0}s, transfer: {1}s, total: {2}s"),
+                completedMatch.Groups["wait"].Value,
+                completedMatch.Groups["transfer"].Value,
+                completedMatch.Groups["total"].Value);
+        }
+
+        return localized;
+    }
+
+    private static string LocalizeReceiveProgressMessage(string message)
+    {
+        var localized = LocalizeCommonProgressMessage(message);
+        if (string.IsNullOrWhiteSpace(localized))
+        {
+            return localized;
+        }
+
+        var receivingMatch = ReceivingFileMessageRegex.Match(localized);
+        if (receivingMatch.Success)
+        {
+            return string.Format(
+                CultureInfo.CurrentUICulture,
+                GetLocalizedText("ReceiveProgressFileFormat", "Receiving file {0}"),
+                receivingMatch.Groups["file"].Value);
+        }
+
+        var completedMatch = ReceiveCompletedMessageRegex.Match(localized);
+        if (completedMatch.Success)
+        {
+            return string.Format(
+                CultureInfo.CurrentUICulture,
+                GetLocalizedText("ReceiveCompletedWithTimingFormat", "Receive completed. wait: {0}s, transfer: {1}s, total: {2}s"),
+                completedMatch.Groups["wait"].Value,
+                completedMatch.Groups["transfer"].Value,
+                completedMatch.Groups["total"].Value);
+        }
+
+        return localized;
+    }
+
+    private static string LocalizeCommonProgressMessage(string message)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return message;
+        }
+
+        if (string.Equals(message, "Send canceled by user.", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(message, "Send canceled by user", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetLocalizedText("SendCanceledByUser", "Send canceled by user.");
+        }
+
+        if (string.Equals(message, "Receive canceled by user.", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(message, "Receive canceled by user", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetLocalizedText("ReceiveCanceledByUser", "Receive canceled by user.");
+        }
+
+        if (string.Equals(message, "Receiver timeout", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetLocalizedText("ReceiverTimeout", "Receiver timeout");
+        }
+
+        if (string.Equals(message, "Data receive timeout", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetLocalizedText("DataReceiveTimeout", "Data receive timeout");
+        }
+
+        if (string.Equals(message, "Unexpected file header request from protocol state machine.", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetLocalizedText(
+                "UnexpectedFileHeaderRequest",
+                "Unexpected file header request from protocol state machine.");
+        }
+
+        if (string.Equals(message, "Unsupported receive action", StringComparison.OrdinalIgnoreCase))
+        {
+            return GetLocalizedText("UnsupportedReceiveAction", "Unsupported receive action");
+        }
+
+        var maxRetryMatch = MaxRetryExceededMessageRegex.Match(message);
+        if (maxRetryMatch.Success)
+        {
+            return string.Format(
+                CultureInfo.CurrentUICulture,
+                GetLocalizedText("MaxRetryExceededFormat", "Max retry count ({0}) exceeded. Transfer aborted."),
+                maxRetryMatch.Groups["count"].Value);
+        }
+
+        var unsupportedProtocolActionMatch = UnsupportedProtocolActionMessageRegex.Match(message);
+        if (unsupportedProtocolActionMatch.Success)
+        {
+            return string.Format(
+                CultureInfo.CurrentUICulture,
+                GetLocalizedText("UnsupportedProtocolActionFormat", "Unsupported protocol action: {0}"),
+                unsupportedProtocolActionMatch.Groups["action"].Value);
+        }
+
+        return message;
     }
 
     private SerialPort OpenPort(string portName, int baudRate)

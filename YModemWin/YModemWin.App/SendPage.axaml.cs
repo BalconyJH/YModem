@@ -25,9 +25,13 @@ public partial class SendPage : UserControl
     {
         InitializeComponent();
         SendFilesListBox.ItemsSource = sendFiles;
+        DataBlockSizeComboBox.SelectedIndex = 1;
+        Fixed1KBlock0ModeComboBox.SelectedIndex = 0;
+        Fixed1KFinalDataBlockModeComboBox.SelectedIndex = 0;
         SendTimeoutComboBox.SelectedIndex = 2;
         ApplyLocalization();
         UpdateSendStartButtonState();
+        UpdateDataBlockSizeComboBoxState();
         UpdateParsedFilesCheckBoxState();
 
         AppServices.TransferController.SendProgressChanged += OnSendProgress;
@@ -39,7 +43,12 @@ public partial class SendPage : UserControl
         AddFilesButton.Content = Properties.Resources.AddFiles;
         SendParsedFilesCheckBox.Content = Properties.Resources.ParsedFiles;
         RemoveSelectedButton.Content = Properties.Resources.RemoveSelected;
+        DataBlockSizeLabel.Text = GetLocalizedText("DataBlockSize", "DataBlock Size");
+        Fixed1KBlock0ModeLabel.Text = GetLocalizedText("Fixed1KBlock0Mode", "Block0 Size");
+        Fixed1KFinalDataBlockModeLabel.Text = GetLocalizedText("Fixed1KFinalDataBlockMode", "Final Block Size");
+        ApplyDataBlockSizeModeLocalization();
         TimeoutLabel.Text = Properties.Resources.TimeoutSec;
+        UpdateDataBlockSizeComboBoxState();
         UpdateParsedFilesCheckBoxState();
     }
 
@@ -77,7 +86,13 @@ public partial class SendPage : UserControl
             catch (Exception ex)
             {
                 AppLogger.Error(ex, "Failed to prepare file {File}", path);
-                ShowInfo($"Failed to prepare {Path.GetFileName(path)}: {ex.Message}", InfoBarSeverity.Warning);
+                ShowInfo(
+                    string.Format(
+                        CultureInfo.CurrentUICulture,
+                        GetLocalizedText("PrepareFileFailedFormat", "Failed to prepare {0}: {1}"),
+                        Path.GetFileName(path),
+                        ex.Message),
+                    InfoBarSeverity.Warning);
             }
         }
     }
@@ -87,7 +102,7 @@ public partial class SendPage : UserControl
         var files = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             AllowMultiple = false,
-            Title = "Select files"
+            Title = GetLocalizedText("SelectFilesTitle", "Select files")
         });
 
         return files
@@ -151,11 +166,22 @@ public partial class SendPage : UserControl
 
         AppMetrics.EmitButtonClick("start_send", "/send");
         SetSendActionButtonToCancel();
-        ShowInfo("Waiting for receiver handshake...", InfoBarSeverity.Informational);
+        ShowInfo(GetLocalizedText("WaitingForReceiverHandshake", "Waiting for receiver handshake..."), InfoBarSeverity.Informational);
 
         try
         {
-            await AppServices.TransferController.StartSendAsync(portName, baudRate, GetSendTimeout(), sendFiles.ToList());
+            var selectedMode = GetSelectedDataBlockMode();
+            var use1KBlock0 = !string.Equals(selectedMode, "Fixed1K", StringComparison.Ordinal) || Is1KSelection(Fixed1KBlock0ModeComboBox);
+            var use1KFinalDataBlock = !string.Equals(selectedMode, "Fixed1K", StringComparison.Ordinal) || Is1KSelection(Fixed1KFinalDataBlockModeComboBox);
+
+            await AppServices.TransferController.StartSendAsync(
+                portName,
+                baudRate,
+                GetSendTimeout(),
+                sendFiles.ToList(),
+                selectedMode,
+                use1KBlock0,
+                use1KFinalDataBlock);
         }
         catch (Exception ex)
         {
@@ -184,6 +210,52 @@ public partial class SendPage : UserControl
         SendParsedFilesCheckBox.IsChecked = true;
         SendParsedFilesCheckBox.IsEnabled = false;
         ToolTip.SetTip(SendParsedFilesCheckBox, Properties.Resources.ParsedFilesTooltip);
+    }
+
+    private void UpdateDataBlockSizeComboBoxState()
+    {
+        DataBlockSizeComboBox.SelectedIndex = 1;
+        DataBlockSizeComboBox.IsEnabled = false;
+        ToolTip.SetTip(DataBlockSizeComboBox, GetLocalizedText("DataBlockSizeFixedDynamic1KTooltip", "Fixed to Dynamic1K."));
+        UpdateFixed1KBlockModeVisibility();
+    }
+
+    private void OnDataBlockSizeSelectionChanged(object? sender, SelectionChangedEventArgs e) =>
+        UpdateFixed1KBlockModeVisibility();
+
+    private void UpdateFixed1KBlockModeVisibility()
+    {
+        var isFixed1K = string.Equals(GetSelectedDataBlockMode(), "Fixed1K", StringComparison.Ordinal);
+        Fixed1KBlock0ModeLabel.IsVisible = isFixed1K;
+        Fixed1KBlock0ModeComboBox.IsVisible = isFixed1K;
+        Fixed1KFinalDataBlockModeLabel.IsVisible = isFixed1K;
+        Fixed1KFinalDataBlockModeComboBox.IsVisible = isFixed1K;
+    }
+
+    private string GetSelectedDataBlockMode() =>
+        (DataBlockSizeComboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Dynamic1K";
+
+    private static bool Is1KSelection(ComboBox comboBox) =>
+        bool.TryParse((comboBox.SelectedItem as ComboBoxItem)?.Tag?.ToString(), out var use1K) && use1K;
+
+    private void ApplyDataBlockSizeModeLocalization()
+    {
+        SetComboBoxItemContent(DataBlockSizeComboBox, 0, GetLocalizedText("DataBlockModeFixed128", "Fixed128"));
+        SetComboBoxItemContent(DataBlockSizeComboBox, 1, GetLocalizedText("DataBlockModeDynamic1K", "Dynamic1K"));
+        SetComboBoxItemContent(DataBlockSizeComboBox, 2, GetLocalizedText("DataBlockModeFixed1K", "Fixed1K"));
+    }
+
+    private static void SetComboBoxItemContent(ComboBox comboBox, int index, string content)
+    {
+        if (comboBox.ItemCount <= index)
+        {
+            return;
+        }
+
+        if (comboBox.Items[index] is ComboBoxItem item)
+        {
+            item.Content = content;
+        }
     }
 
     private static bool IsFirmwareFile(string filePath)
@@ -402,7 +474,22 @@ public partial class SendPage : UserControl
         }
     }
 
-    private int GetSendTimeout() => int.Parse((SendTimeoutComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "10", CultureInfo.InvariantCulture);
+    private int GetSendTimeout() => int.Parse(GetComboBoxSelectedText(SendTimeoutComboBox, "10"), CultureInfo.InvariantCulture);
+
+    private static string GetComboBoxSelectedText(ComboBox comboBox, string fallback)
+    {
+        if (comboBox.SelectedItem is ComboBoxItem comboBoxItem && comboBoxItem.Content is not null)
+        {
+            return comboBoxItem.Content.ToString() ?? fallback;
+        }
+
+        if (comboBox.SelectedItem is not null)
+        {
+            return comboBox.SelectedItem.ToString() ?? fallback;
+        }
+
+        return string.IsNullOrWhiteSpace(comboBox.Text) ? fallback : comboBox.Text;
+    }
 
     private void OnSendProgress(SendProgressSnapshot progress)
     {

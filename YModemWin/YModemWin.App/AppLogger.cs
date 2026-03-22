@@ -63,6 +63,8 @@ internal static class AppLogger
 
     public static void Info(string messageTemplate, params object[] values) => Log.Information(messageTemplate, values);
 
+    public static void Debug(string messageTemplate, params object[] values) => Log.Debug(messageTemplate, values);
+
     public static void Warn(string messageTemplate, params object[] values) => Log.Warning(messageTemplate, values);
 
     public static void Error(Exception exception, string messageTemplate, params object[] values) =>

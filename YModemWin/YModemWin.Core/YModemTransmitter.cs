@@ -20,7 +20,7 @@ public class YModemTransmitter
 
     private YModemBatchSender? batchSender;
     private YModemPacketEncoder? packetEncoder;
-    private int? preferredDataBlockSize;
+    private YModemBlockOptions? preferredBlockOptions;
     private int activeDataBlockSize;
     private bool userCancel;
     private long status;
@@ -56,14 +56,26 @@ public class YModemTransmitter
 
     public void ConfigureBatchDataBlockSize(long maxFileSize)
     {
-        preferredDataBlockSize = SelectDataBlockSize(maxFileSize);
+        _ = maxFileSize;
+        preferredBlockOptions = new YModemBlockOptions(YModemBlockMode.Dynamic1K);
+    }
+
+    public void ConfigureBatchDataBlockOptions(string mode, bool use1KBlock0, bool use1KFinalDataBlock)
+    {
+        if (!Enum.TryParse<YModemBlockMode>(mode, ignoreCase: true, out var parsedMode))
+        {
+            parsedMode = YModemBlockMode.Dynamic1K;
+        }
+
+        preferredBlockOptions = new YModemBlockOptions(parsedMode, use1KBlock0, use1KFinalDataBlock);
     }
 
     private bool YmodemSendStream(Stream fileStream, string fileName, bool isLastFile)
     {
         if (userCancel)
         {
-            var canceledContext = new FileTransferContext(fileStream, fileName, SelectDataBlockSize(fileStream.Length));
+            var options = preferredBlockOptions ?? new YModemBlockOptions(YModemBlockMode.Dynamic1K);
+            var canceledContext = new FileTransferContext(fileStream, fileName, SelectDataBlockSize(options.Mode, fileStream.Length));
             CancelByUser(canceledContext, "Send canceled by user.");
             return false;
         }
@@ -248,10 +260,16 @@ public class YModemTransmitter
             return;
         }
 
-        activeDataBlockSize = preferredDataBlockSize ?? SelectDataBlockSize(currentFileSize);
-        batchSender = new YModemBatchSender(activeDataBlockSize);
-        packetEncoder = new YModemPacketEncoder(activeDataBlockSize);
-        Logger.Information("Initialized YMODEM sender with adaptive data block size: {BlockSize}", activeDataBlockSize);
+        var options = preferredBlockOptions ?? new YModemBlockOptions(YModemBlockMode.Dynamic1K);
+        activeDataBlockSize = SelectDataBlockSize(options.Mode, currentFileSize);
+        batchSender = new YModemBatchSender(options);
+        packetEncoder = new YModemPacketEncoder(options);
+        Logger.Information(
+            "Initialized YMODEM sender with block mode {BlockMode}, Use1KBlock0={Use1KBlock0}, Use1KFinalDataBlock={Use1KFinalDataBlock}, estimated block size={BlockSize}",
+            options.Mode,
+            options.Use1KBlock0,
+            options.Use1KFinalDataBlock,
+            activeDataBlockSize);
         if (sessionStartedAt == DateTime.MinValue)
         {
             sessionStartedAt = DateTime.Now;
@@ -263,20 +281,25 @@ public class YModemTransmitter
         Logger.Debug("Resetting sender batch session");
         batchSender = null;
         packetEncoder = null;
-        preferredDataBlockSize = null;
+        preferredBlockOptions = null;
         activeDataBlockSize = 0;
         sessionStartedAt = DateTime.MinValue;
         handshakeEstablishedAt = DateTime.MinValue;
     }
 
-    private static int SelectDataBlockSize(long fileSize)
+    private static int SelectDataBlockSize(YModemBlockMode mode, long fileSize)
     {
-        if (fileSize <= LargeDataBlockSize)
+        if (mode == YModemBlockMode.Fixed128)
         {
             return SmallDataBlockSize;
         }
 
-        return LargeDataBlockSize;
+        if (mode == YModemBlockMode.Fixed1K)
+        {
+            return LargeDataBlockSize;
+        }
+
+        return fileSize <= SmallDataBlockSize ? SmallDataBlockSize : LargeDataBlockSize;
     }
 
     private void WritePacket(YModemPacket packet)

@@ -78,6 +78,22 @@
       <Button x:Name="RemoveSelectedButton" Content="Remove Selected" Click="OnDeleteSendFilesClick" />
       <Button x:Name="SendActionButton" Content="Start Send" Click="OnStartSendClick"
               ToolTip.ShowOnDisabled="True" />
+      <TextBlock x:Name="DataBlockSizeLabel" VerticalAlignment="Center" Text="DataBlock Size" />
+      <ComboBox x:Name="DataBlockSizeComboBox" Width="130" IsEnabled="False" ToolTip.ShowOnDisabled="True" SelectionChanged="OnDataBlockSizeSelectionChanged">
+        <ComboBoxItem Tag="Fixed128" Content="Fixed128" />
+        <ComboBoxItem Tag="Dynamic1K" Content="Dynamic1K" />
+        <ComboBoxItem Tag="Fixed1K" Content="Fixed1K" />
+      </ComboBox>
+      <TextBlock x:Name="Fixed1KBlock0ModeLabel" VerticalAlignment="Center" Text="Block0 Size" IsVisible="False" />
+      <ComboBox x:Name="Fixed1KBlock0ModeComboBox" Width="110" IsVisible="False">
+        <ComboBoxItem Tag="true" Content="1K" />
+        <ComboBoxItem Tag="false" Content="128B" />
+      </ComboBox>
+      <TextBlock x:Name="Fixed1KFinalDataBlockModeLabel" VerticalAlignment="Center" Text="Final Block Size" IsVisible="False" />
+      <ComboBox x:Name="Fixed1KFinalDataBlockModeComboBox" Width="130" IsVisible="False">
+        <ComboBoxItem Tag="true" Content="1K" />
+        <ComboBoxItem Tag="false" Content="128B" />
+      </ComboBox>
       <TextBlock x:Name="TimeoutLabel" VerticalAlignment="Center" Text="Timeout (sec)" />
       <ComboBox x:Name="SendTimeoutComboBox" Width="100">
         <ComboBoxItem Content="0" />

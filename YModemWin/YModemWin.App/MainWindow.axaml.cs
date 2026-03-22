@@ -117,6 +117,9 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
         RefreshPortsButton.Content = Properties.Resources.RefreshPorts;
         TelemetryCheckBox.Content = Properties.Resources.Telemetry;
         ToolTip.SetTip(TelemetryCheckBox, Properties.Resources.TelemetryTooltip);
+        SetComboBoxItemContent(ThemeComboBox, 0, GetLocalizedText("ThemeDark", "Dark"));
+        SetComboBoxItemContent(ThemeComboBox, 1, GetLocalizedText("ThemeLight", "Light"));
+        SetComboBoxItemContent(ThemeComboBox, 2, GetLocalizedText("ThemeSystem", "System"));
 
         // Navigation tabs
         SendPageButton.Content = Properties.Resources.Send;
@@ -133,6 +136,11 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
         RuntimeLogsLabel.Text = Properties.Resources.RuntimeLogs;
         AutoScrollLogCheckBox.Content = Properties.Resources.AutoScroll;
         ClearLogsButton.Content = Properties.Resources.ClearLogs;
+
+        if (!MainInfoBar.IsOpen)
+        {
+            MainInfoBar.Message = GetLocalizedText("Ready", "Ready.");
+        }
     }
 
     public bool TryGetSerialSettings(out string portName, out int baudRate)
@@ -187,13 +195,19 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
                 var percentage = (double)progress.SentBytes / progress.TotalBytes * 100;
                 TransferProgressBar.IsIndeterminate = false;
                 TransferProgressBar.Value = Math.Clamp(percentage, 0, 100);
-                TransferProgressTextBlock.Text = $"{Properties.Resources.Send}: {progress.SentBytes}/{progress.TotalBytes} bytes";
+                TransferProgressTextBlock.Text = string.Format(
+                    CultureInfo.CurrentUICulture,
+                    GetLocalizedText("TransferBytesProgressFormat", "{0}: {1}/{2} bytes"),
+                    Properties.Resources.Send,
+                    progress.SentBytes,
+                    progress.TotalBytes);
             }
             else
             {
                 SetTransferWaiting(Properties.Resources.Send);
             }
 
+            UpdateTransferInfoBar(progress.Status, progress.Message);
             SendBytesTextBlock.Text = string.Format(Properties.Resources.SendBytesFormat, progress.SentBytes, progress.TotalBytes);
             SendPacketsTextBlock.Text = string.Format(Properties.Resources.SendPacketsFormat, progress.SentPackets, progress.TotalPackets);
         });
@@ -214,13 +228,19 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
                 var percentage = (double)progress.ReceivedBytes / progress.TotalBytes * 100;
                 TransferProgressBar.IsIndeterminate = false;
                 TransferProgressBar.Value = Math.Clamp(percentage, 0, 100);
-                TransferProgressTextBlock.Text = $"{Properties.Resources.Receive}: {progress.ReceivedBytes}/{progress.TotalBytes} bytes";
+                TransferProgressTextBlock.Text = string.Format(
+                    CultureInfo.CurrentUICulture,
+                    GetLocalizedText("TransferBytesProgressFormat", "{0}: {1}/{2} bytes"),
+                    Properties.Resources.Receive,
+                    progress.ReceivedBytes,
+                    progress.TotalBytes);
             }
             else
             {
                 SetTransferWaiting(Properties.Resources.Receive);
             }
 
+            UpdateTransferInfoBar(progress.Status, progress.Message);
             ReceiveBytesTextBlock.Text = string.Format(Properties.Resources.ReceiveBytesFormat, progress.ReceivedBytes, progress.TotalBytes);
             ReceivePacketsTextBlock.Text = string.Format(Properties.Resources.ReceivePacketsFormat, progress.PacketNo, progress.TotalPacket);
         });
@@ -446,7 +466,27 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
     {
         TransferProgressBar.IsIndeterminate = true;
         TransferProgressBar.Value = 0;
-        TransferProgressTextBlock.Text = $"{action}: waiting for handshake...";
+        TransferProgressTextBlock.Text = string.Format(
+            CultureInfo.CurrentUICulture,
+            GetLocalizedText("TransferWaitingFormat", "{0}: waiting for handshake..."),
+            action);
+    }
+
+    private void UpdateTransferInfoBar(long status, string message)
+    {
+        if (status > 1)
+        {
+            return;
+        }
+
+        var severity = status switch
+        {
+            < 0 => InfoBarSeverity.Warning,
+            1 => InfoBarSeverity.Success,
+            _ => InfoBarSeverity.Informational
+        };
+
+        ShowInfo(message, severity);
     }
 
     private void ResetTransferProgress(string statusText)
@@ -472,5 +512,39 @@ public partial class MainWindow : AppWindow, ISerialSettingsProvider, IInfoBarPr
         TitleBarRightInsetSpacer.Width = Math.Max(TitleBar.RightInset, 0);
     }
 
-    private int GetBaudRate() => int.Parse((BaudRateComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "115200", CultureInfo.InvariantCulture);
+    private int GetBaudRate() => int.Parse(GetComboBoxSelectedText(BaudRateComboBox, "115200"), CultureInfo.InvariantCulture);
+
+    private static string GetComboBoxSelectedText(ComboBox comboBox, string fallback)
+    {
+        if (comboBox.SelectedItem is ComboBoxItem comboBoxItem && comboBoxItem.Content is not null)
+        {
+            return comboBoxItem.Content.ToString() ?? fallback;
+        }
+
+        if (comboBox.SelectedItem is not null)
+        {
+            return comboBox.SelectedItem.ToString() ?? fallback;
+        }
+
+        return string.IsNullOrWhiteSpace(comboBox.Text) ? fallback : comboBox.Text;
+    }
+
+    private static void SetComboBoxItemContent(ComboBox comboBox, int index, string content)
+    {
+        if (comboBox.ItemCount <= index)
+        {
+            return;
+        }
+
+        if (comboBox.Items[index] is ComboBoxItem item)
+        {
+            item.Content = content;
+        }
+    }
+
+    private static string GetLocalizedText(string key, string fallback)
+    {
+        var value = Properties.Resources.ResourceManager.GetString(key, Properties.Resources.Culture);
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
 }

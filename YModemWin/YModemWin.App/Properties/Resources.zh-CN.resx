@@ -68,6 +68,15 @@
   <data name="Theme" xml:space="preserve">
     <value>主题</value>
   </data>
+  <data name="ThemeDark" xml:space="preserve">
+    <value>深色</value>
+  </data>
+  <data name="ThemeLight" xml:space="preserve">
+    <value>浅色</value>
+  </data>
+  <data name="ThemeSystem" xml:space="preserve">
+    <value>系统</value>
+  </data>
   <data name="RefreshPorts" xml:space="preserve">
     <value>刷新端口</value>
   </data>
@@ -82,6 +91,9 @@
   </data>
   <data name="Idle" xml:space="preserve">
     <value>空闲</value>
+  </data>
+  <data name="Ready" xml:space="preserve">
+    <value>就绪。</value>
   </data>
   <data name="RuntimeLogs" xml:space="preserve">
     <value>运行日志</value>
@@ -114,8 +126,74 @@
   <data name="TimeoutSec" xml:space="preserve">
     <value>超时 (秒)</value>
   </data>
+  <data name="DataBlockSize" xml:space="preserve">
+    <value>数据块大小</value>
+  </data>
+  <data name="DataBlockSizeFixedDynamic1KTooltip" xml:space="preserve">
+    <value>固定为 Dynamic1K。</value>
+  </data>
+  <data name="Fixed1KBlock0Mode" xml:space="preserve">
+    <value>Block0 大小</value>
+  </data>
+  <data name="Fixed1KFinalDataBlockMode" xml:space="preserve">
+    <value>末块大小</value>
+  </data>
+  <data name="DataBlockModeFixed128" xml:space="preserve">
+    <value>固定128</value>
+  </data>
+  <data name="DataBlockModeDynamic1K" xml:space="preserve">
+    <value>动态1K</value>
+  </data>
+  <data name="DataBlockModeFixed1K" xml:space="preserve">
+    <value>固定1K</value>
+  </data>
+  <data name="DataBlockModeDescriptionFixed128" xml:space="preserve">
+    <value>固定128(128B)</value>
+  </data>
+  <data name="DataBlockModeDescriptionDynamic1K" xml:space="preserve">
+    <value>动态1K(&lt;=128B:128B,&gt;128B:1024B)</value>
+  </data>
+  <data name="DataBlockModeDescriptionFixed1K" xml:space="preserve">
+    <value>固定1K(1024B)</value>
+  </data>
   <data name="SelectFilesFirst" xml:space="preserve">
     <value>请先选择文件</value>
+  </data>
+  <data name="SelectFilesTitle" xml:space="preserve">
+    <value>选择文件</value>
+  </data>
+  <data name="SelectSaveFolderTitle" xml:space="preserve">
+    <value>选择保存目录</value>
+  </data>
+  <data name="PrepareFileFailedFormat" xml:space="preserve">
+    <value>准备 {0} 失败: {1}</value>
+  </data>
+  <data name="WaitingForSenderHandshake" xml:space="preserve">
+    <value>等待发送端握手...</value>
+  </data>
+  <data name="WaitingForReceiverHandshake" xml:space="preserve">
+    <value>等待接收端握手...</value>
+  </data>
+  <data name="TransferWaitingFormat" xml:space="preserve">
+    <value>{0}: 等待握手...</value>
+  </data>
+  <data name="TransferBytesProgressFormat" xml:space="preserve">
+    <value>{0}: {1}/{2} 字节</value>
+  </data>
+  <data name="SendProgressFileFormat" xml:space="preserve">
+    <value>正在发送文件 {0}</value>
+  </data>
+  <data name="ReceiveProgressFileFormat" xml:space="preserve">
+    <value>正在接收文件 {0}</value>
+  </data>
+  <data name="SendCompletedWithTimingFormat" xml:space="preserve">
+    <value>发送完成。等待: {0}s，传输: {1}s，总计: {2}s</value>
+  </data>
+  <data name="ReceiveCompletedWithTimingFormat" xml:space="preserve">
+    <value>接收完成。等待: {0}s，传输: {1}s，总计: {2}s</value>
+  </data>
+  <data name="ReceiveProgressFileDateFormat" xml:space="preserve">
+    <value>{0} | 文件: {1} | 日期: {2}</value>
   </data>
   <data name="ParsedMultiBlockWarningTitle" xml:space="preserve">
     <value>检测到多个数据块</value>
@@ -155,6 +233,33 @@
   </data>
   <data name="ReceiveCanceledByUser" xml:space="preserve">
     <value>接收已被用户取消。</value>
+  </data>
+  <data name="NoFilesSelected" xml:space="preserve">
+    <value>未选择文件。</value>
+  </data>
+  <data name="TransferAlreadyInProgress" xml:space="preserve">
+    <value>传输已在进行中。</value>
+  </data>
+  <data name="SaveFolderNotExist" xml:space="preserve">
+    <value>保存目录不存在。</value>
+  </data>
+  <data name="ReceiverTimeout" xml:space="preserve">
+    <value>接收端超时</value>
+  </data>
+  <data name="DataReceiveTimeout" xml:space="preserve">
+    <value>接收数据超时</value>
+  </data>
+  <data name="UnexpectedFileHeaderRequest" xml:space="preserve">
+    <value>协议状态机收到意外的文件头请求。</value>
+  </data>
+  <data name="UnsupportedReceiveAction" xml:space="preserve">
+    <value>不支持的接收动作</value>
+  </data>
+  <data name="MaxRetryExceededFormat" xml:space="preserve">
+    <value>超过最大重试次数（{0}），传输已中止。</value>
+  </data>
+  <data name="UnsupportedProtocolActionFormat" xml:space="preserve">
+    <value>不支持的协议动作：{0}</value>
   </data>
   <data name="LanguageSwitched" xml:space="preserve">
     <value>语言已切换。重启应用以完全应用。</value>

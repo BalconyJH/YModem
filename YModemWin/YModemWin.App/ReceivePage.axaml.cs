@@ -39,7 +39,7 @@ public partial class ReceivePage : UserControl
         var folders = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
         {
             AllowMultiple = false,
-            Title = "Select save folder"
+            Title = GetLocalizedText("SelectSaveFolderTitle", "Select save folder")
         });
 
         var folder = folders.FirstOrDefault();
@@ -67,7 +67,7 @@ public partial class ReceivePage : UserControl
 
         AppMetrics.EmitButtonClick("start_receive", "/receive");
         SetReceiveActionButtonToCancel();
-        ShowInfo("Waiting for sender handshake...", InfoBarSeverity.Informational);
+        ShowInfo(GetLocalizedText("WaitingForSenderHandshake", "Waiting for sender handshake..."), InfoBarSeverity.Informational);
 
         try
         {
@@ -111,7 +111,7 @@ public partial class ReceivePage : UserControl
         }
     }
 
-    private int GetReceiveTimeout() => int.Parse((ReceiveTimeoutComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "10", CultureInfo.InvariantCulture);
+    private int GetReceiveTimeout() => int.Parse(GetComboBoxSelectedText(ReceiveTimeoutComboBox, "10"), CultureInfo.InvariantCulture);
 
     private void OnReceiveProgress(ReceiveProgressSnapshot progress)
     {
@@ -119,7 +119,12 @@ public partial class ReceivePage : UserControl
         {
             var message = string.IsNullOrWhiteSpace(progress.FileName)
                 ? progress.Message
-                : $"{progress.Message} | File: {progress.FileName} | Date: {progress.FileDate}";
+                : string.Format(
+                    CultureInfo.CurrentUICulture,
+                    GetLocalizedText("ReceiveProgressFileDateFormat", "{0} | File: {1} | Date: {2}"),
+                    progress.Message,
+                    progress.FileName,
+                    progress.FileDate);
 
             if (progress.Status < 0)
             {
@@ -134,5 +139,26 @@ public partial class ReceivePage : UserControl
                 ShowInfo(message, InfoBarSeverity.Informational);
             }
         });
+    }
+
+    private static string GetLocalizedText(string key, string fallback)
+    {
+        var value = Properties.Resources.ResourceManager.GetString(key, Properties.Resources.Culture);
+        return string.IsNullOrWhiteSpace(value) ? fallback : value;
+    }
+
+    private static string GetComboBoxSelectedText(ComboBox comboBox, string fallback)
+    {
+        if (comboBox.SelectedItem is ComboBoxItem comboBoxItem && comboBoxItem.Content is not null)
+        {
+            return comboBoxItem.Content.ToString() ?? fallback;
+        }
+
+        if (comboBox.SelectedItem is not null)
+        {
+            return comboBox.SelectedItem.ToString() ?? fallback;
+        }
+
+        return string.IsNullOrWhiteSpace(comboBox.Text) ? fallback : comboBox.Text;
     }
 }
