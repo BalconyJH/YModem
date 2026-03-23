@@ -29,12 +29,14 @@ public class App : Application
         AppDomain.CurrentDomain.UnhandledException += (_, eventArgs) =>
         {
             if (eventArgs.ExceptionObject is not Exception exception) return;
+            AppLogger.MarkSessionCrash("unhandled_domain_exception");
             AppLogger.Error(exception, "Unhandled domain exception. IsTerminating={IsTerminating}", eventArgs.IsTerminating);
             SentrySdk.CaptureException(exception);
         };
 
         TaskScheduler.UnobservedTaskException += (_, eventArgs) =>
         {
+            AppLogger.MarkSessionCrash("unobserved_task_exception");
             AppLogger.Error(eventArgs.Exception, "Unobserved task exception");
             SentrySdk.CaptureException(eventArgs.Exception);
             eventArgs.SetObserved();

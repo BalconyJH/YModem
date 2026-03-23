@@ -1,5 +1,7 @@
 using System.IO.Ports;
+using System.Diagnostics;
 using System.Globalization;
+using System.Security.Cryptography;
 using System.Text.RegularExpressions;
 using DeviceProgramming.FileFormat;
 using DeviceProgramming.Memory;
@@ -20,6 +22,10 @@ public sealed class TransferController : IDisposable
     private DateTime receiveStartedAtUtc;
     private long lastSentBytes;
     private long lastReceivedBytes;
+    private long lastSendStatus;
+    private long lastReceiveStatus;
+    private string lastSendMessage = string.Empty;
+    private string lastReceiveMessage = string.Empty;
     private bool sendOutcomeMetricReported;
     private bool receiveOutcomeMetricReported;
     private static readonly Regex SendingFileMessageRegex = new(@"^Sending file (?<file>.+)$", RegexOptions.Compiled);
@@ -102,24 +108,79 @@ public sealed class TransferController : IDisposable
             throw new InvalidOperationException(GetLocalizedText("TransferAlreadyInProgress", "Transfer is already in progress."));
         }
 
+        var transferId = CreateTransferId();
+        var transferStopwatch = Stopwatch.StartNew();
+        var transferResult = "unknown";
+        string? transferErrorCode = null;
+        string? transferErrorMessage = null;
+        var sendFinishedSuccessfully = false;
+
         var serialPort = OpenPort(portName, baudRate);
         sendCancellationRequested = false;
         sendStartedAtUtc = DateTime.UtcNow;
         lastSentBytes = 0;
+        lastSendStatus = 0;
+        lastSendMessage = string.Empty;
         sendOutcomeMetricReported = false;
         IsSending = true;
         var totalSendBytes = files.Sum(GetSendFilePayloadLength);
+        var fixed1KOverridesEnabled = string.Equals(dataBlockMode, "Fixed1K", StringComparison.Ordinal);
+        bool? block0Config = fixed1KOverridesEnabled ? use1KBlock0 : null;
+        bool? finalBlockConfig = fixed1KOverridesEnabled ? use1KFinalDataBlock : null;
         AppMetrics.EmitTransferStart("send", files.Count, totalSendBytes);
-        AppLogger.Debug(
-            "Send session config: port={PortName}, baud={BaudRate}, timeoutSec={TimeoutSeconds}, dataBlock={DataBlockModeDescription}, use1KBlock0={Use1KBlock0}, use1KFinalDataBlock={Use1KFinalDataBlock}, files={FileCount}, totalBytes={TotalBytes}",
+        using var transferScope = PushTransferLogContext(transferId, "Send", portName, baudRate, timeoutSeconds);
+        AppLogger.RegisterTransferStarted(
+            transferId,
+            "send",
             portName,
             baudRate,
             timeoutSeconds,
-            DescribeDataBlockMode(dataBlockMode),
-            use1KBlock0,
-            use1KFinalDataBlock,
             files.Count,
-            totalSendBytes);
+            totalSendBytes,
+            dataBlockMode,
+            block0Config,
+            finalBlockConfig,
+            saveFolder: null);
+        AppLogger.RecordTransferConfigSnapshot(
+            transferId,
+            "send",
+            [
+                new KeyValuePair<string, object?>("port_name", portName),
+                new KeyValuePair<string, object?>("baud_rate", baudRate),
+                new KeyValuePair<string, object?>("timeout_seconds", timeoutSeconds),
+                new KeyValuePair<string, object?>("data_block_mode", dataBlockMode),
+                new KeyValuePair<string, object?>("data_block_mode_description", DescribeDataBlockMode(dataBlockMode)),
+                new KeyValuePair<string, object?>("use_1k_block0", block0Config),
+                new KeyValuePair<string, object?>("use_1k_final_data_block", finalBlockConfig),
+                new KeyValuePair<string, object?>("file_count", files.Count),
+                new KeyValuePair<string, object?>("total_bytes", totalSendBytes)
+            ]);
+        if (fixed1KOverridesEnabled)
+        {
+            AppLogger.Debug(
+                "Send session config: transferId={TransferId}, port={PortName}, baud={BaudRate}, timeoutSec={TimeoutSeconds}, dataBlock={DataBlockModeDescription}, use1KBlock0={Use1KBlock0}, use1KFinalDataBlock={Use1KFinalDataBlock}, files={FileCount}, totalBytes={TotalBytes}",
+                transferId,
+                portName,
+                baudRate,
+                timeoutSeconds,
+                DescribeDataBlockMode(dataBlockMode),
+                use1KBlock0,
+                use1KFinalDataBlock,
+                files.Count,
+                totalSendBytes);
+        }
+        else
+        {
+            AppLogger.Debug(
+                "Send session config: transferId={TransferId}, port={PortName}, baud={BaudRate}, timeoutSec={TimeoutSeconds}, dataBlock={DataBlockModeDescription}, block0=auto, finalDataBlock=auto, files={FileCount}, totalBytes={TotalBytes}",
+                transferId,
+                portName,
+                baudRate,
+                timeoutSeconds,
+                DescribeDataBlockMode(dataBlockMode),
+                files.Count,
+                totalSendBytes);
+        }
 
         SendProgressChanged?.Invoke(new SendProgressSnapshot(
             SentBytes: 0,
@@ -136,21 +197,49 @@ public sealed class TransferController : IDisposable
         {
             await Task.Run(() =>
             {
+                var allFilesSent = true;
                 for (var i = 0; i < files.Count; i++)
                 {
                     var item = files[i];
                     var isLastFile = i == files.Count - 1;
                     using var contextScope = PushSendFileLogContext(item);
+                    var expectedSize = GetSendFilePayloadLength(item);
+                    var checksum = ComputePreparedFileSha256(item);
                     var sent = item.ParsedPayload is null
                         ? transmitter.YmodemSendFile(item.SourcePath, isLastFile)
                         : transmitter.YmodemSendParsedData(item.DisplayFileName, item.LastWriteTime, item.ParsedPayload, isLastFile);
+                    AppLogger.RecordFileValidation(
+                        transferId,
+                        i,
+                        "send",
+                        item.DisplayFileName,
+                        item.SourcePath,
+                        item.IsParsedPayload ? "parsed_payload" : "raw_file",
+                        item.IsParsedPayload,
+                        expectedSize,
+                        sent ? expectedSize : null,
+                        "SHA256",
+                        checksum,
+                        sent ? true : null,
+                        null,
+                        sent ? "Source payload checksum captured before sending." : "Send not completed for this file.");
 
                     if (!sent)
                     {
+                        allFilesSent = false;
                         break;
                     }
                 }
+
+                sendFinishedSuccessfully = allFilesSent;
             });
+        }
+        catch (Exception ex)
+        {
+            transferResult = "failure";
+            transferErrorCode = "exception";
+            transferErrorMessage = ex.Message;
+            throw;
         }
         finally
         {
@@ -159,8 +248,35 @@ public sealed class TransferController : IDisposable
                 EmitSendOutcomeMetric(sendCancellationRequested ? "cancelled" : "unknown", lastSentBytes);
             }
 
+            if (sendCancellationRequested)
+            {
+                transferResult = "cancelled";
+                transferErrorCode ??= "user_cancelled";
+                transferErrorMessage ??= "Send canceled by user.";
+            }
+            else if (lastSendStatus == 1 && sendFinishedSuccessfully)
+            {
+                transferResult = "success";
+            }
+            else if (transferResult != "failure")
+            {
+                transferResult = "failure";
+                transferErrorCode ??= DetermineErrorCode(lastSendMessage, "send_failed");
+                transferErrorMessage ??= string.IsNullOrWhiteSpace(lastSendMessage) ? "Send failed." : lastSendMessage;
+            }
+
+            AppLogger.RegisterTransferCompleted(
+                transferId,
+                transferResult,
+                lastSentBytes,
+                transferStopwatch.Elapsed.TotalMilliseconds,
+                transmitter?.TotalRetryCount ?? 0,
+                transferErrorCode,
+                transferErrorMessage);
+
             IsSending = false;
             ClosePort();
+            transmitter = null;
         }
     }
 
@@ -176,12 +292,42 @@ public sealed class TransferController : IDisposable
             throw new InvalidOperationException(GetLocalizedText("TransferAlreadyInProgress", "Transfer is already in progress."));
         }
 
+        var transferId = CreateTransferId();
+        var transferStopwatch = Stopwatch.StartNew();
+        var transferResult = "unknown";
+        string? transferErrorCode = null;
+        string? transferErrorMessage = null;
+
         var serialPort = OpenPort(portName, baudRate);
         receiveCancellationRequested = false;
         receiveStartedAtUtc = DateTime.UtcNow;
         lastReceivedBytes = 0;
+        lastReceiveStatus = 0;
+        lastReceiveMessage = string.Empty;
         receiveOutcomeMetricReported = false;
         IsReceiving = true;
+        using var transferScope = PushTransferLogContext(transferId, "Receive", portName, baudRate, timeoutSeconds);
+        AppLogger.RegisterTransferStarted(
+            transferId,
+            "receive",
+            portName,
+            baudRate,
+            timeoutSeconds,
+            fileCount: 0,
+            totalBytes: 0,
+            dataBlockMode: null,
+            use1KBlock0: null,
+            use1KFinalDataBlock: null,
+            saveFolder: saveFolder);
+        AppLogger.RecordTransferConfigSnapshot(
+            transferId,
+            "receive",
+            [
+                new KeyValuePair<string, object?>("port_name", portName),
+                new KeyValuePair<string, object?>("baud_rate", baudRate),
+                new KeyValuePair<string, object?>("timeout_seconds", timeoutSeconds),
+                new KeyValuePair<string, object?>("save_folder", saveFolder)
+            ]);
         AppMetrics.EmitTransferStart("receive", 0, 0);
 
         ReceiveProgressChanged?.Invoke(new ReceiveProgressSnapshot(
@@ -200,6 +346,13 @@ public sealed class TransferController : IDisposable
         {
             await Task.Run(() => receiver.StartReceiving());
         }
+        catch (Exception ex)
+        {
+            transferResult = "failure";
+            transferErrorCode = "exception";
+            transferErrorMessage = ex.Message;
+            throw;
+        }
         finally
         {
             if (!receiveOutcomeMetricReported)
@@ -207,15 +360,99 @@ public sealed class TransferController : IDisposable
                 EmitReceiveOutcomeMetric(receiveCancellationRequested ? "cancelled" : "unknown", lastReceivedBytes);
             }
 
+            if (lastReceiveStatus == 1
+                && receiver is not null)
+            {
+                var receivedFiles = receiver.CompletedFiles;
+                if (receivedFiles.Count == 0
+                    && receiver.saveFilePath is { } fallbackPath
+                    && File.Exists(fallbackPath))
+                {
+                    var fallbackActual = new FileInfo(fallbackPath).Length;
+                    var fallbackExpected = receiver.fileLength > 0 ? receiver.fileLength : fallbackActual;
+                    AppLogger.RecordFileValidation(
+                        transferId,
+                        0,
+                        "receive",
+                        receiver.saveFileName ?? Path.GetFileName(fallbackPath),
+                        fallbackPath,
+                        "received_file",
+                        isParsedPayload: false,
+                        fallbackExpected,
+                        fallbackActual,
+                        "SHA256",
+                        ComputeFileSha256(fallbackPath),
+                        fallbackExpected == fallbackActual,
+                        null,
+                        "Checksum captured after receive completion.");
+                }
+                else
+                {
+                    for (var i = 0; i < receivedFiles.Count; i++)
+                    {
+                        var receivedFile = receivedFiles[i];
+                        AppLogger.RecordFileValidation(
+                            transferId,
+                            i,
+                            "receive",
+                            receivedFile.FileName,
+                            receivedFile.FilePath,
+                            "received_file",
+                            isParsedPayload: false,
+                            receivedFile.ExpectedSize,
+                            receivedFile.ActualSize,
+                            "SHA256",
+                            ComputeFileSha256(receivedFile.FilePath),
+                            receivedFile.ExpectedSize == receivedFile.ActualSize,
+                            null,
+                            "Checksum captured after receive completion.");
+                    }
+                }
+            }
+
+            if (receiveCancellationRequested)
+            {
+                transferResult = "cancelled";
+                transferErrorCode ??= "user_cancelled";
+                transferErrorMessage ??= "Receive canceled by user.";
+            }
+            else if (lastReceiveStatus == 1)
+            {
+                transferResult = "success";
+            }
+            else if (transferResult != "failure")
+            {
+                transferResult = "failure";
+                transferErrorCode ??= DetermineErrorCode(lastReceiveMessage, "receive_failed");
+                transferErrorMessage ??= string.IsNullOrWhiteSpace(lastReceiveMessage) ? "Receive failed." : lastReceiveMessage;
+            }
+
+            AppLogger.RegisterTransferCompleted(
+                transferId,
+                transferResult,
+                lastReceivedBytes,
+                transferStopwatch.Elapsed.TotalMilliseconds,
+                receiver?.RetryCount ?? 0,
+                transferErrorCode,
+                transferErrorMessage);
+
             IsReceiving = false;
             ClosePort();
+            receiver = null;
         }
     }
 
     public void CancelSend()
     {
+        if (!IsSending)
+        {
+            return;
+        }
+
         sendCancellationRequested = true;
         transmitter?.StopTransmitting();
+        lastSendStatus = -1;
+        lastSendMessage = "Send canceled by user.";
         EmitSendOutcomeMetric("cancelled", lastSentBytes);
 
         SendProgressChanged?.Invoke(new SendProgressSnapshot(
@@ -229,8 +466,15 @@ public sealed class TransferController : IDisposable
 
     public void CancelReceive()
     {
+        if (!IsReceiving)
+        {
+            return;
+        }
+
         receiveCancellationRequested = true;
         receiver?.StopReceiving();
+        lastReceiveStatus = -1;
+        lastReceiveMessage = "Receive canceled by user.";
         EmitReceiveOutcomeMetric("cancelled", lastReceivedBytes);
 
         ReceiveProgressChanged?.Invoke(new ReceiveProgressSnapshot(
@@ -296,6 +540,8 @@ public sealed class TransferController : IDisposable
     private void OnSendProgress(long sentBytes, long totalBytes, long sentPackets, long totalPackets, long status, string message)
     {
         lastSentBytes = sentBytes;
+        lastSendStatus = status;
+        lastSendMessage = message;
         if (status == 1)
         {
             EmitSendOutcomeMetric("success", sentBytes);
@@ -322,6 +568,8 @@ public sealed class TransferController : IDisposable
     private void OnReceiveProgress(long receivedBytes, long totalBytes, long packetNo, long totalPacket, long status, string message, string fileName, string fileDate)
     {
         lastReceivedBytes = receivedBytes;
+        lastReceiveStatus = status;
+        lastReceiveMessage = message;
         if (status == 1)
         {
             EmitReceiveOutcomeMetric("success", receivedBytes);
@@ -546,6 +794,62 @@ public sealed class TransferController : IDisposable
         receiveOutcomeMetricReported = true;
         var elapsedMs = receiveStartedAtUtc == default ? 0 : Math.Max(0, (DateTime.UtcNow - receiveStartedAtUtc).TotalMilliseconds);
         AppMetrics.EmitTransferOutcome("receive", outcome, bytes, elapsedMs);
+    }
+
+    private static string CreateTransferId() => Guid.NewGuid().ToString("N");
+
+    private static IDisposable PushTransferLogContext(string transferId, string direction, string portName, int baudRate, int timeoutSeconds)
+    {
+        var scopes = new List<IDisposable>
+        {
+            LogContext.PushProperty("TransferId", transferId),
+            LogContext.PushProperty("TransferDirection", direction),
+            LogContext.PushProperty("PortName", portName),
+            LogContext.PushProperty("BaudRate", baudRate),
+            LogContext.PushProperty("TimeoutSeconds", timeoutSeconds)
+        };
+        return new CompositeScope(scopes);
+    }
+
+    private static string ComputePreparedFileSha256(PreparedSendFile file)
+    {
+        if (file.ParsedPayload is not null)
+        {
+            return Convert.ToHexString(SHA256.HashData(file.ParsedPayload));
+        }
+
+        return ComputeFileSha256(file.SourcePath);
+    }
+
+    private static string ComputeFileSha256(string filePath)
+    {
+        using var stream = File.OpenRead(filePath);
+        return Convert.ToHexString(SHA256.HashData(stream));
+    }
+
+    private static string DetermineErrorCode(string? message, string defaultCode)
+    {
+        if (string.IsNullOrWhiteSpace(message))
+        {
+            return defaultCode;
+        }
+
+        if (message.Contains("timeout", StringComparison.OrdinalIgnoreCase))
+        {
+            return "timeout";
+        }
+
+        if (message.Contains("cancel", StringComparison.OrdinalIgnoreCase))
+        {
+            return "cancelled";
+        }
+
+        if (message.Contains("retry", StringComparison.OrdinalIgnoreCase))
+        {
+            return "max_retry_exceeded";
+        }
+
+        return defaultCode;
     }
 
     public void Dispose()

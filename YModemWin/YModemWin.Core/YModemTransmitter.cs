@@ -27,6 +27,8 @@ public class YModemTransmitter
     private DateTime sessionStartedAt = DateTime.MinValue;
     private DateTime handshakeEstablishedAt = DateTime.MinValue;
 
+    public int TotalRetryCount { get; private set; }
+
     public YModemTransmitter(SerialPort sp, int timeoutSeconds, Action<long, long, long, long, long, string> action)
     {
         serialPort = sp;
@@ -136,6 +138,10 @@ public class YModemTransmitter
                             resendCount = sendPacket.Description.StartsWith("Resend", StringComparison.OrdinalIgnoreCase)
                                 ? resendCount + 1
                                 : 0;
+                            if (resendCount > 0)
+                            {
+                                TotalRetryCount++;
+                            }
 
                             if (resendCount > MaxRetryCount)
                             {
@@ -264,12 +270,23 @@ public class YModemTransmitter
         activeDataBlockSize = SelectDataBlockSize(options.Mode, currentFileSize);
         batchSender = new YModemBatchSender(options);
         packetEncoder = new YModemPacketEncoder(options);
-        Logger.Information(
-            "Initialized YMODEM sender with block mode {BlockMode}, Use1KBlock0={Use1KBlock0}, Use1KFinalDataBlock={Use1KFinalDataBlock}, estimated block size={BlockSize}",
-            options.Mode,
-            options.Use1KBlock0,
-            options.Use1KFinalDataBlock,
-            activeDataBlockSize);
+        TotalRetryCount = 0;
+        if (options.Mode == YModemBlockMode.Fixed1K)
+        {
+            Logger.Information(
+                "Initialized YMODEM sender with block mode {BlockMode}, Use1KBlock0={Use1KBlock0}, Use1KFinalDataBlock={Use1KFinalDataBlock}, estimated block size={BlockSize}",
+                options.Mode,
+                options.Use1KBlock0,
+                options.Use1KFinalDataBlock,
+                activeDataBlockSize);
+        }
+        else
+        {
+            Logger.Information(
+                "Initialized YMODEM sender with block mode {BlockMode}, Block0=auto, FinalDataBlock=auto, estimated block size={BlockSize}",
+                options.Mode,
+                activeDataBlockSize);
+        }
         if (sessionStartedAt == DateTime.MinValue)
         {
             sessionStartedAt = DateTime.Now;
@@ -335,6 +352,11 @@ public class YModemTransmitter
 
     private void SendCancelBurst()
     {
+        if (!serialPort.IsOpen)
+        {
+            return;
+        }
+
         try
         {
             var canBytes = Enumerable.Repeat(YModemControlBytes.Can, CancelBurstLength).ToArray();

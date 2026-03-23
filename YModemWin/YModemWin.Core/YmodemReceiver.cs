@@ -28,9 +28,12 @@ public class YModemReceiver
     public DateTime saveFileDate;
     public string? saveFilePath;
     public long fileLength;
+    public int RetryCount { get; private set; }
+    public IReadOnlyList<ReceivedFileSnapshot> CompletedFiles => completedFiles;
 
     private long expectedPackageNo;
     private long totalPackage;
+    private readonly List<ReceivedFileSnapshot> completedFiles = [];
 
     public YModemReceiver(SerialPort sp, int timeoutSeconds, string path, Action<long, long, long, long, long, string, string, string> action)
     {
@@ -55,6 +58,8 @@ public class YModemReceiver
         saveFileName = null;
         saveFilePath = null;
         saveFileDate = DateTime.MinValue;
+        RetryCount = 0;
+        completedFiles.Clear();
         isTransmissionComplete = false;
         sessionStartedAt = DateTime.Now;
         handshakeEstablishedAt = DateTime.MinValue;
@@ -89,6 +94,7 @@ public class YModemReceiver
                 {
                     status = -2;
                     isTransmissionComplete = true;
+                    TrackCompletedFileIfAny();
                     Logger.Information("Receiver canceled by user");
                     refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive canceled by user", saveFileName ?? string.Empty, FormatDate(saveFileDate));
                     break;
@@ -106,6 +112,7 @@ public class YModemReceiver
 
                     status = -1;
                     isTransmissionComplete = true;
+                    TrackCompletedFileIfAny();
                     Logger.Warning("Receiver timed out in phase {Phase}", snapshot.Phase);
                     refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, "Data receive timeout", saveFileName ?? string.Empty, FormatDate(saveFileDate));
                     break;
@@ -114,6 +121,7 @@ public class YModemReceiver
                 if (frame.Kind == FrameKind.Invalid)
                 {
                     Logger.Warning("Receiver got invalid frame, sending NAK");
+                    RetryCount++;
                     SendControl(YModemControlBytes.Nak);
                     continue;
                 }
@@ -127,6 +135,7 @@ public class YModemReceiver
                 catch (Exception ex)
                 {
                     Logger.Warning(ex, "Failed to decode incoming frame");
+                    RetryCount++;
                     SendControl(YModemControlBytes.Nak);
                     continue;
                 }
@@ -142,6 +151,7 @@ public class YModemReceiver
             Logger.Error(ex, "Unexpected receive failure");
             status = -1;
             isTransmissionComplete = true;
+            TrackCompletedFileIfAny();
             refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, ex.Message, saveFileName ?? string.Empty, FormatDate(saveFileDate));
         }
     }
@@ -152,6 +162,7 @@ public class YModemReceiver
         Logger.Information("Receive cancel requested by user");
         SendCancelBurst();
         status = -2;
+        TrackCompletedFileIfAny();
         refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, "Receive canceled by user", saveFileName ?? string.Empty, FormatDate(saveFileDate));
     }
 
@@ -184,6 +195,7 @@ public class YModemReceiver
                     var reject = receiver.Advance(new YModemEvent.DataBlockRejected());
                     snapshot = reject.Snapshot;
                     Logger.Warning("Receiver rejected data block #{BlockNumber}", deliverDataBlock.BlockNumber);
+                    RetryCount++;
                     EnqueueActions(reject.Actions, pendingActions);
                     return true;
                 }
@@ -215,6 +227,7 @@ public class YModemReceiver
             case YModemAction.Complete:
                 status = 1;
                 isTransmissionComplete = true;
+                TrackCompletedFileIfAny();
                 Logger.Information("Receive completed for {FileName}", saveFileName ?? "<unknown>");
                 var now = DateTime.Now;
                 var waitSeconds = GetHandshakeWaitSeconds(now);
@@ -234,6 +247,7 @@ public class YModemReceiver
             case YModemAction.Cancel cancel:
                 status = -1;
                 isTransmissionComplete = true;
+                TrackCompletedFileIfAny();
                 Logger.Warning("Receiver canceled by protocol: {Reason}", cancel.Reason);
                 refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, cancel.Reason, saveFileName ?? string.Empty, FormatDate(saveFileDate));
                 return false;
@@ -241,6 +255,7 @@ public class YModemReceiver
             case YModemAction.Fail fail:
                 status = -1;
                 isTransmissionComplete = true;
+                TrackCompletedFileIfAny();
                 Logger.Warning("Receiver failed by protocol: {Reason}", fail.Reason);
                 refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, fail.Reason, saveFileName ?? string.Empty, FormatDate(saveFileDate));
                 return false;
@@ -248,6 +263,7 @@ public class YModemReceiver
             default:
                 status = -1;
                 isTransmissionComplete = true;
+                TrackCompletedFileIfAny();
                 refreshReceiveUi?.Invoke(receivedLength, fileLength, expectedPackageNo, totalPackage, status, "Unsupported receive action", saveFileName ?? string.Empty, FormatDate(saveFileDate));
                 return false;
         }
@@ -255,6 +271,7 @@ public class YModemReceiver
 
     private void PrepareIncomingFile(YModemFileDescriptor file)
     {
+        TrackCompletedFileIfAny();
         var originalFileName = file.FileName;
         var normalizedFileName = NormalizeIncomingFileName(originalFileName);
         saveFileName = normalizedFileName;
@@ -281,6 +298,30 @@ public class YModemReceiver
         }
 
         Logger.Information("Incoming file size: {FileLength} bytes", fileLength);
+    }
+
+    private void TrackCompletedFileIfAny()
+    {
+        if (string.IsNullOrWhiteSpace(saveFilePath) || !File.Exists(saveFilePath))
+        {
+            return;
+        }
+
+        var actualSize = new FileInfo(saveFilePath).Length;
+        var exists = completedFiles.Any(file =>
+            string.Equals(file.FilePath, saveFilePath, StringComparison.OrdinalIgnoreCase)
+            && file.ActualSize == actualSize
+            && file.ExpectedSize == fileLength);
+        if (exists)
+        {
+            return;
+        }
+
+        completedFiles.Add(new ReceivedFileSnapshot(
+            FileName: saveFileName ?? Path.GetFileName(saveFilePath),
+            FilePath: saveFilePath,
+            ExpectedSize: fileLength,
+            ActualSize: actualSize));
     }
 
     private static string NormalizeIncomingFileName(string? rawFileName)
@@ -513,6 +554,11 @@ public class YModemReceiver
 
     private void SendCancelBurst()
     {
+        if (!serialPort.IsOpen)
+        {
+            return;
+        }
+
         try
         {
             var canBytes = Enumerable.Repeat(YModemControlBytes.Can, CancelBurstLength).ToArray();
@@ -568,6 +614,12 @@ public class YModemReceiver
         Cancelled,
         Invalid
     }
+
+    public sealed record ReceivedFileSnapshot(
+        string FileName,
+        string FilePath,
+        long ExpectedSize,
+        long ActualSize);
 
     private double GetHandshakeWaitSeconds(DateTime now)
     {
