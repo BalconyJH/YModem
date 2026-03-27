@@ -80,7 +80,8 @@ internal static class AppLogger
 
     public static void Initialize()
     {
-        var logDirectory = Path.Combine(AppContext.BaseDirectory, "logs");
+        var baseDirectory = GetApplicationBaseDirectory();
+        var logDirectory = Path.Combine(baseDirectory, "logs");
         Directory.CreateDirectory(logDirectory);
         var startupTag = DateTime.Now.ToString("yyyyMMdd-HHmmssfff", CultureInfo.InvariantCulture);
         var sqlitePath = Path.Combine(logDirectory, $"ymodem-{startupTag}.sqlite");
@@ -101,6 +102,14 @@ internal static class AppLogger
 
         sessionScope = LogContext.PushProperty(SessionIdProperty, sessionId);
         Log.Information("Logger initialized. SessionId={SessionId}, SQLite path: {SqlitePath}", sessionId, sqlitePath);
+    }
+
+    private static string GetApplicationBaseDirectory()
+    {
+        var processPath = Environment.ProcessPath;
+        if (string.IsNullOrWhiteSpace(processPath)) return AppContext.BaseDirectory;
+        var processDirectory = Path.GetDirectoryName(processPath);
+        return !string.IsNullOrWhiteSpace(processDirectory) ? processDirectory : AppContext.BaseDirectory;
     }
 
     public static void Shutdown()
