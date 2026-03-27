@@ -59,11 +59,12 @@ public partial class SendPage : UserControl
 
     private async void OnBrowseSendFileClick(object? sender, RoutedEventArgs e)
     {
-        AppMetrics.EmitButtonClick("browse_send_files", "/send");
-        if (sendFiles.Count > 0)
+        if (AppServices.TransferController.IsSending)
         {
             return;
         }
+
+        AppMetrics.EmitButtonClick("browse_send_files", "/send");
 
         var files = await PickFilesAsync();
         foreach (var path in files)
@@ -86,6 +87,12 @@ public partial class SendPage : UserControl
             catch (Exception ex)
             {
                 AppLogger.Error(ex, "Failed to prepare file {File}", path);
+                if (IsFirmwareFile(path))
+                {
+                    await ShowParseFailedDialogAsync(path, ex);
+                    continue;
+                }
+
                 ShowInfo(
                     string.Format(
                         CultureInfo.CurrentUICulture,
@@ -97,11 +104,54 @@ public partial class SendPage : UserControl
         }
     }
 
+    private async Task ShowParseFailedDialogAsync(string filePath, Exception exception)
+    {
+        var title = GetLocalizedText("ParseFileFailedTitle", "Firmware Parse Failed");
+        var messageFormat = GetLocalizedText(
+            "ParseFileFailedMessageFormat",
+            "Failed to parse firmware file \"{0}\".\n\nReason: {1}");
+
+        var message = string.Format(
+            CultureInfo.CurrentUICulture,
+            messageFormat,
+            Path.GetFileName(filePath),
+            exception.Message);
+
+        if (exception is InvalidDataException && exception.Message.Contains("No segments found", StringComparison.OrdinalIgnoreCase))
+        {
+            var hint = GetLocalizedText(
+                "ParseFileNoSegmentsHint",
+                "This S-Record appears to contain data records but lacks an S7/S8/S9 start-address record at the end (for example it ends with S5). The current parser cannot flush segments in that case.");
+            message = $"{message}\n\n{hint}";
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 560
+            },
+            CloseButtonText = GetLocalizedText("DialogOk", "OK"),
+            DefaultButton = ContentDialogButton.Close
+        };
+
+        var topLevel = TopLevel.GetTopLevel(this);
+        _ = topLevel switch
+        {
+            Window window => await dialog.ShowAsync(window),
+            not null => await dialog.ShowAsync(topLevel),
+            _ => await dialog.ShowAsync()
+        };
+    }
+
     private async Task<IReadOnlyList<string>> PickFilesAsync()
     {
         var files = await TopLevel.GetTopLevel(this)!.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            AllowMultiple = false,
+            AllowMultiple = true,
             Title = GetLocalizedText("SelectFilesTitle", "Select files")
         });
 
@@ -126,6 +176,11 @@ public partial class SendPage : UserControl
 
     private void OnDeleteSendFilesClick(object? sender, RoutedEventArgs e)
     {
+        if (AppServices.TransferController.IsSending)
+        {
+            return;
+        }
+
         AppMetrics.EmitButtonClick("remove_send_files", "/send");
         if (SendFilesListBox.SelectedItems is null || SendFilesListBox.SelectedItems.Count == 0)
         {
@@ -196,13 +251,25 @@ public partial class SendPage : UserControl
 
     private void UpdateSendStartButtonState()
     {
-        SendActionButton.Content = Properties.Resources.StartSend;
-        SendActionButton.IsEnabled = sendFiles.Count > 0;
-        SendActionButton.Classes.Remove("DangerActionButton");
-        AddFilesButton.IsEnabled = sendFiles.Count == 0;
+        var isSending = AppServices.TransferController.IsSending;
+        if (!isSending)
+        {
+            SendActionButton.Content = Properties.Resources.StartSend;
+            SendActionButton.Classes.Remove("DangerActionButton");
+            SendActionButton.IsEnabled = sendFiles.Count > 0;
+        }
+
+        UpdateFileQueueEditingState(isSending);
 
         // 仅在未选择文件时显示 ToolTip 提示
         ToolTip.SetTip(SendActionButton, sendFiles.Count == 0 ? Properties.Resources.SelectFilesFirst : null);
+    }
+
+    private void UpdateFileQueueEditingState(bool isSending)
+    {
+        AddFilesButton.IsEnabled = !isSending;
+        RemoveSelectedButton.IsEnabled = !isSending;
+        SendFilesListBox.IsEnabled = !isSending;
     }
 
     private void UpdateParsedFilesCheckBoxState()
@@ -458,6 +525,7 @@ public partial class SendPage : UserControl
     {
         SendActionButton.Content = Properties.Resources.Cancel;
         SendActionButton.IsEnabled = true;
+        UpdateFileQueueEditingState(true);
         if (!SendActionButton.Classes.Contains("DangerActionButton"))
         {
             SendActionButton.Classes.Add("DangerActionButton");
@@ -468,6 +536,7 @@ public partial class SendPage : UserControl
     {
         SendActionButton.Content = Properties.Resources.Cancelling;
         SendActionButton.IsEnabled = false;
+        UpdateFileQueueEditingState(true);
         if (!SendActionButton.Classes.Contains("DangerActionButton"))
         {
             SendActionButton.Classes.Add("DangerActionButton");

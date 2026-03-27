@@ -83,10 +83,19 @@ public sealed class TransferController : IDisposable
             throw new InvalidDataException($"No payload bytes found in {Path.GetFileName(sourcePath)}");
         }
 
-        AppLogger.Info("Prepared parsed payload for {FileName} via {Parser}. SegmentCount={SegmentCount}, PayloadSize={PayloadSize}",
-            Path.GetFileName(sourcePath), parserName, segments.Count, payload.Length);
+        AppLogger.Info(
+            "Prepared parsed payload for {FileName} via {Parser}. SegmentCount={SegmentCount}, PayloadSize={PayloadSize}",
+            Path.GetFileName(sourcePath),
+            parserName,
+            segments.Count,
+            payload.Length);
 
-        return PreparedSendFile.FromParsedData(sourcePath, payload, parserName, segments.Count);
+        return PreparedSendFile.FromParsedData(
+            sourcePath,
+            payload,
+            parserName,
+            segments.Count,
+            segments[0].StartAddress);
     }
 
     public async Task StartSendAsync(
