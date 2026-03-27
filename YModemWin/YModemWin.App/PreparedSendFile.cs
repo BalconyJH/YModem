@@ -12,13 +12,19 @@ public sealed record PreparedSendFile(
     public static PreparedSendFile FromRawFile(string path) =>
         new(path, Path.GetFileName(path), File.GetLastWriteTime(path), null, false, null, null);
 
-    public static PreparedSendFile FromParsedData(string sourcePath, byte[] payload, string parserName, int segmentCount)
+    public static PreparedSendFile FromParsedData(
+        string sourcePath,
+        byte[] payload,
+        string parserName,
+        int segmentCount,
+        ulong firstSegmentStartAddress)
     {
         var originalFileName = Path.GetFileName(sourcePath);
         var binFileName = Path.ChangeExtension(originalFileName, ".bin");
+        var displayName = $"[0x{firstSegmentStartAddress:X8}]{binFileName}";
         return new PreparedSendFile(
             sourcePath,
-            binFileName,
+            displayName,
             File.GetLastWriteTime(sourcePath),
             payload,
             true,
