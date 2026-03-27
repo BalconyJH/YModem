@@ -104,7 +104,7 @@ else
         "-p:PublishTrimmed=false",
         "-p:PublishSingleFile=true",
         "-p:IncludeNativeLibrariesForSelfExtract=true",
-        "-p:IncludeAllContentForSelfExtract=false"
+        "-p:IncludeAllContentForSelfExtract=true"
     )
     Write-Host "Publishing ReadyToRun (non-AOT, non-Trim) build to $OutputDir"
 }
